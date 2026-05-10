@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Avatar } from "@/components/avatar";
 import { I } from "@/components/icons";
+import { SummaryRow } from "@/components/summary-row";
 import { PosPaymentModal } from "@/components/pos-payment-modal";
 import {
   PosSizeBreakdownPicker,
@@ -421,11 +422,11 @@ export default function POSPage() {
         </div>
 
         <div style={{ borderTop: "1px solid var(--line)", padding: "14px 18px", background: "var(--surface-2)" }}>
-          <Row k="Subtotal" v={fmtMXN(subtotal)} />
-          <Row k="Descuento" v={fmtMXN(discount)} muted />
-          <Row k="IVA 16%" v={fmtMXN(tax)} />
+          <SummaryRow label="Subtotal" value={fmtMXN(subtotal)} />
+          <SummaryRow label="Descuento" value={fmtMXN(discount)} muted />
+          <SummaryRow label="IVA 16%" value={fmtMXN(tax)} />
           <div style={{ height: 1, background: "var(--line)", margin: "10px 0" }} />
-          <Row k="Total" v={fmtMXN(total)} big />
+          <SummaryRow label="Total" value={fmtMXN(total)} big />
 
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginTop: 12 }}>
             <button className="btn">{I.tag} Descuento</button>
@@ -481,21 +482,3 @@ export default function POSPage() {
   );
 }
 
-function Row({ k, v, muted, big }: { k: string; v: string; muted?: boolean; big?: boolean }) {
-  return (
-    <div
-      style={{
-        display: "flex",
-        alignItems: "center",
-        margin: "4px 0",
-        fontSize: big ? 16 : 13,
-        fontWeight: big ? 600 : 400,
-        color: muted ? "var(--muted)" : "var(--ink)",
-      }}
-    >
-      <span>{k}</span>
-      <div className="spacer" />
-      <span className="num">{v}</span>
-    </div>
-  );
-}
