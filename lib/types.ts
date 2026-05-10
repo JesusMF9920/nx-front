@@ -69,6 +69,60 @@ export type Client = {
 
 export type ClientFilter = "Todos" | "Frecuentes" | "Con crédito" | "Saldo pendiente";
 
+export type Supplier = {
+  id: string;
+  name: string;
+  service: string;
+  leadDays: number;
+  lastOrder: string;
+  reliability: number;
+};
+
+export type ProductSource = "Interno" | "Proveedor";
+
+export type VariantType = "none" | "size" | "preset" | "dimension" | "sizedFromMaterial";
+
+export type Variant = {
+  id: string;
+  label: string;
+  priceMod: number;
+  stock: number;
+};
+
+export type DimensionConfig = {
+  unit: "cm" | "m" | "pulgadas";
+  min: number;
+  max: number;
+  step: number;
+  priceMode: "area" | "linear" | "flat";
+};
+
+export type Product = {
+  id: string;
+  sku: string;
+  name: string;
+  category: string;
+  method: string;
+  source: ProductSource;
+  supplier?: string;
+  leadDays: number;
+  price: number;
+  cost: number;
+  stock: number;
+  unit: string;
+  needsApproval: boolean;
+  active: boolean;
+  variantType: VariantType;
+  variants?: Variant[];
+  dimensionConfig?: DimensionConfig;
+  sizedFromMaterial?: string;
+  sizeSurcharges?: Record<string, number>;
+};
+
+export type ProductFilter = "Todos" | "Internos" | "Proveedor" | "Bajo stock";
+
+export type ProductView = "list" | "grid";
+
 export type Approval = {
   id: string;
   order: string;
