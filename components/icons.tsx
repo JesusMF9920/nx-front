@@ -68,4 +68,7 @@ export const I = {
   filter:      <Icon d="M3 5h18l-7 9v6l-4-2v-4z" />,
   upload:      <Icon d={<><path d="M12 19V7" /><path d="m7 12 5-5 5 5" /><path d="M5 21h14" /></>} />,
   copy:        <Icon d={<><rect x="9" y="9" width="11" height="11" rx="2" /><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" /></>} />,
+  cash:        <Icon d={<><rect x="2" y="6" width="20" height="12" rx="2" /><circle cx="12" cy="12" r="3" /><path d="M5 9v.01M19 15v.01" /></>} />,
+  card:        <Icon d={<><rect x="2" y="6" width="20" height="12" rx="2" /><path d="M2 10h20" /></>} />,
+  link:        <Icon d={<><path d="M10 14a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-1 1" /><path d="M14 10a5 5 0 0 0-7 0l-3 3a5 5 0 0 0 7 7l1-1" /></>} />,
 };
