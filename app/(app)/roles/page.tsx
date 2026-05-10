@@ -35,7 +35,7 @@ export default function RolesPage() {
         }
       />
 
-      <div style={{ display: "grid", gridTemplateColumns: "280px 1fr", gap: 18, alignItems: "start" }}>
+      <div className="grid items-start gap-[18px]" style={{ gridTemplateColumns: "280px 1fr" }}>
         <div className="card">
           <div className="card__head">
             <div className="card__title">Roles</div>
@@ -45,41 +45,26 @@ export default function RolesPage() {
               <div
                 key={r.id}
                 onClick={() => setSelectedId(r.id)}
+                className="px-3.5 py-3 cursor-pointer"
                 style={{
-                  padding: "12px 14px",
                   borderTop: "1px solid var(--line)",
-                  cursor: "pointer",
                   background: selected.id === r.id ? "var(--accent-soft)" : "transparent",
                 }}
               >
-                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <div className="flex items-center gap-2">
                   <span
-                    style={{
-                      width: 8,
-                      height: 8,
-                      borderRadius: "50%",
-                      background: r.color,
-                      flexShrink: 0,
-                    }}
+                    className="rounded-full shrink-0"
+                    style={{ width: 8, height: 8, background: r.color }}
                   />
-                  <div style={{ fontWeight: 500, fontSize: 13 }}>{r.name}</div>
+                  <div className="font-medium text-[13px]">{r.name}</div>
                   {r.system && (
-                    <span className="tag" style={{ fontSize: 9 }}>
+                    <span className="tag text-[9px]">
                       {I.lock} sistema
                     </span>
                   )}
                 </div>
-                <div style={{ color: "var(--muted)", fontSize: 11, marginLeft: 16, marginTop: 2 }}>
-                  {r.desc}
-                </div>
-                <div
-                  style={{
-                    marginLeft: 16,
-                    marginTop: 4,
-                    fontSize: 11,
-                    color: "var(--muted)",
-                  }}
-                >
+                <div className="text-muted text-[11px] ml-4 mt-0.5">{r.desc}</div>
+                <div className="ml-4 mt-1 text-[11px] text-muted">
                   <span className="num">{r.users}</span> {r.users === 1 ? "usuario" : "usuarios"}
                 </div>
               </div>
@@ -91,7 +76,7 @@ export default function RolesPage() {
           <div className="card__head">
             <div>
               <div className="card__title">{selected.name}</div>
-              <div style={{ color: "var(--muted)", fontSize: 12 }}>{selected.desc}</div>
+              <div className="text-muted text-xs">{selected.desc}</div>
             </div>
             <div className="spacer" />
             {!selected.system && (
@@ -106,80 +91,45 @@ export default function RolesPage() {
 
           {isAdmin && (
             <div
-              style={{
-                padding: 16,
-                background: "var(--accent-soft)",
-                borderBottom: "1px solid var(--line)",
-                fontSize: 13,
-                display: "flex",
-                alignItems: "center",
-                gap: 8,
-                color: "var(--accent-ink)",
-              }}
+              className="p-4 text-[13px] flex items-center gap-2 text-accent-ink bg-accent-soft"
+              style={{ borderBottom: "1px solid var(--line)" }}
             >
               <span>{I.shield}</span>
               <span>Este rol tiene acceso total. Los permisos individuales no aplican.</span>
             </div>
           )}
 
-          <div style={{ padding: 8 }}>
+          <div className="p-2">
             {NEXUM_PERMISSIONS.map((grp) => {
               const granted = isAdmin
                 ? grp.items.length
                 : grp.items.filter((i) => selected.perms[i.id]).length;
               return (
                 <div key={grp.group} style={{ borderBottom: "1px solid var(--line)" }}>
-                  <div
-                    style={{
-                      padding: "10px 14px",
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 8,
-                      background: "var(--surface-2)",
-                    }}
-                  >
+                  <div className="px-3.5 py-2.5 flex items-center gap-2 bg-surface-2">
                     <div
-                      style={{
-                        fontSize: 11,
-                        textTransform: "uppercase",
-                        letterSpacing: ".06em",
-                        color: "var(--muted)",
-                        fontWeight: 500,
-                      }}
+                      className="text-[11px] uppercase text-muted font-medium"
+                      style={{ letterSpacing: ".06em" }}
                     >
                       {grp.group}
                     </div>
                     <div className="spacer" />
-                    <span className="tag" style={{ fontSize: 10 }}>
+                    <span className="tag text-[10px]">
                       {granted}/{grp.items.length}
                     </span>
                   </div>
                   {grp.items.map((p) => {
                     const has = isAdmin || !!selected.perms[p.id];
                     return (
-                      <div
-                        key={p.id}
-                        style={{
-                          display: "flex",
-                          alignItems: "center",
-                          gap: 10,
-                          padding: "8px 14px",
-                          fontSize: 13,
-                        }}
-                      >
+                      <div key={p.id} className="flex items-center gap-2.5 px-3.5 py-2 text-[13px]">
                         <input type="checkbox" checked={has} disabled={selected.system} readOnly />
-                        <span style={{ flex: 1, color: has ? "var(--ink)" : "var(--muted)" }}>
+                        <span
+                          className="flex-1"
+                          style={{ color: has ? "var(--ink)" : "var(--muted)" }}
+                        >
                           {p.label}
                         </span>
-                        <span
-                          style={{
-                            fontFamily: "var(--font-mono)",
-                            fontSize: 10,
-                            color: "var(--muted-2)",
-                          }}
-                        >
-                          {p.id}
-                        </span>
+                        <span className="font-mono text-[10px] text-muted-2">{p.id}</span>
                       </div>
                     );
                   })}

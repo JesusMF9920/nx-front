@@ -63,8 +63,8 @@ export default function QuotesPage() {
       />
 
       <div className="card">
-        <div className="card__head" style={{ gap: 8 }}>
-          <div className="topbar__search" style={{ margin: 0, width: 260 }}>
+        <div className="card__head gap-2">
+          <div className="topbar__search m-0" style={{ width: 260 }}>
             {I.search}
             <input
               placeholder="Buscar folio o cliente"
@@ -72,7 +72,7 @@ export default function QuotesPage() {
               onChange={(e) => setSearch(e.target.value)}
             />
           </div>
-          <div className="row" style={{ gap: 4 }}>
+          <div className="row gap-1">
             {TABS.map((t) => (
               <button
                 key={t}
@@ -92,8 +92,8 @@ export default function QuotesPage() {
               <th>Fecha</th>
               <th>Vendedor</th>
               <th>Canal</th>
-              <th style={{ textAlign: "right" }}>Items</th>
-              <th style={{ textAlign: "right" }}>Total</th>
+              <th className="text-right">Items</th>
+              <th className="text-right">Total</th>
               <th>Vigencia</th>
               <th>Estado</th>
               <th></th>
@@ -120,28 +120,28 @@ function QuoteRow({ q }: { q: Quote }) {
 
   return (
     <tr>
-      <td className="num" style={{ fontWeight: 500 }}>{q.id}</td>
+      <td className="num font-medium">{q.id}</td>
       <td>{q.client}</td>
-      <td className="num" style={{ fontSize: 12, color: "var(--muted)" }}>{q.date}</td>
-      <td style={{ fontSize: 12 }}>{q.seller}</td>
-      <td><span className="tag" style={{ fontSize: 10 }}>{q.channel}</span></td>
-      <td className="num" style={{ textAlign: "right" }}>{q.items}</td>
-      <td className="num" style={{ textAlign: "right", fontWeight: 600 }}>{fmtMXN(q.total)}</td>
+      <td className="num text-xs text-muted">{q.date}</td>
+      <td className="text-xs">{q.seller}</td>
+      <td><span className="tag text-[10px]">{q.channel}</span></td>
+      <td className="num text-right">{q.items}</td>
+      <td className="num text-right font-semibold">{fmtMXN(q.total)}</td>
       <td
+        className="text-[11px]"
         style={{
-          fontSize: 11,
           color: daysLeft < 0 ? "var(--danger)" : daysLeft < 3 ? "var(--warn)" : "var(--muted)",
         }}
       >
         {q.validUntil}
         {showCountdown && (
-          <div style={{ fontSize: 10 }}>
+          <div className="text-[10px]">
             {daysLeft < 0 ? `Vencida hace ${-daysLeft}d` : `${daysLeft}d restantes`}
           </div>
         )}
       </td>
       <td><QuoteStatusPill s={q.status} /></td>
-      <td style={{ textAlign: "right", whiteSpace: "nowrap" }}>
+      <td className="text-right whitespace-nowrap">
         {q.status === "Aprobada" && (
           <Link href="/pos" className="btn btn--sm btn--primary">
             → Convertir
@@ -150,8 +150,7 @@ function QuoteRow({ q }: { q: Quote }) {
         {q.status === "Convertida" && orderRef && (
           <Link
             href={`/orders/${orderRef}`}
-            className="num"
-            style={{ fontSize: 11, color: "var(--accent-ink)" }}
+            className="num text-[11px] text-accent-ink"
           >
             {orderRef}
           </Link>

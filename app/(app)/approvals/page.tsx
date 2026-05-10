@@ -53,16 +53,16 @@ export default function ApprovalsPage() {
         }
       />
 
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1.4fr", gap: 20 }}>
+      <div className="grid gap-5" style={{ gridTemplateColumns: "1fr 1.4fr" }}>
         <div className="card">
-          <div className="card__head" style={{ gap: 4 }}>
+          <div className="card__head gap-1">
             {TABS.map((t) => (
               <button
                 key={t}
                 className={`btn btn--sm ${tab === t ? "btn--primary" : "btn--ghost"}`}
                 onClick={() => setTab(t)}
               >
-                {t} <span style={{ opacity: 0.6, marginLeft: 4 }}>{counts[t]}</span>
+                {t} <span className="ml-1 opacity-60">{counts[t]}</span>
               </button>
             ))}
             <div className="spacer" />
@@ -71,7 +71,7 @@ export default function ApprovalsPage() {
 
           <div style={{ borderTop: "1px solid var(--line)" }}>
             {filtered.length === 0 && (
-              <div className="empty" style={{ margin: 16, padding: 24 }}>
+              <div className="empty m-4 p-6">
                 Sin aprobaciones en esta categoría.
               </div>
             )}
@@ -81,30 +81,30 @@ export default function ApprovalsPage() {
                 <div
                   key={a.id}
                   onClick={() => setSelectedId(a.id)}
+                  className="flex gap-3 px-4 py-3.5 cursor-pointer"
                   style={{
-                    display: "flex",
-                    gap: 12,
-                    padding: "14px 16px",
                     borderBottom: "1px solid var(--line)",
-                    cursor: "pointer",
                     background: active ? "var(--surface-2)" : "transparent",
                     borderLeft: active ? "2px solid var(--accent)" : "2px solid transparent",
                   }}
                 >
-                  <div className="skeleton-img" style={{ width: 64, height: 64, fontSize: 10, flexShrink: 0 }}>
+                  <div
+                    className="skeleton-img text-[10px] shrink-0"
+                    style={{ width: 64, height: 64 }}
+                  >
                     v{a.version}
                   </div>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                      <span className="num" style={{ fontSize: 11, color: "var(--muted)" }}>{a.id}</span>
-                      <span style={{ color: "var(--muted)" }}>·</span>
-                      <span className="num" style={{ fontSize: 11, color: "var(--muted)" }}>{a.order}</span>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-1.5">
+                      <span className="num text-[11px] text-muted">{a.id}</span>
+                      <span className="text-muted">·</span>
+                      <span className="num text-[11px] text-muted">{a.order}</span>
                     </div>
-                    <div style={{ fontWeight: 500, fontSize: 13, marginTop: 2 }}>{a.product}</div>
-                    <div style={{ color: "var(--muted)", fontSize: 12 }}>{a.client}</div>
-                    <div style={{ display: "flex", gap: 6, marginTop: 6, alignItems: "center", flexWrap: "wrap" }}>
+                    <div className="font-medium text-[13px] mt-0.5">{a.product}</div>
+                    <div className="text-muted text-xs">{a.client}</div>
+                    <div className="flex gap-1.5 mt-1.5 items-center flex-wrap">
                       <ApprovalPill s={a.status} />
-                      <span className="tag" style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
+                      <span className="tag inline-flex items-center gap-1">
                         {a.channel === "WhatsApp" ? I.whatsapp : I.link}
                         {a.channel}
                       </span>
