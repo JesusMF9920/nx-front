@@ -1,0 +1,71 @@
+import type { RoleDefinition } from "./types";
+
+export const NEXUM_ROLE_DEFINITIONS: RoleDefinition[] = [
+  {
+    id: "admin",
+    name: "Administrador",
+    color: "var(--danger)",
+    desc: "Acceso total al sistema",
+    users: 2,
+    system: true,
+    perms: { all: true },
+  },
+  {
+    id: "manager",
+    name: "Gerente",
+    color: "var(--info)",
+    desc: "Operación + reportes",
+    users: 1,
+    system: false,
+    perms: {
+      "sales.pos": 1, "sales.discount": 1, "sales.discount_high": 1, "sales.credit": 1,
+      "sales.refund": 1, "sales.cancel": 1,
+      "quote.view": 1, "quote.create": 1, "quote.approve": 1,
+      "prod.schedule": 1,
+      "inv.view": 1, "inv.entry": 1, "inv.adjust": 1,
+      "buy.view": 1, "buy.create": 1, "buy.approve": 1, "buy.receive": 1,
+      "cat.product": 1, "cat.price": 1, "cat.supplier": 1, "cat.client": 1,
+      "sys.reports": 1,
+    },
+  },
+  {
+    id: "cashier",
+    name: "Cajero",
+    color: "var(--ok)",
+    desc: "Sólo Punto de Venta",
+    users: 3,
+    system: false,
+    perms: {
+      "sales.pos": 1, "sales.discount": 1,
+      "quote.view": 1, "quote.create": 1,
+      "cat.client": 1,
+      "inv.view": 1,
+    },
+  },
+  {
+    id: "designer",
+    name: "Diseñador",
+    color: "var(--accent)",
+    desc: "Producción y aprobaciones",
+    users: 2,
+    system: false,
+    perms: {
+      "prod.approve": 1, "prod.send": 1, "prod.schedule": 1,
+      "inv.view": 1,
+      "quote.view": 1,
+    },
+  },
+  {
+    id: "buyer",
+    name: "Comprador",
+    color: "var(--supplier)",
+    desc: "Inventario y proveedores",
+    users: 1,
+    system: false,
+    perms: {
+      "inv.view": 1, "inv.entry": 1, "inv.adjust": 1, "inv.recipe": 1,
+      "buy.view": 1, "buy.create": 1, "buy.approve": 1, "buy.receive": 1,
+      "cat.supplier": 1,
+    },
+  },
+];

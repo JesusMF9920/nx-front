@@ -173,6 +173,66 @@ export type StockMove = {
   user: string;
 };
 
+export type PermissionItem = {
+  id: string;
+  label: string;
+};
+
+export type PermissionGroup = {
+  group: string;
+  items: PermissionItem[];
+};
+
+export type RoleDefinition = {
+  id: string;
+  name: string;
+  color: string;
+  desc: string;
+  users: number;
+  system: boolean;
+  perms: { all: true } | Record<string, 1>;
+};
+
+export type QuoteStatus = "Enviada" | "Aprobada" | "Convertida" | "Rechazada" | "Vencida" | "Borrador";
+
+export type QuoteChannel = "WhatsApp" | "Correo" | "Link" | "Presencial";
+
+export type Quote = {
+  id: string;
+  date: string;
+  client: string;
+  items: number;
+  total: number;
+  status: QuoteStatus;
+  validUntil: string;
+  seller: string;
+  notes: string;
+  channel: QuoteChannel;
+};
+
+export type PurchaseStatus = "Borrador" | "Enviada" | "Recibida parcial" | "Recibida" | "Cancelada";
+
+export type PurchaseLine = {
+  materialId: string | null;
+  name?: string;
+  qty: number;
+  cost: number;
+  received?: number;
+};
+
+export type Purchase = {
+  id: string;
+  date: string;
+  supplier: string;
+  items: number;
+  total: number;
+  status: PurchaseStatus;
+  expected: string;
+  buyer: string;
+  forOrder?: string;
+  lines: PurchaseLine[];
+};
+
 export type CartLine = {
   lineId: string;
   id: string;
