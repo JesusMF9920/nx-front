@@ -160,6 +160,19 @@ export type SizeBreakdownEntry = {
 
 export type PaymentMethod = "Efectivo" | "Terminal" | "Mixto" | "Crédito";
 
+export type StockMoveType = "entrada" | "salida" | "ajuste";
+
+export type StockMove = {
+  id: string;
+  date: string;
+  type: StockMoveType;
+  materialId: string;
+  qty: number;
+  ref: string;
+  note: string;
+  user: string;
+};
+
 export type CartLine = {
   lineId: string;
   id: string;
