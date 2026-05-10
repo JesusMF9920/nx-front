@@ -190,7 +190,7 @@ export type RoleDefinition = {
   desc: string;
   users: number;
   system: boolean;
-  perms: { all: true } | Record<string, 1>;
+  perms: { all?: true; [permissionId: string]: 1 | true | undefined };
 };
 
 export type QuoteStatus = "Enviada" | "Aprobada" | "Convertida" | "Rechazada" | "Vencida" | "Borrador";
