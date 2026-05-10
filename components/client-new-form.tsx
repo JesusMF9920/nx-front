@@ -1,9 +1,9 @@
 export function ClientNewForm() {
   return (
-    <div className="grid" style={{ gridTemplateColumns: "1fr 1fr", gap: 14 }}>
-      <div className="field" style={{ gridColumn: "1/-1" }}>
+    <div className="grid grid-cols-2 gap-3.5">
+      <div className="field col-span-full">
         <span className="label">Tipo</span>
-        <div style={{ display: "flex", gap: 6 }}>
+        <div className="flex gap-1.5">
           <button type="button" className="btn btn--primary btn--sm">Negocio</button>
           <button type="button" className="btn btn--sm">Persona física</button>
         </div>
@@ -35,13 +35,13 @@ export function ClientNewForm() {
           <option>612 — Persona física</option>
         </select>
       </div>
-      <div className="field" style={{ gridColumn: "1/-1" }}>
+      <div className="field col-span-full">
         <span className="label">Notas internas</span>
         <textarea className="textarea" rows={3} placeholder="Preferencias, restricciones, contactos secundarios…" />
       </div>
-      <div className="field" style={{ gridColumn: "1/-1" }}>
+      <div className="field col-span-full">
         <span className="label">Etiquetas</span>
-        <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+        <div className="flex gap-1.5 flex-wrap">
           {["Frecuente", "Mayoreo", "Crédito 15", "Crédito 30", "VIP", "Sin facturación"].map((t) => (
             <button type="button" key={t} className="btn btn--sm">{t}</button>
           ))}

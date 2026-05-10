@@ -8,9 +8,9 @@ type KvProps = {
 
 export function Kv({ k, v, mono }: KvProps) {
   return (
-    <div style={{ display: "flex", justifyContent: "space-between", gap: 16, fontSize: 13 }}>
-      <span style={{ color: "var(--muted)" }}>{k}</span>
-      <span style={{ fontFamily: mono ? "var(--font-mono)" : "inherit", textAlign: "right" }}>{v}</span>
+    <div className="flex justify-between gap-4 text-[13px]">
+      <span className="text-muted">{k}</span>
+      <span className={`text-right ${mono ? "font-mono" : ""}`}>{v}</span>
     </div>
   );
 }

@@ -14,41 +14,23 @@ export function CalendarEvent({ ev }: { ev: Delivery }) {
   return (
     <Link
       href={`/orders/${ev.id}`}
+      className="block cursor-pointer text-xs no-underline text-inherit"
       style={{
         background: bg,
         borderLeft: `3px solid ${fg}`,
         padding: "6px 8px",
         borderRadius: 4,
-        cursor: "pointer",
-        fontSize: 12,
-        textDecoration: "none",
-        color: "inherit",
-        display: "block",
       }}
     >
       <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 4,
-          color: fg,
-          fontWeight: 600,
-          fontFamily: "var(--font-mono)",
-        }}
+        className="flex items-center gap-1 font-semibold font-mono"
+        style={{ color: fg }}
       >
         {ev.time}
-        {ev.supplier && <span style={{ marginLeft: "auto", fontSize: 9 }}>PROV</span>}
+        {ev.supplier && <span className="ml-auto text-[9px]">PROV</span>}
       </div>
-      <div style={{ fontWeight: 500, color: "var(--ink)" }}>{ev.client}</div>
-      <div
-        style={{
-          color: "var(--muted)",
-          fontSize: 11,
-          whiteSpace: "nowrap",
-          overflow: "hidden",
-          textOverflow: "ellipsis",
-        }}
-      >
+      <div className="font-medium text-ink">{ev.client}</div>
+      <div className="text-muted text-[11px] whitespace-nowrap overflow-hidden text-ellipsis">
         {ev.id} · {ev.items}
       </div>
     </Link>

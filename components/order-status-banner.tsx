@@ -16,8 +16,8 @@ export function OrderStatusBanner({ status }: { status: OrderStatus }) {
   const currentIdx = STATUS_TO_STEP[status];
   return (
     <div
-      className="card"
-      style={{ display: "grid", gridTemplateColumns: `repeat(${STAGES.length}, 1fr)`, padding: 0 }}
+      className="card grid p-0"
+      style={{ gridTemplateColumns: `repeat(${STAGES.length}, 1fr)` }}
     >
       {STAGES.map((name, i) => {
         const done = i < currentIdx;
@@ -25,32 +25,19 @@ export function OrderStatusBanner({ status }: { status: OrderStatus }) {
         return (
           <div
             key={name}
+            className="px-4 py-3.5"
             style={{
-              padding: "14px 16px",
               borderRight: i < STAGES.length - 1 ? "1px solid var(--line)" : "0",
               background: current ? "var(--accent-soft)" : "var(--surface)",
             }}
           >
-            <div
-              style={{
-                fontSize: 11,
-                color: "var(--muted)",
-                display: "flex",
-                alignItems: "center",
-                gap: 6,
-              }}
-            >
+            <div className="text-[11px] text-muted flex items-center gap-1.5">
               <span
+                className="rounded-full grid place-items-center text-white text-[10px] font-semibold"
                 style={{
                   width: 18,
                   height: 18,
-                  borderRadius: "50%",
                   background: done ? "var(--ok)" : current ? "var(--accent)" : "var(--surface-3)",
-                  color: "white",
-                  fontSize: 10,
-                  fontWeight: 600,
-                  display: "grid",
-                  placeItems: "center",
                 }}
               >
                 {done ? "✓" : i + 1}
@@ -58,9 +45,8 @@ export function OrderStatusBanner({ status }: { status: OrderStatus }) {
               Etapa {i + 1}
             </div>
             <div
+              className="font-semibold mt-1"
               style={{
-                fontWeight: 600,
-                marginTop: 4,
                 color: current ? "var(--accent-ink)" : done ? "var(--ink)" : "var(--muted)",
               }}
             >
