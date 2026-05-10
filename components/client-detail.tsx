@@ -10,18 +10,20 @@ import type { Client } from "@/lib/types";
 export function ClientDetail({ client }: { client: Client }) {
   const orders = NEXUM_ORDERS.filter((o) => o.clientId === client.id);
   return (
-    <div className="card" style={{ alignSelf: "start" }}>
-      <div className="card__body" style={{ paddingBottom: 0 }}>
-        <div style={{ display: "flex", gap: 14, alignItems: "flex-start" }}>
+    <div className="card self-start">
+      <div className="card__body pb-0">
+        <div className="flex gap-3.5 items-start">
           <Avatar name={client.name} size={48} />
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontSize: 18, fontWeight: 600, letterSpacing: "-.01em" }}>{client.name}</div>
-            <div style={{ color: "var(--muted)", fontSize: 12 }}>
+          <div className="flex-1 min-w-0">
+            <div className="text-lg font-semibold" style={{ letterSpacing: "-.01em" }}>
+              {client.name}
+            </div>
+            <div className="text-muted text-xs">
               {client.type} · cliente desde {fmtDate("2024-08-12")}
             </div>
-            <div style={{ marginTop: 8, display: "flex", gap: 6, flexWrap: "wrap" }}>
+            <div className="mt-2 flex gap-1.5 flex-wrap">
               {client.tags.length === 0 ? (
-                <span className="tag" style={{ color: "var(--muted-2)" }}>sin etiquetas</span>
+                <span className="tag text-muted-2">sin etiquetas</span>
               ) : (
                 client.tags.map((t) => (
                   <span key={t} className="tag">{t}</span>
@@ -34,7 +36,7 @@ export function ClientDetail({ client }: { client: Client }) {
 
         <div className="divider" style={{ margin: "16px 0 12px" }} />
 
-        <div className="grid" style={{ gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+        <div className="grid grid-cols-2 gap-3">
           <DetailKV icon={I.phone} label="Teléfono" v={client.phone} />
           <DetailKV icon={I.mail}  label="Correo"   v={client.email} />
           <DetailKV icon={I.tag}   label="RFC"      v={client.rfc} />
@@ -42,9 +44,9 @@ export function ClientDetail({ client }: { client: Client }) {
         </div>
       </div>
 
-      <div className="divider" style={{ margin: 0 }} />
+      <div className="divider m-0" />
 
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", textAlign: "center" }}>
+      <div className="grid grid-cols-3 text-center">
         <Mini label="Pedidos" v={client.orders} />
         <Mini label="Total histórico" v={fmtMXN(client.orders * 1820)} />
         <Mini
@@ -54,9 +56,9 @@ export function ClientDetail({ client }: { client: Client }) {
         />
       </div>
 
-      <div className="divider" style={{ margin: 0 }} />
+      <div className="divider m-0" />
 
-      <div style={{ padding: "12px 16px", display: "flex", gap: 8, flexWrap: "wrap" }}>
+      <div className="px-4 py-3 flex gap-2 flex-wrap">
         <Link href="/pos" className="btn btn--accent btn--sm">
           {I.plus} Nueva venta
         </Link>
@@ -75,7 +77,7 @@ export function ClientDetail({ client }: { client: Client }) {
           {orders.length === 0 && (
             <tr>
               <td colSpan={3}>
-                <div className="empty" style={{ border: 0, padding: 18 }}>Sin pedidos.</div>
+                <div className="empty border-0 p-4">Sin pedidos.</div>
               </td>
             </tr>
           )}
@@ -83,7 +85,7 @@ export function ClientDetail({ client }: { client: Client }) {
             <tr key={o.id}>
               <td className="num">{o.id}</td>
               <td><StatusPill s={o.status} /></td>
-              <td className="num" style={{ textAlign: "right" }}>{fmtMXN(o.total)}</td>
+              <td className="num text-right">{fmtMXN(o.total)}</td>
             </tr>
           ))}
         </tbody>
@@ -94,10 +96,10 @@ export function ClientDetail({ client }: { client: Client }) {
 
 function DetailKV({ icon, label, v }: { icon: ReactNode; label: string; v: ReactNode }) {
   return (
-    <div style={{ display: "flex", gap: 9, alignItems: "flex-start", fontSize: 13 }}>
-      <span style={{ color: "var(--muted)", marginTop: 2 }}>{icon}</span>
+    <div className="flex gap-2 items-start text-[13px]">
+      <span className="text-muted mt-0.5">{icon}</span>
       <div>
-        <div style={{ color: "var(--muted)", fontSize: 11 }}>{label}</div>
+        <div className="text-muted text-[11px]">{label}</div>
         <div>{v}</div>
       </div>
     </div>
@@ -106,12 +108,11 @@ function DetailKV({ icon, label, v }: { icon: ReactNode; label: string; v: React
 
 function Mini({ label, v, tone }: { label: string; v: ReactNode; tone?: "danger" }) {
   return (
-    <div style={{ padding: "12px 8px" }}>
-      <div style={{ color: "var(--muted)", fontSize: 11 }}>{label}</div>
+    <div className="px-2 py-3">
+      <div className="text-muted text-[11px]">{label}</div>
       <div
+        className="text-lg font-semibold"
         style={{
-          fontSize: 18,
-          fontWeight: 600,
           fontVariantNumeric: "tabular-nums",
           color: tone === "danger" ? "var(--danger)" : "var(--ink)",
         }}

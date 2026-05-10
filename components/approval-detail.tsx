@@ -20,13 +20,13 @@ export function ApprovalDetail({ item }: { item: Approval }) {
   const [activeV, setActiveV] = useState(item.version);
 
   return (
-    <div className="card" style={{ alignSelf: "start" }}>
+    <div className="card self-start">
       <div className="card__head">
         <div>
           <div className="card__title">{item.product}</div>
           <div className="card__sub">
             <span className="num">{item.id}</span> ·{" "}
-            <span className="num" style={{ color: "var(--accent-ink)" }}>{item.order}</span> · {item.client}
+            <span className="num text-accent-ink">{item.order}</span> · {item.client}
           </div>
         </div>
         <div className="spacer" />
@@ -34,13 +34,15 @@ export function ApprovalDetail({ item }: { item: Approval }) {
         <button className="icon-btn" aria-label="Más acciones">{I.more}</button>
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 220px" }}>
-        <div style={{ padding: 20, background: "var(--surface-2)", borderRight: "1px solid var(--line)" }}>
+      <div className="grid" style={{ gridTemplateColumns: "1fr 220px" }}>
+        <div
+          className="p-5 bg-surface-2"
+          style={{ borderRight: "1px solid var(--line)" }}
+        >
           <div
-            className="skeleton-img"
+            className="skeleton-img text-xs"
             style={{
               height: 320,
-              fontSize: 12,
               background: `radial-gradient(circle at 30% 30%, rgba(61,61,240,.18), transparent 50%),
                            repeating-linear-gradient(135deg, var(--surface), var(--surface) 12px, var(--surface-3) 12px, var(--surface-3) 24px)`,
             }}
@@ -48,7 +50,7 @@ export function ApprovalDetail({ item }: { item: Approval }) {
             preview · {item.product.toLowerCase()} · v{activeV}
           </div>
 
-          <div style={{ display: "flex", marginTop: 12, alignItems: "center", gap: 8 }}>
+          <div className="flex mt-3 items-center gap-2">
             <button
               className="icon-btn"
               aria-label="Versión anterior"
@@ -57,7 +59,7 @@ export function ApprovalDetail({ item }: { item: Approval }) {
             >
               {I.chevronLeft}
             </button>
-            <div style={{ fontSize: 12, color: "var(--muted)", fontFamily: "var(--font-mono)" }}>
+            <div className="text-xs text-muted font-mono">
               v{activeV} / v{item.version}
             </div>
             <button
@@ -74,14 +76,11 @@ export function ApprovalDetail({ item }: { item: Approval }) {
           </div>
         </div>
 
-        <div style={{ display: "flex", flexDirection: "column" }}>
+        <div className="flex flex-col">
           <div
+            className="px-3.5 py-2.5 text-[11px] text-muted uppercase"
             style={{
-              padding: "10px 14px",
               borderBottom: "1px solid var(--line)",
-              fontSize: 11,
-              color: "var(--muted)",
-              textTransform: "uppercase",
               letterSpacing: ".06em",
             }}
           >
@@ -91,46 +90,34 @@ export function ApprovalDetail({ item }: { item: Approval }) {
             <div
               key={v.n}
               onClick={() => setActiveV(v.n)}
+              className="px-3.5 py-2.5 cursor-pointer flex gap-2.5 items-center"
               style={{
-                padding: "10px 14px",
                 borderBottom: "1px solid var(--line)",
-                cursor: "pointer",
-                display: "flex",
-                gap: 10,
-                alignItems: "center",
                 background: activeV === v.n ? "var(--surface-2)" : "transparent",
               }}
             >
-              <div className="skeleton-img" style={{ width: 36, height: 36, fontSize: 9, flexShrink: 0 }}>
+              <div className="skeleton-img text-[9px] shrink-0" style={{ width: 36, height: 36 }}>
                 v{v.n}
               </div>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: 12, fontWeight: 500 }}>
+              <div className="flex-1 min-w-0">
+                <div className="text-xs font-medium">
                   v{v.n} · {fmtDate(v.date)}
                 </div>
-                <div
-                  style={{
-                    color: "var(--muted)",
-                    fontSize: 11,
-                    whiteSpace: "nowrap",
-                    overflow: "hidden",
-                    textOverflow: "ellipsis",
-                  }}
-                >
+                <div className="text-muted text-[11px] whitespace-nowrap overflow-hidden text-ellipsis">
                   {v.note}
                 </div>
               </div>
             </div>
           ))}
-          <button className="btn btn--ghost btn--sm" style={{ margin: 10 }}>
+          <button className="btn btn--ghost btn--sm m-2.5">
             {I.upload} Subir nueva versión
           </button>
         </div>
       </div>
 
-      <div className="divider" style={{ margin: 0 }} />
-      <div style={{ padding: 16 }}>
-        <div style={{ fontWeight: 500, fontSize: 13, marginBottom: 10 }}>Conversación</div>
+      <div className="divider m-0" />
+      <div className="p-4">
+        <div className="font-medium text-[13px] mb-2.5">Conversación</div>
 
         <CommentRow
           author="Sistema"
@@ -155,21 +142,15 @@ export function ApprovalDetail({ item }: { item: Approval }) {
         )}
 
         <div
-          style={{
-            marginTop: 14,
-            padding: 10,
-            border: "1px solid var(--line)",
-            borderRadius: "var(--r-md)",
-            background: "var(--surface-2)",
-          }}
+          className="mt-3.5 p-2.5 border border-line rounded-md bg-surface-2"
         >
           <textarea
-            className="textarea"
+            className="textarea w-full p-0 bg-transparent"
             rows={2}
             placeholder="Escribe una nota interna o respuesta al cliente…"
-            style={{ background: "transparent", border: 0, padding: 0, width: "100%" }}
+            style={{ border: 0 }}
           />
-          <div style={{ display: "flex", gap: 6, marginTop: 8, alignItems: "center" }}>
+          <div className="flex gap-1.5 mt-2 items-center">
             <span className="tag">@cliente</span>
             <span className="tag">Adjuntar</span>
             <div className="spacer" />
@@ -180,18 +161,9 @@ export function ApprovalDetail({ item }: { item: Approval }) {
 
         {item.status !== "Aprobado" && (
           <div
-            style={{
-              marginTop: 16,
-              padding: "12px 14px",
-              border: "1px solid var(--line)",
-              borderRadius: "var(--r-md)",
-              background: "var(--accent-soft)",
-              display: "flex",
-              alignItems: "center",
-              gap: 10,
-            }}
+            className="mt-4 px-3.5 py-3 border border-line rounded-md bg-accent-soft flex items-center gap-2.5"
           >
-            <div style={{ flex: 1 }}>
+            <div className="flex-1">
               <div style={{ fontWeight: 500, fontSize: 13, color: "var(--accent-ink)" }}>
                 Aprobar manualmente
               </div>
@@ -222,32 +194,29 @@ function CommentRow({
   system?: boolean;
 }) {
   return (
-    <div style={{ display: "flex", gap: 10, marginBottom: 12 }}>
+    <div className="flex gap-2.5 mb-3">
       {system ? (
         <div
-          style={{
-            width: 28,
-            height: 28,
-            borderRadius: "50%",
-            background: "var(--surface-3)",
-            display: "grid",
-            placeItems: "center",
-            color: "var(--muted)",
-            fontSize: 12,
-          }}
+          className="rounded-full bg-surface-3 grid place-items-center text-muted text-xs"
+          style={{ width: 28, height: 28 }}
         >
           N
         </div>
       ) : (
         <Avatar name={author} size={28} />
       )}
-      <div style={{ flex: 1 }}>
-        <div style={{ fontSize: 12 }}>
+      <div className="flex-1">
+        <div className="text-xs">
           <strong>{author}</strong>
-          {role && <span style={{ color: "var(--muted)" }}> · {role}</span>}
-          <span style={{ color: "var(--muted-2)", marginLeft: 6 }}>{time}</span>
+          {role && <span className="text-muted"> · {role}</span>}
+          <span className="text-muted-2 ml-1.5">{time}</span>
         </div>
-        <div style={{ fontSize: 13, marginTop: 2, color: system ? "var(--muted)" : "var(--ink-2)" }}>{text}</div>
+        <div
+          className="text-[13px] mt-0.5"
+          style={{ color: system ? "var(--muted)" : "var(--ink-2)" }}
+        >
+          {text}
+        </div>
       </div>
     </div>
   );
