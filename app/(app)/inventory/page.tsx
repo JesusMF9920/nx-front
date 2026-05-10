@@ -73,7 +73,7 @@ export default function InventoryPage() {
         }
       />
 
-      <div className="grid" style={{ gridTemplateColumns: "repeat(4, 1fr)", gap: 14, marginBottom: 18 }}>
+      <div className="grid gap-3.5 mb-[18px]" style={{ gridTemplateColumns: "repeat(4, 1fr)" }}>
         <KpiCard
           label="Insumos activos"
           value={NEXUM_MATERIALS.length}
@@ -102,10 +102,10 @@ export default function InventoryPage() {
         />
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 380px", gap: 18, alignItems: "start" }}>
+      <div className="grid gap-[18px] items-start" style={{ gridTemplateColumns: "1fr 380px" }}>
         <div className="card">
-          <div className="card__head" style={{ gap: 8 }}>
-            <div className="topbar__search" style={{ margin: 0, width: 260 }}>
+          <div className="card__head gap-2">
+            <div className="topbar__search m-0" style={{ width: 260 }}>
               {I.search}
               <input
                 placeholder="Buscar insumo o SKU"
@@ -113,7 +113,7 @@ export default function InventoryPage() {
                 onChange={(e) => setSearch(e.target.value)}
               />
             </div>
-            <div className="row" style={{ gap: 4, flexWrap: "wrap" }}>
+            <div className="row gap-1 flex-wrap">
               {[...categories, SPECIAL_FILTER].map((f) => (
                 <button
                   key={f}
@@ -137,11 +137,11 @@ export default function InventoryPage() {
               <tr>
                 <th>Insumo</th>
                 <th>Categoría</th>
-                <th style={{ textAlign: "right" }}>Stock</th>
-                <th style={{ textAlign: "right" }}>Reorden</th>
+                <th className="text-right">Stock</th>
+                <th className="text-right">Reorden</th>
                 <th>Estado</th>
-                <th style={{ textAlign: "right" }}>Costo unit.</th>
-                <th style={{ textAlign: "right" }}>Valor</th>
+                <th className="text-right">Costo unit.</th>
+                <th className="text-right">Valor</th>
               </tr>
             </thead>
             <tbody>
@@ -155,23 +155,17 @@ export default function InventoryPage() {
                     style={{ background: selected.id === m.id ? "var(--accent-soft)" : "" }}
                   >
                     <td>
-                      <div style={{ fontWeight: 500 }}>{m.name}</div>
-                      <div style={{ color: "var(--muted)", fontFamily: "var(--font-mono)", fontSize: 11 }}>
-                        {m.sku}
-                      </div>
+                      <div className="font-medium">{m.name}</div>
+                      <div className="text-muted font-mono text-[11px]">{m.sku}</div>
                     </td>
                     <td>
                       <span className="pill pill--neutral">{m.category}</span>
                     </td>
-                    <td className="num" style={{ textAlign: "right", fontWeight: 600 }}>
+                    <td className="num text-right font-semibold">
                       {m.stock}{" "}
-                      <span style={{ color: "var(--muted)", fontWeight: 400, fontSize: 11 }}>
-                        {m.unit}
-                      </span>
+                      <span className="text-muted font-normal text-[11px]">{m.unit}</span>
                     </td>
-                    <td className="num" style={{ textAlign: "right", color: "var(--muted)" }}>
-                      {m.reorder}
-                    </td>
+                    <td className="num text-right text-muted">{m.reorder}</td>
                     <td>
                       {isCritical ? (
                         <span className="pill pill--danger">{I.alert} Crítico</span>
@@ -181,10 +175,8 @@ export default function InventoryPage() {
                         <span className="pill pill--ok">{I.check} OK</span>
                       )}
                     </td>
-                    <td className="num" style={{ textAlign: "right" }}>{fmtMXN(m.cost)}</td>
-                    <td className="num" style={{ textAlign: "right", fontWeight: 600 }}>
-                      {fmtMXN(m.stock * m.cost)}
-                    </td>
+                    <td className="num text-right">{fmtMXN(m.cost)}</td>
+                    <td className="num text-right font-semibold">{fmtMXN(m.stock * m.cost)}</td>
                   </tr>
                 );
               })}
@@ -195,7 +187,7 @@ export default function InventoryPage() {
         <InventoryMaterialDetail material={selected} />
       </div>
 
-      <div className="card" style={{ marginTop: 18 }}>
+      <div className="card mt-[18px]">
         <div className="card__head">
           <div className="card__title">Movimientos recientes</div>
           <div className="spacer" />
@@ -207,7 +199,7 @@ export default function InventoryPage() {
               <th>Fecha</th>
               <th>Tipo</th>
               <th>Insumo</th>
-              <th style={{ textAlign: "right" }}>Cantidad</th>
+              <th className="text-right">Cantidad</th>
               <th>Referencia</th>
               <th>Nota</th>
               <th>Usuario</th>
@@ -218,9 +210,7 @@ export default function InventoryPage() {
               const mat = NEXUM_MATERIALS.find((m) => m.id === mv.materialId);
               return (
                 <tr key={mv.id}>
-                  <td className="num" style={{ fontSize: 11, color: "var(--muted)" }}>
-                    {mv.date}
-                  </td>
+                  <td className="num text-[11px] text-muted">{mv.date}</td>
                   <td>
                     {mv.type === "entrada" && <span className="pill pill--ok">↓ Entrada</span>}
                     {mv.type === "salida" && <span className="pill pill--info">↑ Salida</span>}
@@ -228,34 +218,24 @@ export default function InventoryPage() {
                   </td>
                   <td>{mat?.name ?? mv.materialId}</td>
                   <td
-                    className="num"
-                    style={{
-                      textAlign: "right",
-                      fontWeight: 600,
-                      color: mv.qty > 0 ? "var(--ok)" : "var(--danger)",
-                    }}
+                    className="num text-right font-semibold"
+                    style={{ color: mv.qty > 0 ? "var(--ok)" : "var(--danger)" }}
                   >
                     {mv.qty > 0 ? "+" : ""}
                     {mv.qty}{" "}
-                    <span style={{ color: "var(--muted)", fontWeight: 400, fontSize: 11 }}>
-                      {mat?.unit}
-                    </span>
+                    <span className="text-muted font-normal text-[11px]">{mat?.unit}</span>
                   </td>
                   <td>
                     {mv.ref.startsWith("ORD") ? (
-                      <Link
-                        className="num"
-                        style={{ color: "var(--accent-ink)" }}
-                        href={`/orders/${mv.ref}`}
-                      >
+                      <Link className="num text-accent-ink" href={`/orders/${mv.ref}`}>
                         {mv.ref}
                       </Link>
                     ) : (
-                      <span className="num" style={{ fontSize: 12 }}>{mv.ref}</span>
+                      <span className="num text-xs">{mv.ref}</span>
                     )}
                   </td>
-                  <td style={{ color: "var(--muted)", fontSize: 12 }}>{mv.note}</td>
-                  <td style={{ fontSize: 12 }}>{mv.user}</td>
+                  <td className="text-muted text-xs">{mv.note}</td>
+                  <td className="text-xs">{mv.user}</td>
                 </tr>
               );
             })}
@@ -285,23 +265,18 @@ function KpiCard({
 }) {
   const color = TONE_COLOR[tone];
   return (
-    <div className="card" style={{ padding: 16 }}>
+    <div className="card p-4">
       <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 6,
-          color: "var(--muted)",
-          fontSize: 11,
-          textTransform: "uppercase",
-          letterSpacing: ".06em",
-        }}
+        className="flex items-center gap-1.5 text-muted text-[11px] uppercase"
+        style={{ letterSpacing: ".06em" }}
       >
         {icon && <span style={{ color }}>{icon}</span>}
         {label}
       </div>
-      <div style={{ fontSize: 26, fontWeight: 600, marginTop: 6, color }}>{value}</div>
-      <div style={{ fontSize: 11, color: "var(--muted)", marginTop: 2 }}>{sub}</div>
+      <div className="font-semibold mt-1.5" style={{ fontSize: 26, color }}>
+        {value}
+      </div>
+      <div className="text-[11px] text-muted mt-0.5">{sub}</div>
     </div>
   );
 }

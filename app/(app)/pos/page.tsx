@@ -177,26 +177,23 @@ export default function POSPage() {
 
   return (
     <div
+      className="grid"
       style={{
-        display: "grid",
         gridTemplateColumns: "1fr 420px",
         gap: 0,
         height: "calc(100vh - 48px)",
         margin: "-24px -28px -80px",
       }}
     >
-      <div style={{ display: "flex", flexDirection: "column", borderRight: "1px solid var(--line)", overflow: "hidden" }}>
+      <div
+        className="flex flex-col overflow-hidden"
+        style={{ borderRight: "1px solid var(--line)" }}
+      >
         <div
-          style={{
-            padding: "14px 20px",
-            borderBottom: "1px solid var(--line)",
-            display: "flex",
-            alignItems: "center",
-            gap: 10,
-            background: "var(--surface)",
-          }}
+          className="flex items-center gap-2.5 bg-surface"
+          style={{ padding: "14px 20px", borderBottom: "1px solid var(--line)" }}
         >
-          <div className="topbar__search" style={{ flex: 1, margin: 0, width: "auto", maxWidth: 460 }}>
+          <div className="topbar__search flex-1 m-0" style={{ width: "auto", maxWidth: 460 }}>
             {I.search}
             <input
               placeholder="Buscar producto, SKU o escanear código de barras…"
@@ -206,7 +203,7 @@ export default function POSPage() {
             />
             <span className="kbd">F3</span>
           </div>
-          <div className="row" style={{ gap: 4 }}>
+          <div className="row gap-1">
             {CATEGORIES.map((c) => (
               <button
                 key={c}
@@ -219,50 +216,33 @@ export default function POSPage() {
           </div>
         </div>
 
-        <div style={{ flex: 1, overflowY: "auto", padding: 20 }}>
-          <div className="grid" style={{ gridTemplateColumns: "repeat(4, 1fr)", gap: 12 }}>
+        <div className="flex-1 overflow-y-auto p-5">
+          <div className="grid gap-3" style={{ gridTemplateColumns: "repeat(4, 1fr)" }}>
             {filteredProducts.map((p) => (
               <button
                 type="button"
                 key={p.id}
                 onClick={() => addToCart(p)}
-                style={{
-                  textAlign: "left",
-                  border: "1px solid var(--line)",
-                  background: "var(--surface)",
-                  borderRadius: "var(--r-lg)",
-                  padding: 0,
-                  cursor: "pointer",
-                  overflow: "hidden",
-                  display: "flex",
-                  flexDirection: "column",
-                }}
+                className="text-left border border-line bg-surface p-0 cursor-pointer overflow-hidden flex flex-col rounded-[10px]"
               >
-                <div className="skeleton-img" style={{ height: 90, borderRadius: 0, fontSize: 10 }}>
+                <div className="skeleton-img text-[10px]" style={{ height: 90, borderRadius: 0 }}>
                   {p.method}
                 </div>
-                <div style={{ padding: 10, flex: 1 }}>
-                  <div style={{ fontSize: 12, fontWeight: 500, lineHeight: 1.3 }}>{p.name}</div>
-                  <div style={{ color: "var(--muted)", fontSize: 10, fontFamily: "var(--font-mono)" }}>{p.sku}</div>
+                <div className="p-2.5 flex-1">
+                  <div className="text-xs font-medium" style={{ lineHeight: 1.3 }}>{p.name}</div>
+                  <div className="text-muted text-[10px] font-mono">{p.sku}</div>
                 </div>
                 <div
-                  style={{
-                    padding: "8px 10px",
-                    borderTop: "1px solid var(--line)",
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 6,
-                  }}
+                  className="px-2.5 py-2 flex items-center gap-1.5"
+                  style={{ borderTop: "1px solid var(--line)" }}
                 >
-                  <span className="num" style={{ fontWeight: 600, fontSize: 13 }}>
-                    {fmtMXN(p.price)}
-                  </span>
+                  <span className="num font-semibold text-[13px]">{fmtMXN(p.price)}</span>
                   <div className="spacer" />
                   {p.variantType !== "none" && (
                     <span className="tag" title="Requiere variante">{I.layers}</span>
                   )}
                   {p.source === "Proveedor" ? (
-                    <span className="tag" style={{ color: "var(--supplier)" }}>Prov.</span>
+                    <span className="tag text-supplier">Prov.</span>
                   ) : (
                     <span className="tag">{p.leadDays}d</span>
                   )}
@@ -273,38 +253,35 @@ export default function POSPage() {
         </div>
       </div>
 
-      <div style={{ display: "flex", flexDirection: "column", background: "var(--surface)", height: "calc(100vh - 48px)" }}>
-        <div style={{ padding: "14px 18px", borderBottom: "1px solid var(--line)" }}>
+      <div
+        className="flex flex-col bg-surface"
+        style={{ height: "calc(100vh - 48px)" }}
+      >
+        <div
+          className="px-[18px] py-3.5"
+          style={{ borderBottom: "1px solid var(--line)" }}
+        >
           <div
-            style={{
-              fontSize: 11,
-              color: "var(--muted)",
-              textTransform: "uppercase",
-              letterSpacing: ".06em",
-              marginBottom: 6,
-            }}
+            className="text-[11px] text-muted uppercase mb-1.5"
+            style={{ letterSpacing: ".06em" }}
           >
             Cliente
           </div>
-          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <div className="flex items-center gap-2.5">
             <Avatar name={client.name} size={32} />
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontWeight: 500, fontSize: 13 }}>{client.name}</div>
-              <div style={{ color: "var(--muted)", fontSize: 11 }}>{client.phone} · {client.rfc}</div>
+            <div className="flex-1 min-w-0">
+              <div className="font-medium text-[13px]">{client.name}</div>
+              <div className="text-muted text-[11px]">{client.phone} · {client.rfc}</div>
             </div>
             <button className="btn btn--sm">Cambiar</button>
           </div>
         </div>
 
-        <div style={{ flex: 1, overflowY: "auto" }}>
-          <div style={{ padding: "10px 18px 6px", display: "flex", alignItems: "center" }}>
+        <div className="flex-1 overflow-y-auto">
+          <div className="flex items-center" style={{ padding: "10px 18px 6px" }}>
             <div
-              style={{
-                fontSize: 11,
-                color: "var(--muted)",
-                textTransform: "uppercase",
-                letterSpacing: ".06em",
-              }}
+              className="text-[11px] text-muted uppercase"
+              style={{ letterSpacing: ".06em" }}
             >
               {cart.length} productos
             </div>
@@ -314,65 +291,53 @@ export default function POSPage() {
             </button>
           </div>
 
-          {cart.length === 0 && <div className="empty" style={{ margin: 20 }}>El carrito está vacío.</div>}
+          {cart.length === 0 && <div className="empty m-5">El carrito está vacío.</div>}
 
           {cart.map((line, idx) => (
-            <div key={line.lineId} style={{ padding: "12px 18px", borderTop: "1px solid var(--line)" }}>
-              <div style={{ display: "flex", gap: 10 }}>
-                <div
-                  style={{
-                    width: 36,
-                    flexShrink: 0,
-                    display: "flex",
-                    flexDirection: "column",
-                    alignItems: "center",
-                    gap: 4,
-                  }}
-                >
-                  <div className="skeleton-img" style={{ width: 36, height: 36, fontSize: 9 }}>•</div>
-                  <span className="tag" style={{ fontSize: 9, padding: "1px 4px" }}>JOB-{idx + 1}</span>
+            <div
+              key={line.lineId}
+              className="px-[18px] py-3"
+              style={{ borderTop: "1px solid var(--line)" }}
+            >
+              <div className="flex gap-2.5">
+                <div className="shrink-0 flex flex-col items-center gap-1" style={{ width: 36 }}>
+                  <div className="skeleton-img text-[9px]" style={{ width: 36, height: 36 }}>•</div>
+                  <span className="tag text-[9px]" style={{ padding: "1px 4px" }}>JOB-{idx + 1}</span>
                 </div>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontWeight: 500, fontSize: 13 }}>{line.name}</div>
-                  <div style={{ color: "var(--muted)", fontSize: 11, fontFamily: "var(--font-mono)" }}>
+                <div className="flex-1 min-w-0">
+                  <div className="font-medium text-[13px]">{line.name}</div>
+                  <div className="text-muted text-[11px] font-mono">
                     {line.sku}
                     {line.variantLabel ? ` · ${line.variantLabel}` : ""}
                   </div>
                   {line.sizeBreakdown && (
-                    <div style={{ display: "flex", flexWrap: "wrap", gap: 4, marginTop: 4 }}>
+                    <div className="flex flex-wrap gap-1 mt-1">
                       {line.sizeBreakdown
                         .filter((b) => b.qty > 0)
                         .map((b) => (
-                          <span key={b.sizeId} className="tag" style={{ fontSize: 10 }}>
+                          <span key={b.sizeId} className="tag text-[10px]">
                             {b.sizeId}×{b.qty}
                             {b.surcharge > 0 && (
-                              <span style={{ color: "var(--muted)" }}> +${b.surcharge}</span>
+                              <span className="text-muted"> +${b.surcharge}</span>
                             )}
                           </span>
                         ))}
                     </div>
                   )}
-                  <div style={{ fontSize: 10, color: "var(--muted)", marginTop: 2 }}>Diseño independiente</div>
+                  <div className="text-[10px] text-muted mt-0.5">Diseño independiente</div>
                 </div>
-                <div className="num" style={{ fontWeight: 600, fontSize: 13 }}>
+                <div className="num font-semibold text-[13px]">
                   {fmtMXN(lineSubtotal(line))}
                 </div>
               </div>
 
-              <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 8 }}>
+              <div className="flex items-center gap-2 mt-2">
                 {line.sizeBreakdown ? (
                   <button className="btn btn--ghost btn--sm" onClick={() => editBreakdown(line)}>
                     {I.layers} {line.sizeBreakdown.reduce((s, b) => s + b.qty, 0)} pzas · editar
                   </button>
                 ) : (
-                  <div
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      border: "1px solid var(--line)",
-                      borderRadius: "var(--r-md)",
-                    }}
-                  >
+                  <div className="flex items-center border border-line rounded-md">
                     <button
                       type="button"
                       className="btn btn--ghost btn--sm"
@@ -382,17 +347,10 @@ export default function POSPage() {
                       −
                     </button>
                     <input
-                      className="num"
+                      className="num text-center bg-transparent"
                       value={line.qty}
                       onChange={(e) => updateQty(line.lineId, parseInt(e.target.value || "0", 10))}
-                      style={{
-                        width: 50,
-                        textAlign: "center",
-                        border: 0,
-                        outline: "none",
-                        height: 24,
-                        background: "transparent",
-                      }}
+                      style={{ width: 50, border: 0, outline: "none", height: 24 }}
                     />
                     <button
                       type="button"
@@ -405,43 +363,43 @@ export default function POSPage() {
                   </div>
                 )}
                 {!line.sizeBreakdown && (
-                  <span className="num" style={{ color: "var(--muted)", fontSize: 11 }}>
-                    × {fmtMXN(line.price)}
-                  </span>
+                  <span className="num text-muted text-[11px]">× {fmtMXN(line.price)}</span>
                 )}
                 <div className="spacer" />
                 {line.source === "Proveedor" && line.supplier && (
-                  <span className="pill pill--supplier" style={{ fontSize: 10 }}>{line.supplier}</span>
+                  <span className="pill pill--supplier text-[10px]">{line.supplier}</span>
                 )}
                 {line.needsApproval && (
-                  <span className="pill pill--warn" style={{ fontSize: 10 }}>{I.paint} Diseño</span>
+                  <span className="pill pill--warn text-[10px]">{I.paint} Diseño</span>
                 )}
               </div>
             </div>
           ))}
         </div>
 
-        <div style={{ borderTop: "1px solid var(--line)", padding: "14px 18px", background: "var(--surface-2)" }}>
+        <div
+          className="px-[18px] py-3.5 bg-surface-2"
+          style={{ borderTop: "1px solid var(--line)" }}
+        >
           <SummaryRow label="Subtotal" value={fmtMXN(subtotal)} />
           <SummaryRow label="Descuento" value={fmtMXN(discount)} muted />
           <SummaryRow label="IVA 16%" value={fmtMXN(tax)} />
-          <div style={{ height: 1, background: "var(--line)", margin: "10px 0" }} />
+          <div className="bg-line my-2.5" style={{ height: 1 }} />
           <SummaryRow label="Total" value={fmtMXN(total)} big />
 
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginTop: 12 }}>
+          <div className="grid grid-cols-2 gap-2 mt-3">
             <button className="btn">{I.tag} Descuento</button>
             <button className="btn">{I.calendar} Fecha entrega</button>
           </div>
           <button
-            className="btn btn--accent btn--lg"
-            style={{ width: "100%", justifyContent: "center", marginTop: 8 }}
+            className="btn btn--accent btn--lg w-full justify-center mt-2"
             onClick={() => setShowPay(true)}
             disabled={cart.length === 0}
           >
             {I.cash} Cobrar {fmtMXN(total)}
             <span
-              className="kbd"
-              style={{ marginLeft: "auto", background: "rgba(255,255,255,.18)", color: "white", border: 0 }}
+              className="kbd ml-auto"
+              style={{ background: "rgba(255,255,255,.18)", color: "white", border: 0 }}
             >
               F8
             </span>

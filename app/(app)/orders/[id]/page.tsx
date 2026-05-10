@@ -64,20 +64,18 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
 
   return (
     <>
-      <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8, fontSize: 13 }}>
+      <div className="flex items-center gap-2.5 mb-2 text-[13px]">
         <Link className="btn btn--ghost btn--sm" href="/orders">
           {I.arrowLeft} Pedidos
         </Link>
-        <span className="num" style={{ color: "var(--muted)" }}>{order.id}</span>
+        <span className="num text-muted">{order.id}</span>
       </div>
 
       <PageHeader
         title={
           <>
             Pedido{" "}
-            <span className="num" style={{ fontFamily: "var(--font-mono)" }}>
-              {order.id}
-            </span>
+            <span className="num font-mono">{order.id}</span>
           </>
         }
         sub={
@@ -94,8 +92,8 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
         }
       />
 
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 320px", gap: 20 }}>
-        <div className="grid" style={{ gap: 20 }}>
+      <div className="grid gap-5" style={{ gridTemplateColumns: "1fr 320px" }}>
+        <div className="grid gap-5">
           <OrderStatusBanner status={order.status} />
 
           <div className="card">
@@ -111,7 +109,7 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
               <thead>
                 <tr>
                   <th>Job</th>
-                  <th style={{ textAlign: "right" }}>Cant.</th>
+                  <th className="text-right">Cant.</th>
                   <th>Origen</th>
                   <th>Diseño</th>
                   <th>Status</th>
@@ -122,19 +120,17 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
                 {jobs.map((j) => (
                   <tr key={j.id}>
                     <td>
-                      <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
-                        <div className="skeleton-img" style={{ width: 36, height: 36, fontSize: 9 }}>
+                      <div className="flex items-center gap-2.5">
+                        <div className="skeleton-img text-[9px]" style={{ width: 36, height: 36 }}>
                           v{j.version}
                         </div>
                         <div>
-                          <div style={{ fontWeight: 500 }}>{j.product}</div>
-                          <div style={{ color: "var(--muted)", fontSize: 11, fontFamily: "var(--font-mono)" }}>
-                            {j.id}
-                          </div>
+                          <div className="font-medium">{j.product}</div>
+                          <div className="text-muted text-[11px] font-mono">{j.id}</div>
                         </div>
                       </div>
                     </td>
-                    <td className="num" style={{ textAlign: "right" }}>{j.qty}</td>
+                    <td className="num text-right">{j.qty}</td>
                     <td>
                       {j.source === "Proveedor" && j.supplier ? (
                         <span className="pill pill--supplier">{j.supplier}</span>
@@ -162,50 +158,26 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
               <button className="btn btn--ghost btn--sm">Filtros</button>
             </div>
             <div className="card__body">
-              <div style={{ position: "relative", paddingLeft: 24 }}>
+              <div className="relative pl-6">
                 <div
-                  style={{
-                    position: "absolute",
-                    left: 9,
-                    top: 6,
-                    bottom: 6,
-                    width: 1,
-                    background: "var(--line)",
-                  }}
+                  className="absolute bg-line"
+                  style={{ left: 9, top: 6, bottom: 6, width: 1 }}
                 />
                 {timeline.map((t, i) => (
-                  <div key={i} style={{ position: "relative", marginBottom: 14 }}>
+                  <div key={i} className="relative mb-3.5">
                     <div
-                      style={{
-                        position: "absolute",
-                        left: -19,
-                        top: 2,
-                        width: 18,
-                        height: 18,
-                        borderRadius: "50%",
-                        background: "var(--surface)",
-                        border: "1px solid var(--line)",
-                        color: "var(--muted)",
-                        display: "grid",
-                        placeItems: "center",
-                      }}
+                      className="absolute rounded-full bg-surface border border-line text-muted grid place-items-center"
+                      style={{ left: -19, top: 2, width: 18, height: 18 }}
                     >
-                      <span style={{ width: 12, height: 12, display: "block" }}>{t.icon}</span>
+                      <span className="block" style={{ width: 12, height: 12 }}>{t.icon}</span>
                     </div>
-                    <div style={{ fontSize: 13 }}>
+                    <div className="text-[13px]">
                       <strong>{t.label}</strong>
-                      <span
-                        style={{
-                          color: "var(--muted)",
-                          marginLeft: 8,
-                          fontFamily: "var(--font-mono)",
-                          fontSize: 11,
-                        }}
-                      >
+                      <span className="text-muted ml-2 font-mono text-[11px]">
                         {t.date} · {t.time}
                       </span>
                     </div>
-                    <div style={{ color: "var(--muted)", fontSize: 12 }}>{t.sub}</div>
+                    <div className="text-muted text-xs">{t.sub}</div>
                   </div>
                 ))}
               </div>
@@ -213,38 +185,30 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
           </div>
         </div>
 
-        <div className="grid" style={{ gap: 20, alignContent: "start" }}>
+        <div className="grid gap-5 content-start">
           <div className="card">
             <div className="card__body">
-              <div
-                style={{
-                  fontSize: 11,
-                  color: "var(--muted)",
-                  textTransform: "uppercase",
-                  letterSpacing: ".06em",
-                }}
-              >
+              <div className="text-[11px] text-muted uppercase" style={{ letterSpacing: ".06em" }}>
                 Total del pedido
               </div>
               <div
+                className="font-semibold"
                 style={{
                   fontSize: 28,
-                  fontWeight: 600,
                   fontVariantNumeric: "tabular-nums",
                   letterSpacing: "-.01em",
                 }}
               >
                 {fmtMXN(order.total)}
               </div>
-              <div style={{ marginTop: 12 }}>
+              <div className="mt-3">
                 <SummaryRow label="Pagado" value={fmtMXN(order.paid)} />
                 <SummaryRow label="Por cobrar" value={fmtMXN(pending)} muted={pending === 0} />
                 <SummaryRow label="Método" value={order.payment} mono={false} />
               </div>
               {pending > 0 && (
                 <button
-                  className="btn btn--accent"
-                  style={{ width: "100%", justifyContent: "center", marginTop: 10 }}
+                  className="btn btn--accent w-full justify-center mt-2.5"
                 >
                   {I.cash} Registrar pago
                 </button>
@@ -256,18 +220,18 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
             <div className="card__head">
               <div className="card__title">Cliente</div>
             </div>
-            <div className="card__body" style={{ display: "flex", gap: 10 }}>
+            <div className="card__body flex gap-2.5">
               <Avatar name={order.client} size={36} />
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontWeight: 500 }}>{order.client}</div>
-                <div style={{ color: "var(--muted)", fontSize: 12 }}>
+              <div className="flex-1 min-w-0">
+                <div className="font-medium">{order.client}</div>
+                <div className="text-muted text-xs">
                   {client ? `${client.orders} pedidos` : "Cliente"}
                   {client?.tags.includes("Frecuente") && " · cliente frecuente"}
                 </div>
               </div>
             </div>
-            <div className="divider" style={{ margin: 0 }} />
-            <div style={{ padding: "10px 14px", display: "flex", gap: 6, flexWrap: "wrap" }}>
+            <div className="divider m-0" />
+            <div className="px-3.5 py-2.5 flex gap-1.5 flex-wrap">
               <button className="btn btn--sm">{I.mail} Correo</button>
               <button className="btn btn--sm">{I.whatsapp} WhatsApp</button>
               <button className="btn btn--sm">{I.link} Portal</button>
@@ -278,22 +242,19 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
             <div className="card__head">
               <div className="card__title">Equipo asignado</div>
             </div>
-            <div className="card__body" style={{ padding: 0 }}>
+            <div className="card__body p-0">
               {TEAM.map((m, i, a) => (
                 <div
                   key={m.name}
+                  className="px-3.5 py-2.5 flex items-center gap-2.5"
                   style={{
-                    padding: "10px 14px",
                     borderBottom: i < a.length - 1 ? "1px solid var(--line)" : 0,
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 10,
                   }}
                 >
                   <Avatar name={m.name} size={24} />
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: 13, fontWeight: 500 }}>{m.name}</div>
-                    <div style={{ color: "var(--muted)", fontSize: 11 }}>{m.role}</div>
+                  <div className="flex-1 min-w-0">
+                    <div className="text-[13px] font-medium">{m.name}</div>
+                    <div className="text-muted text-[11px]">{m.role}</div>
                   </div>
                 </div>
               ))}
