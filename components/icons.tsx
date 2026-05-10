@@ -43,6 +43,7 @@ export const I = {
   more:        <Icon d={<><circle cx="5" cy="12" r="1" /><circle cx="12" cy="12" r="1" /><circle cx="19" cy="12" r="1" /></>} />,
   chevronDown: <Icon d="m6 9 6 6 6-6" />,
   chevronRight:<Icon d="m9 6 6 6-6 6" />,
+  chevronLeft: <Icon d="m15 6-6 6 6 6" />,
   check:       <Icon d="M5 12l5 5 9-11" />,
   x:           <Icon d="M6 6l12 12M6 18 18 6" />,
   bell:        <Icon d={<><path d="M6 16V11a6 6 0 1 1 12 0v5l1.5 2.5h-15z" /><path d="M10 21h4" /></>} />,
