@@ -233,6 +233,49 @@ export type Purchase = {
   lines: PurchaseLine[];
 };
 
+export type ReportDay = {
+  date: string;
+  sales: number;
+  orders: number;
+  margin: number;
+};
+
+export type ProductPerformance = {
+  name: string;
+  cat: string;
+  qty: number;
+  sales: number;
+  margin: number;
+};
+
+export type ClientPerformance = {
+  name: string;
+  orders: number;
+  sales: number;
+  margin: number;
+  debt: number;
+};
+
+export type SellerPerformance = {
+  name: string;
+  initials: string;
+  orders: number;
+  sales: number;
+  ticket: number;
+  conv: number;
+};
+
+export type AgingEntry = {
+  client: string;
+  invoice: string;
+  date: string;
+  total: number;
+  b030: number;
+  b3160: number;
+  b6190: number;
+  b90: number;
+};
+
 export type CartLine = {
   lineId: string;
   id: string;
