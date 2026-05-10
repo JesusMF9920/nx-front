@@ -29,10 +29,10 @@ export function NewProductForm() {
   const gridCols = source === "Proveedor" ? "1fr 130px 130px 32px" : "1fr 130px 130px 100px 32px";
 
   return (
-    <div className="grid" style={{ gridTemplateColumns: "1fr 1fr", gap: 14 }}>
-      <div className="field" style={{ gridColumn: "1/-1" }}>
+    <div className="grid grid-cols-2" style={{ gap: 14 }}>
+      <div className="field col-span-full">
         <span className="label">Origen</span>
-        <div style={{ display: "flex", gap: 6 }}>
+        <div className="flex gap-1.5">
           {(["Interno", "Proveedor"] as ProductSource[]).map((s) => (
             <button
               type="button"
@@ -94,27 +94,25 @@ export function NewProductForm() {
         </div>
       )}
 
-      <div className="field" style={{ gridColumn: "1/-1", marginTop: 4 }}>
+      <div className="field col-span-full mt-1">
         <span className="label">Tipo de variantes</span>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 6 }}>
+        <div className="grid grid-cols-4" style={{ gap: 6 }}>
           {VARIANT_OPTIONS.map((o) => (
             <button
               type="button"
               key={o.id}
               onClick={() => setVariantType(o.id)}
+              className="text-left rounded-md py-2 px-2.5 cursor-pointer"
               style={{
-                textAlign: "left",
                 border: variantType === o.id ? "1.5px solid var(--accent)" : "1px solid var(--line)",
                 background: variantType === o.id ? "var(--accent-soft)" : "var(--surface)",
                 color: variantType === o.id ? "var(--accent-ink)" : "var(--ink)",
-                borderRadius: "var(--r-md)",
-                padding: "8px 10px",
-                cursor: "pointer",
               }}
             >
-              <div style={{ fontSize: 13, fontWeight: 500 }}>{o.label}</div>
+              <div className="text-[13px] font-medium">{o.label}</div>
               <div
-                style={{ fontSize: 11, color: variantType === o.id ? "var(--accent-ink)" : "var(--muted)" }}
+                className="text-[11px]"
+                style={{ color: variantType === o.id ? "var(--accent-ink)" : "var(--muted)" }}
               >
                 {o.sub}
               </div>
