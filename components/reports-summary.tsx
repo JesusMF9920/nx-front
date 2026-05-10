@@ -50,17 +50,17 @@ export function ReportsSummary() {
   const ticks = Array.from({ length: yTicks + 1 }, (_, i) => (maxSales / yTicks) * i);
 
   return (
-    <div style={{ display: "grid", gridTemplateColumns: "1fr 320px", gap: 18 }}>
+    <div className="grid gap-[18px]" style={{ gridTemplateColumns: "1fr 320px" }}>
       <div className="card">
         <div className="card__head">
           <div className="card__title">Ventas y margen diarios</div>
           <div className="spacer" />
-          <div className="row" style={{ gap: 12, fontSize: 11 }}>
-            <span style={{ display: "flex", alignItems: "center", gap: 5 }}>
-              <span style={{ width: 10, height: 2, background: "var(--accent)", borderRadius: 1 }} />
+          <div className="row gap-3 text-[11px]">
+            <span className="flex items-center gap-1">
+              <span className="bg-accent" style={{ width: 10, height: 2, borderRadius: 1 }} />
               Ventas
             </span>
-            <span style={{ display: "flex", alignItems: "center", gap: 5 }}>
+            <span className="flex items-center gap-1">
               <span
                 style={{
                   width: 10,
@@ -72,7 +72,7 @@ export function ReportsSummary() {
             </span>
           </div>
         </div>
-        <div style={{ padding: 14, position: "relative" }}>
+        <div className="p-3.5 relative">
           <svg
             viewBox={`0 0 ${W} ${H}`}
             style={{ width: "100%", height: 280 }}
@@ -176,24 +176,18 @@ export function ReportsSummary() {
           </svg>
           {hover && (
             <div
+              className="absolute bg-surface border border-line rounded-sm text-[11px]"
               style={{
-                position: "absolute",
                 top: 16,
                 right: 24,
-                background: "var(--surface)",
-                border: "1px solid var(--line)",
-                borderRadius: "var(--r-sm)",
                 padding: "8px 10px",
-                fontSize: 11,
                 boxShadow: "var(--sh-sm)",
                 minWidth: 160,
               }}
             >
-              <div style={{ fontFamily: "var(--font-mono)", fontWeight: 500, marginBottom: 4 }}>
-                {hover.date}
-              </div>
-              <Row label="Ventas" v={<span style={{ fontWeight: 600 }}>{fmtMXN(hover.sales)}</span>} />
-              <Row label="Margen" v={<span style={{ color: "var(--ok)" }}>{fmtMXN(hover.margin)}</span>} />
+              <div className="font-mono font-medium mb-1">{hover.date}</div>
+              <Row label="Ventas" v={<span className="font-semibold">{fmtMXN(hover.sales)}</span>} />
+              <Row label="Margen" v={<span className="text-ok">{fmtMXN(hover.margin)}</span>} />
               <Row label="Pedidos" v={hover.orders} />
             </div>
           )}
@@ -204,57 +198,40 @@ export function ReportsSummary() {
         <div className="card__head">
           <div className="card__title">Desglose por método de pago</div>
         </div>
-        <div style={{ padding: 14 }}>
+        <div className="p-3.5">
           {PAYMENT_MIX.map((r) => (
-            <div key={r.label} style={{ marginBottom: 12 }}>
-              <div style={{ display: "flex", fontSize: 12, marginBottom: 4 }}>
-                <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            <div key={r.label} className="mb-3">
+              <div className="flex text-xs mb-1">
+                <span className="flex items-center gap-1.5">
                   <span style={{ width: 8, height: 8, borderRadius: 2, background: r.color }} />
                   {r.label}
                 </span>
                 <div className="spacer" />
-                <span className="num" style={{ fontWeight: 500 }}>
-                  {fmtMXN(totSales * (r.pct / 100))}
-                </span>
+                <span className="num font-medium">{fmtMXN(totSales * (r.pct / 100))}</span>
                 <span
-                  className="num"
-                  style={{ marginLeft: 8, color: "var(--muted)", width: 36, textAlign: "right" }}
+                  className="num ml-2 text-muted text-right"
+                  style={{ width: 36 }}
                 >
                   {r.pct}%
                 </span>
               </div>
               <div
-                style={{
-                  height: 6,
-                  background: "var(--surface-3)",
-                  borderRadius: 3,
-                  overflow: "hidden",
-                }}
+                className="bg-surface-3 overflow-hidden"
+                style={{ height: 6, borderRadius: 3 }}
               >
-                <div style={{ width: `${r.pct}%`, height: "100%", background: r.color }} />
+                <div className="h-full" style={{ width: `${r.pct}%`, background: r.color }} />
               </div>
             </div>
           ))}
 
           <div className="divider" />
-          <div className="card__title" style={{ fontSize: 13, marginBottom: 8 }}>
-            Mix por categoría
-          </div>
+          <div className="card__title text-[13px] mb-2">Mix por categoría</div>
           {CATEGORY_MIX.map((r) => (
-            <div
-              key={r.label}
-              style={{
-                display: "flex",
-                fontSize: 12,
-                marginBottom: 6,
-                alignItems: "center",
-                gap: 6,
-              }}
-            >
+            <div key={r.label} className="flex text-xs mb-1.5 items-center gap-1.5">
               <span style={{ width: 8, height: 8, borderRadius: 2, background: r.color }} />
               <span>{r.label}</span>
               <div className="spacer" />
-              <span className="num" style={{ color: "var(--muted)" }}>{r.pct}%</span>
+              <span className="num text-muted">{r.pct}%</span>
             </div>
           ))}
         </div>
@@ -265,8 +242,8 @@ export function ReportsSummary() {
 
 function Row({ label, v }: { label: string; v: React.ReactNode }) {
   return (
-    <div style={{ display: "flex", justifyContent: "space-between" }}>
-      <span style={{ color: "var(--muted)" }}>{label}</span>
+    <div className="flex justify-between">
+      <span className="text-muted">{label}</span>
       <span className="num">{v}</span>
     </div>
   );
