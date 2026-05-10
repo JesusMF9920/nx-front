@@ -11,17 +11,12 @@ export function Avatar({ name, size = 22, color }: AvatarProps) {
   const bg = color ?? PALETTE[name.charCodeAt(0) % PALETTE.length];
   return (
     <div
+      className="rounded-full text-white font-semibold grid place-items-center shrink-0"
       style={{
         width: size,
         height: size,
-        borderRadius: "50%",
         background: bg,
-        color: "white",
         fontSize: size * 0.42,
-        fontWeight: 600,
-        display: "grid",
-        placeItems: "center",
-        flexShrink: 0,
       }}
     >
       {initials}
