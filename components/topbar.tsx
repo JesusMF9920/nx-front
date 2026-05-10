@@ -7,7 +7,9 @@ import { I } from "./icons";
 const ROUTE_LABELS: Record<string, string> = {
   dashboard: "Dashboard",
   pos: "Punto de venta",
+  quotes: "Cotizaciones",
   orders: "Pedidos",
+  purchases: "Compras",
   calendar: "Calendario",
   approvals: "Aprobaciones",
   products: "Productos",
@@ -15,6 +17,7 @@ const ROUTE_LABELS: Record<string, string> = {
   suppliers: "Proveedores",
   clients: "Clientes",
   users: "Usuarios",
+  roles: "Roles y permisos",
   reports: "Reportes",
   settings: "Configuración",
 };
