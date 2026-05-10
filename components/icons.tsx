@@ -55,4 +55,13 @@ export const I = {
   lock:        <Icon d={<><rect x="4" y="11" width="16" height="10" rx="2" /><path d="M8 11V7a4 4 0 0 1 8 0v4" /></>} />,
   arrowRight:  <Icon d="M5 12h14M13 5l7 7-7 7" />,
   send:        <Icon d="m22 2-7 20-4-9-9-4z" />,
+  printer:     <Icon d={<><path d="M6 9V3h12v6" /><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2" /><rect x="6" y="14" width="12" height="8" /></>} />,
+  eye:         <Icon d={<><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7-10-7-10-7z" /><circle cx="12" cy="12" r="3" /></>} />,
+  clock:       <Icon d={<><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></>} />,
+  phone:       <Icon d="M5 4h4l2 5-2 1a12 12 0 0 0 5 5l1-2 5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2z" />,
+  mail:        <Icon d={<><rect x="3" y="5" width="18" height="14" rx="2" /><path d="m3 7 9 6 9-6" /></>} />,
+  tag:         <Icon d={<><path d="M20 12 12 20l-9-9V3h8z" /><circle cx="7.5" cy="7.5" r="1.2" /></>} />,
+  whatsapp:    <Icon d={<><path d="M21 11.5a8.5 8.5 0 0 1-12.5 7.5L3 21l2.1-5.4A8.5 8.5 0 1 1 21 11.5z" /><path d="M9 9c.5 2 1.5 3.5 3.5 5 1 .8 2 1 3 .5l1-1-2-1.5-1 .5c-.7-.4-1.4-1.1-1.8-1.8l.5-1L10.5 8l-1 .5c-.3.2-.5.3-.5 .5z" /></>} />,
+  download:    <Icon d={<><path d="M12 3v12" /><path d="m7 10 5 5 5-5" /><path d="M5 21h14" /></>} />,
+  filter:      <Icon d="M3 5h18l-7 9v6l-4-2v-4z" />,
 };
