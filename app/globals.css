@@ -87,6 +87,12 @@ body {
 button { font-family: inherit; }
 input, select, textarea { font-family: inherit; font-size: inherit; color: inherit; }
 
+/* Custom design-system classes are wrapped in @layer components so that
+   Tailwind utilities (in @layer utilities) can override them. Without this,
+   unlayered class rules below would beat all Tailwind utilities, and
+   utilities like `gap-X` or `text-muted` would silently do nothing on
+   elements that also carry a custom class like `.grid` or `.btn`. */
+@layer components {
 /* ============ Layout shell ============ */
 .app {
   display: grid;
@@ -564,4 +570,5 @@ input, select, textarea { font-family: inherit; font-size: inherit; color: inher
   margin-top: 8px;
   font-size: 12px;
   display: flex; gap: 6px; align-items: baseline;
+}
 }
