@@ -6,6 +6,7 @@ import { I } from "@/components/icons";
 import { OrderStatusBanner } from "@/components/order-status-banner";
 import { PageHeader } from "@/components/page-header";
 import { StatusPill } from "@/components/status-pill";
+import { SummaryRow } from "@/components/summary-row";
 import { fmtDate, fmtDateLong, fmtMXN } from "@/lib/format";
 import { NEXUM_CLIENTS } from "@/lib/mock-clients";
 import { NEXUM_ORDERS } from "@/lib/mock-orders";
@@ -236,9 +237,9 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
                 {fmtMXN(order.total)}
               </div>
               <div style={{ marginTop: 12 }}>
-                <Row k="Pagado" v={fmtMXN(order.paid)} />
-                <Row k="Por cobrar" v={fmtMXN(pending)} muted={pending === 0} />
-                <Row k="Método" v={order.payment} />
+                <SummaryRow label="Pagado" value={fmtMXN(order.paid)} />
+                <SummaryRow label="Por cobrar" value={fmtMXN(pending)} muted={pending === 0} />
+                <SummaryRow label="Método" value={order.payment} mono={false} />
               </div>
               {pending > 0 && (
                 <button
@@ -304,20 +305,3 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
   );
 }
 
-function Row({ k, v, muted }: { k: string; v: string; muted?: boolean }) {
-  return (
-    <div
-      style={{
-        display: "flex",
-        justifyContent: "space-between",
-        gap: 16,
-        fontSize: 13,
-        padding: "3px 0",
-        color: muted ? "var(--muted)" : "var(--ink)",
-      }}
-    >
-      <span style={{ color: "var(--muted)" }}>{k}</span>
-      <span style={{ fontFamily: "var(--font-mono)" }}>{v}</span>
-    </div>
-  );
-}

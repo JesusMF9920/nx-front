@@ -3,6 +3,7 @@
 import { useMemo, useState, type ReactNode } from "react";
 import { I } from "@/components/icons";
 import { Modal } from "@/components/modal";
+import { SummaryRow } from "@/components/summary-row";
 import { fmtMXN } from "@/lib/format";
 import { NEXUM_MATERIALS, NEXUM_RECIPES } from "@/lib/mock-materials";
 import type { CartLine, Material, MaterialVariant, PaymentMethod } from "@/lib/types";
@@ -171,11 +172,11 @@ export function PosPaymentModal({ total, cart, customerEmail, onClose, onPaid }:
               padding: 14,
             }}
           >
-            <Row k="Total a cobrar" v={fmtMXN(total)} big />
+            <SummaryRow label="Total a cobrar" value={fmtMXN(total)} big />
             {method === "Efectivo" && (
               <>
-                <Row k="Recibido" v={fmtMXN(cash)} />
-                <Row k="Cambio" v={fmtMXN(change)} />
+                <SummaryRow label="Recibido" value={fmtMXN(cash)} />
+                <SummaryRow label="Cambio" value={fmtMXN(change)} />
               </>
             )}
           </div>
@@ -283,20 +284,3 @@ export function PosPaymentModal({ total, cart, customerEmail, onClose, onPaid }:
   );
 }
 
-function Row({ k, v, big }: { k: string; v: string; big?: boolean }) {
-  return (
-    <div
-      style={{
-        display: "flex",
-        alignItems: "center",
-        margin: "4px 0",
-        fontSize: big ? 16 : 13,
-        fontWeight: big ? 600 : 400,
-      }}
-    >
-      <span>{k}</span>
-      <div className="spacer" />
-      <span className="num">{v}</span>
-    </div>
-  );
-}
