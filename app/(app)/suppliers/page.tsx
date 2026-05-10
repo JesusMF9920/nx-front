@@ -30,7 +30,7 @@ export default function SuppliersPage() {
         }
       />
 
-      <div className="grid" style={{ gridTemplateColumns: "1.5fr 1fr", gap: 20 }}>
+      <div className="grid gap-5" style={{ gridTemplateColumns: "1.5fr 1fr" }}>
         <div className="card">
           <div className="card__head">
             <div className="card__title">Proveedores</div>
@@ -40,7 +40,7 @@ export default function SuppliersPage() {
               <tr>
                 <th>Proveedor</th>
                 <th>Servicio</th>
-                <th style={{ textAlign: "right" }}>Lead</th>
+                <th className="text-right">Lead</th>
                 <th>Confiabilidad</th>
                 <th>Último pedido</th>
               </tr>
@@ -52,27 +52,19 @@ export default function SuppliersPage() {
                     <strong>{s.name}</strong>
                   </td>
                   <td>{s.service}</td>
-                  <td className="num" style={{ textAlign: "right" }}>{s.leadDays}d</td>
+                  <td className="num text-right">{s.leadDays}d</td>
                   <td>
-                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <div className="flex items-center gap-2">
                       <div
-                        style={{
-                          flex: 1,
-                          height: 4,
-                          background: "var(--surface-3)",
-                          borderRadius: 2,
-                        }}
+                        className="flex-1 bg-surface-3 rounded-sm"
+                        style={{ height: 4 }}
                       >
                         <div
-                          style={{
-                            width: `${s.reliability}%`,
-                            height: "100%",
-                            background: "var(--ok)",
-                            borderRadius: 2,
-                          }}
+                          className="h-full bg-ok rounded-sm"
+                          style={{ width: `${s.reliability}%` }}
                         />
                       </div>
-                      <span className="num" style={{ fontSize: 12 }}>{s.reliability}%</span>
+                      <span className="num text-xs">{s.reliability}%</span>
                     </div>
                   </td>
                   <td className="num">{fmtDate(s.lastOrder)}</td>
@@ -86,23 +78,21 @@ export default function SuppliersPage() {
           <div className="card__head">
             <div className="card__title">Pedidos a proveedor en curso</div>
           </div>
-          <div className="card__body" style={{ padding: 0 }}>
+          <div className="card__body p-0">
             {SUPPLIER_ORDERS.map((p, i, a) => (
               <div
                 key={p.id}
+                className="flex gap-2.5 px-4 py-3"
                 style={{
-                  padding: "12px 16px",
                   borderBottom: i < a.length - 1 ? "1px solid var(--line)" : 0,
-                  display: "flex",
-                  gap: 10,
                 }}
               >
-                <div className="num" style={{ fontSize: 11, color: "var(--muted)", minWidth: 60 }}>
+                <div className="num text-[11px] text-muted" style={{ minWidth: 60 }}>
                   {p.id}
                 </div>
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: 13, fontWeight: 500 }}>{p.item}</div>
-                  <div style={{ color: "var(--muted)", fontSize: 12 }}>
+                <div className="flex-1">
+                  <div className="text-[13px] font-medium">{p.item}</div>
+                  <div className="text-muted text-xs">
                     {p.supplier} · entrega {fmtDate(p.due)}
                   </div>
                 </div>

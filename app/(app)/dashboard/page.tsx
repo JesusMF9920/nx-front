@@ -46,8 +46,8 @@ export default function DashboardPage() {
             <Link className="btn btn--accent" href="/pos">
               <span>{I.plus}</span>Nueva venta
               <span
-                className="kbd"
-                style={{ background: "rgba(255,255,255,.15)", color: "white", border: 0, marginLeft: 4 }}
+                className="kbd ml-1"
+                style={{ background: "rgba(255,255,255,.15)", color: "white", border: 0 }}
               >
                 F2
               </span>
@@ -56,7 +56,7 @@ export default function DashboardPage() {
         }
       />
 
-      <div className="grid" style={{ gridTemplateColumns: "repeat(4,1fr)", marginBottom: 20 }}>
+      <div className="grid mb-5" style={{ gridTemplateColumns: "repeat(4,1fr)" }}>
         {STATS.map((s) => (
           <div className="stat" key={s.label}>
             <div className="stat__label">{s.label}</div>
@@ -69,13 +69,13 @@ export default function DashboardPage() {
               }}
             >
               {s.delta}
-              {s.sub && <span style={{ color: "var(--muted)" }}> · {s.sub}</span>}
+              {s.sub && <span className="text-muted"> · {s.sub}</span>}
             </div>
           </div>
         ))}
       </div>
 
-      <div className="grid" style={{ gridTemplateColumns: "1.4fr 1fr", marginBottom: 20 }}>
+      <div className="grid mb-5" style={{ gridTemplateColumns: "1.4fr 1fr" }}>
         <div className="card">
           <div className="card__head">
             <div>
@@ -102,45 +102,24 @@ export default function DashboardPage() {
               Ver calendario {I.chevronRight}
             </Link>
           </div>
-          <div className="card__body" style={{ padding: 0 }}>
+          <div className="card__body p-0">
             {todayDeliveries.length === 0 && (
-              <div className="empty" style={{ margin: 14 }}>
-                Sin entregas programadas.
-              </div>
+              <div className="empty m-3.5">Sin entregas programadas.</div>
             )}
             {todayDeliveries.map((d, i) => (
               <div
                 key={d.id}
+                className="flex items-center gap-2.5 px-4 py-3"
                 style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 10,
-                  padding: "12px 16px",
                   borderBottom: i < todayDeliveries.length - 1 ? "1px solid var(--line)" : "none",
                 }}
               >
-                <div
-                  style={{
-                    width: 44,
-                    textAlign: "center",
-                    fontFamily: "var(--font-mono)",
-                    fontSize: 13,
-                    color: "var(--ink-2)",
-                  }}
-                >
+                <div className="w-11 text-center font-mono text-[13px] text-ink-2">
                   {d.time}
                 </div>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontWeight: 500, fontSize: 13 }}>{d.client}</div>
-                  <div
-                    style={{
-                      color: "var(--muted)",
-                      fontSize: 12,
-                      whiteSpace: "nowrap",
-                      overflow: "hidden",
-                      textOverflow: "ellipsis",
-                    }}
-                  >
+                <div className="flex-1 min-w-0">
+                  <div className="font-medium text-[13px]">{d.client}</div>
+                  <div className="text-muted text-xs whitespace-nowrap overflow-hidden text-ellipsis">
                     {d.id} · {d.items}
                   </div>
                 </div>
@@ -165,7 +144,7 @@ export default function DashboardPage() {
               <tr>
                 <th>Pedido</th>
                 <th>Cliente</th>
-                <th style={{ textAlign: "right" }}>Total</th>
+                <th className="text-right">Total</th>
                 <th>Estatus</th>
                 <th>Entrega</th>
               </tr>
@@ -175,9 +154,7 @@ export default function DashboardPage() {
                 <tr key={o.id}>
                   <td className="num">{o.id}</td>
                   <td>{o.client}</td>
-                  <td className="num" style={{ textAlign: "right" }}>
-                    {fmtMXN(o.total)}
-                  </td>
+                  <td className="num text-right">{fmtMXN(o.total)}</td>
                   <td>
                     <StatusPill s={o.status} />
                   </td>
@@ -196,34 +173,30 @@ export default function DashboardPage() {
               Ver todas {I.chevronRight}
             </Link>
           </div>
-          <div className="card__body" style={{ padding: 0 }}>
+          <div className="card__body p-0">
             {pendingApprovals.map((a, i, arr) => (
               <Link
                 key={a.id}
                 href="/approvals"
+                className="flex gap-3 px-4 py-3 no-underline text-inherit"
                 style={{
-                  display: "flex",
-                  gap: 12,
-                  padding: "12px 16px",
                   borderBottom: i < arr.length - 1 ? "1px solid var(--line)" : "none",
-                  textDecoration: "none",
-                  color: "inherit",
                 }}
               >
-                <div className="skeleton-img" style={{ width: 44, height: 44, fontSize: 9 }}>
+                <div className="skeleton-img w-11 h-11 text-[9px]">
                   v{a.version}
                 </div>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontWeight: 500, fontSize: 13 }}>{a.product}</div>
-                  <div style={{ color: "var(--muted)", fontSize: 12 }}>
+                <div className="flex-1 min-w-0">
+                  <div className="font-medium text-[13px]">{a.product}</div>
+                  <div className="text-muted text-xs">
                     {a.client} · {a.order}
                   </div>
-                  <div style={{ marginTop: 4, display: "flex", gap: 6 }}>
+                  <div className="mt-1 flex gap-1.5">
                     <span className="tag">{a.channel}</span>
                     <span className="tag">v{a.version}</span>
                   </div>
                 </div>
-                <div style={{ alignSelf: "flex-start" }}>
+                <div className="self-start">
                   <ApprovalPill s={a.status} />
                 </div>
               </Link>

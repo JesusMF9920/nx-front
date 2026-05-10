@@ -61,29 +61,22 @@ export default function CalendarPage() {
         }
       />
 
-      <div className="card" style={{ marginBottom: 20 }}>
+      <div className="card mb-5">
         <div className="card__head">
           <button className="icon-btn" aria-label="Semana anterior">{I.chevronLeft}</button>
           <button className="btn btn--sm">Hoy</button>
           <button className="icon-btn" aria-label="Semana siguiente">{I.chevronRight}</button>
-          <div style={{ marginLeft: 8, fontWeight: 500 }}>Mayo 2026</div>
+          <div className="ml-2 font-medium">Mayo 2026</div>
           <div className="spacer" />
-          <div style={{ display: "flex", gap: 16, fontSize: 12, color: "var(--muted)" }}>
-            <span style={{ display: "flex", alignItems: "center", gap: 6 }}><span className="dot dot--info" />Diseño</span>
-            <span style={{ display: "flex", alignItems: "center", gap: 6 }}><span className="dot dot--warn" />Aprobación</span>
-            <span style={{ display: "flex", alignItems: "center", gap: 6 }}><span className="dot dot--accent" />Producción</span>
-            <span style={{ display: "flex", alignItems: "center", gap: 6 }}><span className="dot dot--supplier" />Proveedor</span>
-            <span style={{ display: "flex", alignItems: "center", gap: 6 }}><span className="dot dot--ok" />Listo</span>
+          <div className="flex gap-4 text-xs text-muted">
+            <span className="flex items-center gap-1.5"><span className="dot dot--info" />Diseño</span>
+            <span className="flex items-center gap-1.5"><span className="dot dot--warn" />Aprobación</span>
+            <span className="flex items-center gap-1.5"><span className="dot dot--accent" />Producción</span>
+            <span className="flex items-center gap-1.5"><span className="dot dot--supplier" />Proveedor</span>
+            <span className="flex items-center gap-1.5"><span className="dot dot--ok" />Listo</span>
           </div>
           <div className="spacer" />
-          <div
-            style={{
-              display: "flex",
-              border: "1px solid var(--line)",
-              borderRadius: "var(--r-md)",
-              overflow: "hidden",
-            }}
-          >
+          <div className="flex border border-line rounded-md overflow-hidden">
             {VIEW_LABELS.map((v) => (
               <button
                 key={v.id}
@@ -98,10 +91,11 @@ export default function CalendarPage() {
         </div>
 
         <div
+          className="grid"
           style={{
-            display: "grid",
             gridTemplateColumns: "repeat(7, 1fr)",
             borderTop: "1px solid var(--line)",
+            gap: 0,
           }}
         >
           {WEEK.map((d, i) => {
@@ -116,38 +110,25 @@ export default function CalendarPage() {
                 }}
               >
                 <div
+                  className="flex items-center gap-1.5 px-3 py-2.5 text-xs sticky top-0"
                   style={{
-                    padding: "10px 12px",
                     borderBottom: "1px solid var(--line)",
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 6,
-                    fontSize: 12,
                     color: d.today ? "var(--accent-ink)" : "var(--ink-2)",
                     fontWeight: d.today ? 600 : 500,
-                    position: "sticky",
-                    top: 0,
                     background: "inherit",
                   }}
                 >
                   {d.label}
                   {d.today && (
-                    <span className="pill pill--accent" style={{ marginLeft: "auto", padding: "0 6px" }}>
+                    <span className="pill pill--accent ml-auto" style={{ padding: "0 6px" }}>
                       Hoy
                     </span>
                   )}
                 </div>
 
-                <div style={{ padding: 8, display: "flex", flexDirection: "column", gap: 6 }}>
+                <div className="p-2 flex flex-col gap-1.5">
                   {events.length === 0 ? (
-                    <div
-                      style={{
-                        color: "var(--muted-2)",
-                        fontSize: 11,
-                        padding: "20px 4px",
-                        textAlign: "center",
-                      }}
-                    >
+                    <div className="text-muted-2 text-[11px] text-center" style={{ padding: "20px 4px" }}>
                       Sin entregas
                     </div>
                   ) : (
@@ -160,7 +141,7 @@ export default function CalendarPage() {
         </div>
       </div>
 
-      <div className="grid" style={{ gridTemplateColumns: "1fr 1fr", gap: 20 }}>
+      <div className="grid gap-5" style={{ gridTemplateColumns: "1fr 1fr" }}>
         <UpcomingByStatus title="Esperando aprobación cliente" items={WAITING_APPROVAL} />
         <UpcomingByStatus title="Con proveedor — riesgo" items={SUPPLIER_RISK} />
       </div>
