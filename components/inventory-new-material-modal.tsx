@@ -24,8 +24,8 @@ export function InventoryNewMaterialModal({ onClose }: { onClose: () => void }) 
         </>
       }
     >
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
-        <label className="field" style={{ gridColumn: "1 / -1" }}>
+      <div className="grid grid-cols-2 gap-3.5">
+        <label className="field col-span-full">
           <span className="label">Nombre</span>
           <input className="input" placeholder="Ej. Vinil reflejante 60cm" />
         </label>
