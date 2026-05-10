@@ -5,6 +5,7 @@ import { useMemo, useState } from "react";
 import { I } from "@/components/icons";
 import { Modal } from "@/components/modal";
 import { PageHeader } from "@/components/page-header";
+import { QuoteStatusPill } from "@/components/quote-status-pill";
 import { fmtMXN } from "@/lib/format";
 import { NEXUM_CLIENTS } from "@/lib/mock-clients";
 import { NEXUM_PRODUCTS } from "@/lib/mock-products";
@@ -26,15 +27,6 @@ const TAB_STATUS: Record<Tab, QuoteStatus | null> = {
 };
 
 const TODAY = new Date("2026-05-10");
-
-function StatusPill({ s }: { s: QuoteStatus }) {
-  if (s === "Aprobada")   return <span className="pill pill--ok">{s}</span>;
-  if (s === "Enviada")    return <span className="pill pill--info">{s}</span>;
-  if (s === "Convertida") return <span className="pill pill--accent">→ Pedido</span>;
-  if (s === "Rechazada")  return <span className="pill pill--danger">{s}</span>;
-  if (s === "Vencida")    return <span className="pill pill--warn">{s}</span>;
-  return <span className="pill pill--neutral">{s}</span>;
-}
 
 export default function QuotesPage() {
   const [tab, setTab] = useState<Tab>("Todas");
@@ -151,7 +143,7 @@ function QuoteRow({ q }: { q: Quote }) {
           </div>
         )}
       </td>
-      <td><StatusPill s={q.status} /></td>
+      <td><QuoteStatusPill s={q.status} /></td>
       <td style={{ textAlign: "right", whiteSpace: "nowrap" }}>
         {q.status === "Aprobada" && (
           <Link href="/pos" className="btn btn--sm btn--primary">

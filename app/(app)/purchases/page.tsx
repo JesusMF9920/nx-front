@@ -4,6 +4,7 @@ import { useState } from "react";
 import { I } from "@/components/icons";
 import { Modal } from "@/components/modal";
 import { PageHeader } from "@/components/page-header";
+import { PurchaseStatusPill } from "@/components/purchase-status-pill";
 import { fmtMXN } from "@/lib/format";
 import { NEXUM_MATERIALS } from "@/lib/mock-materials";
 import { NEXUM_PURCHASES } from "@/lib/mock-purchases";
@@ -13,14 +14,6 @@ import type { Material, Purchase, PurchaseLine, PurchaseStatus } from "@/lib/typ
 type Tab = "Todas" | "Borrador" | "Enviada" | "Recibida parcial" | "Recibida";
 
 const TABS: Tab[] = ["Todas", "Borrador", "Enviada", "Recibida parcial", "Recibida"];
-
-function StatusPill({ s }: { s: PurchaseStatus }) {
-  if (s === "Recibida")         return <span className="pill pill--ok">{s}</span>;
-  if (s === "Enviada")          return <span className="pill pill--info">{s}</span>;
-  if (s === "Recibida parcial") return <span className="pill pill--warn">{s}</span>;
-  if (s === "Borrador")         return <span className="pill pill--neutral">{s}</span>;
-  return <span className="pill">{s}</span>;
-}
 
 export default function PurchasesPage() {
   const [tab, setTab] = useState<Tab>("Todas");
@@ -108,7 +101,7 @@ export default function PurchasesPage() {
                   <td className="num" style={{ textAlign: "right", fontWeight: 600 }}>
                     {fmtMXN(p.total)}
                   </td>
-                  <td><StatusPill s={p.status} /></td>
+                  <td><PurchaseStatusPill s={p.status} /></td>
                 </tr>
               ))}
             </tbody>
