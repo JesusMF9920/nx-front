@@ -31,22 +31,20 @@ export function InventoryMaterialDetail({ material }: { material: Material }) {
   const using = productsUsing(material.id);
 
   return (
-    <div className="card" style={{ position: "sticky", top: 16 }}>
+    <div className="card sticky top-4">
       <div className="card__head">
         <div>
           <div className="card__title">{material.name}</div>
-          <div style={{ color: "var(--muted)", fontSize: 11, fontFamily: "var(--font-mono)" }}>
-            {material.sku}
-          </div>
+          <div className="text-muted text-[11px] font-mono">{material.sku}</div>
         </div>
         <div className="spacer" />
         <button className="icon-btn" aria-label="Editar insumo">{I.edit}</button>
       </div>
 
-      <div style={{ padding: 16, borderBottom: "1px solid var(--line)" }}>
-        <div style={{ display: "flex", alignItems: "baseline", gap: 6 }}>
-          <span className="num" style={{ fontSize: 32, fontWeight: 600 }}>{material.stock}</span>
-          <span style={{ color: "var(--muted)", fontSize: 14 }}>{material.unit}</span>
+      <div className="p-4" style={{ borderBottom: "1px solid var(--line)" }}>
+        <div className="flex items-baseline gap-1.5">
+          <span className="num font-semibold" style={{ fontSize: 32 }}>{material.stock}</span>
+          <span className="text-muted text-sm">{material.unit}</span>
           <div className="spacer" />
           {isCritical ? (
             <span className="pill pill--danger">{I.alert} Crítico</span>
@@ -57,36 +55,20 @@ export function InventoryMaterialDetail({ material }: { material: Material }) {
           )}
         </div>
         <div
-          style={{
-            height: 6,
-            background: "var(--surface-3)",
-            borderRadius: 3,
-            marginTop: 10,
-            overflow: "hidden",
-          }}
+          className="bg-surface-3 mt-2.5 overflow-hidden"
+          style={{ height: 6, borderRadius: 3 }}
         >
           <div
+            className="h-full"
             style={{
               width: `${pct}%`,
-              height: "100%",
               background: isCritical ? "var(--danger)" : isLow ? "var(--warn)" : "var(--ok)",
             }}
           />
         </div>
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            marginTop: 6,
-            fontSize: 11,
-            color: "var(--muted)",
-          }}
-        >
+        <div className="flex justify-between mt-1.5 text-[11px] text-muted">
           <span>
-            Reorden:{" "}
-            <span className="num">
-              {material.reorder} {material.unit}
-            </span>
+            Reorden: <span className="num">{material.reorder} {material.unit}</span>
           </span>
           <span>
             Costo unit.: <span className="num">{fmtMXN(material.cost)}</span>
@@ -95,22 +77,17 @@ export function InventoryMaterialDetail({ material }: { material: Material }) {
       </div>
 
       {material.variants && (
-        <div style={{ padding: 16, borderBottom: "1px solid var(--line)" }}>
-          <div className="label" style={{ marginBottom: 8 }}>Por variante</div>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(60px, 1fr))", gap: 6 }}>
+        <div className="p-4" style={{ borderBottom: "1px solid var(--line)" }}>
+          <div className="label mb-2">Por variante</div>
+          <div className="grid gap-1.5" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(60px, 1fr))" }}>
             {material.variants.map((v) => (
               <div
                 key={v.id}
-                style={{
-                  border: "1px solid var(--line)",
-                  borderRadius: "var(--r-md)",
-                  padding: "6px 8px",
-                  textAlign: "center",
-                  background: v.stock < 10 ? "var(--warn-soft)" : "var(--surface-2)",
-                }}
+                className="border border-line rounded-md py-1.5 px-2 text-center"
+                style={{ background: v.stock < 10 ? "var(--warn-soft)" : "var(--surface-2)" }}
               >
-                <div style={{ fontSize: 10, color: "var(--muted)" }}>{v.label}</div>
-                <div className="num" style={{ fontWeight: 600, fontSize: 14 }}>{v.stock}</div>
+                <div className="text-[10px] text-muted">{v.label}</div>
+                <div className="num font-semibold text-sm">{v.stock}</div>
               </div>
             ))}
           </div>
@@ -118,49 +95,27 @@ export function InventoryMaterialDetail({ material }: { material: Material }) {
       )}
 
       <div
-        style={{
-          padding: 16,
-          borderBottom: "1px solid var(--line)",
-          display: "grid",
-          gridTemplateColumns: "1fr 1fr",
-          gap: 12,
-          fontSize: 12,
-        }}
+        className="p-4 grid grid-cols-2 gap-3 text-xs"
+        style={{ borderBottom: "1px solid var(--line)" }}
       >
         <div>
-          <div
-            style={{
-              color: "var(--muted)",
-              fontSize: 10,
-              textTransform: "uppercase",
-              letterSpacing: ".06em",
-            }}
-          >
+          <div className="text-muted text-[10px] uppercase" style={{ letterSpacing: ".06em" }}>
             Ubicación
           </div>
-          <div style={{ fontWeight: 500 }}>{material.location}</div>
+          <div className="font-medium">{material.location}</div>
         </div>
         <div>
-          <div
-            style={{
-              color: "var(--muted)",
-              fontSize: 10,
-              textTransform: "uppercase",
-              letterSpacing: ".06em",
-            }}
-          >
+          <div className="text-muted text-[10px] uppercase" style={{ letterSpacing: ".06em" }}>
             Proveedor
           </div>
-          <div style={{ fontWeight: 500 }}>{material.supplierName}</div>
+          <div className="font-medium">{material.supplierName}</div>
         </div>
       </div>
 
-      <div style={{ padding: 16 }}>
-        <div className="label" style={{ marginBottom: 10 }}>
-          Productos que consumen este insumo
-        </div>
+      <div className="p-4">
+        <div className="label mb-2.5">Productos que consumen este insumo</div>
         {using.length === 0 ? (
-          <div className="empty" style={{ padding: 16, fontSize: 12 }}>
+          <div className="empty p-4 text-xs">
             Ningún producto activo lo consume.
           </div>
         ) : (
@@ -168,28 +123,19 @@ export function InventoryMaterialDetail({ material }: { material: Material }) {
             <Link
               key={product.id}
               href={`/products/${product.id}`}
-              style={{
-                display: "flex",
-                gap: 10,
-                padding: "8px 0",
-                borderTop: "1px solid var(--line)",
-                alignItems: "center",
-                textDecoration: "none",
-                color: "inherit",
-              }}
+              className="flex gap-2.5 py-2 items-center no-underline text-inherit"
+              style={{ borderTop: "1px solid var(--line)" }}
             >
-              <div className="skeleton-img" style={{ width: 32, height: 32, fontSize: 9, flexShrink: 0 }}>
+              <div className="skeleton-img text-[9px] shrink-0" style={{ width: 32, height: 32 }}>
                 •
               </div>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: 12, fontWeight: 500 }}>{product.name}</div>
-                <div style={{ color: "var(--muted)", fontSize: 10 }}>{note ?? "—"}</div>
+              <div className="flex-1 min-w-0">
+                <div className="text-xs font-medium">{product.name}</div>
+                <div className="text-muted text-[10px]">{note ?? "—"}</div>
               </div>
-              <div style={{ textAlign: "right", fontSize: 11 }}>
-                <div className="num" style={{ fontWeight: 600 }}>
-                  {qty} {material.unit}
-                </div>
-                <div style={{ color: "var(--muted)", fontSize: 10 }}>por unidad</div>
+              <div className="text-right text-[11px]">
+                <div className="num font-semibold">{qty} {material.unit}</div>
+                <div className="text-muted text-[10px]">por unidad</div>
               </div>
             </Link>
           ))
@@ -198,17 +144,11 @@ export function InventoryMaterialDetail({ material }: { material: Material }) {
 
       {isLow && (
         <div
-          style={{
-            padding: 14,
-            background: "var(--warn-soft)",
-            borderTop: "1px solid var(--line)",
-            display: "flex",
-            gap: 10,
-            alignItems: "center",
-          }}
+          className="p-3.5 bg-warn-soft flex gap-2.5 items-center"
+          style={{ borderTop: "1px solid var(--line)" }}
         >
-          <span style={{ color: "var(--warn)" }}>{I.alert}</span>
-          <div style={{ flex: 1, fontSize: 12 }}>
+          <span className="text-warn">{I.alert}</span>
+          <div className="flex-1 text-xs">
             Sugerir orden de compra a <strong>{material.supplierName}</strong>
           </div>
           <button className="btn btn--sm btn--primary">Generar OC</button>

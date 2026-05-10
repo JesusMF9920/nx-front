@@ -88,47 +88,41 @@ export function PosPaymentModal({ total, cart, customerEmail, onClose, onPaid }:
         </>
       }
     >
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 18 }}>
+      <div className="grid grid-cols-2 gap-[18px]">
         <div>
-          <div className="label" style={{ marginBottom: 8 }}>Método de pago</div>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>
+          <div className="label mb-2">Método de pago</div>
+          <div className="grid grid-cols-2 gap-1.5">
             {METHOD_OPTIONS.map((m) => (
               <button
                 type="button"
                 key={m.id}
                 onClick={() => setMethod(m.id)}
+                className="text-left rounded-md p-2.5 cursor-pointer flex flex-col gap-1"
                 style={{
-                  textAlign: "left",
                   border: method === m.id ? "1.5px solid var(--accent)" : "1px solid var(--line)",
-                  borderRadius: "var(--r-md)",
                   background: method === m.id ? "var(--accent-soft)" : "var(--surface)",
-                  padding: 10,
-                  cursor: "pointer",
-                  display: "flex",
-                  flexDirection: "column",
-                  gap: 4,
                   color: method === m.id ? "var(--accent-ink)" : "var(--ink)",
                 }}
               >
                 <span>{m.icon}</span>
-                <div style={{ fontWeight: 500, fontSize: 13 }}>{m.id}</div>
-                <div style={{ fontSize: 11, color: "var(--muted)" }}>{m.sub}</div>
+                <div className="font-medium text-[13px]">{m.id}</div>
+                <div className="text-[11px] text-muted">{m.sub}</div>
               </button>
             ))}
           </div>
 
           {method === "Efectivo" && (
             <>
-              <div className="field" style={{ marginTop: 14 }}>
+              <div className="field mt-3.5">
                 <span className="label">Recibido</span>
                 <input
-                  className="input num"
-                  style={{ fontSize: 18, height: 40 }}
+                  className="input num text-lg"
+                  style={{ height: 40 }}
                   value={cash}
                   onChange={(e) => setCash(parseFloat(e.target.value || "0"))}
                 />
               </div>
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 6, marginTop: 8 }}>
+              <div className="grid grid-cols-4 gap-1.5 mt-2">
                 {quickCash.map((x, i) => (
                   <button type="button" key={i} className="btn btn--sm" onClick={() => setCash(x)}>
                     {fmtMXN(x)}
@@ -139,23 +133,15 @@ export function PosPaymentModal({ total, cart, customerEmail, onClose, onPaid }:
           )}
 
           {method === "Terminal" && (
-            <div
-              style={{
-                marginTop: 14,
-                padding: 14,
-                border: "1px solid var(--line)",
-                borderRadius: "var(--r-md)",
-                background: "var(--surface-2)",
-              }}
-            >
-              <div style={{ display: "flex", gap: 10, alignItems: "center", marginBottom: 8 }}>
-                <span style={{ color: "var(--accent)" }}>{I.card}</span>
-                <strong style={{ fontSize: 13 }}>Terminal Mercado Libre</strong>
+            <div className="mt-3.5 p-3.5 border border-line rounded-md bg-surface-2">
+              <div className="flex gap-2.5 items-center mb-2">
+                <span className="text-accent">{I.card}</span>
+                <strong className="text-[13px]">Terminal Mercado Libre</strong>
               </div>
-              <div style={{ fontSize: 12, color: "var(--muted)", marginBottom: 10 }}>
+              <div className="text-xs text-muted mb-2.5">
                 Conectada · Point Mini W · estado <span className="pill pill--ok">Listo</span>
               </div>
-              <button className="btn btn--primary" style={{ width: "100%", justifyContent: "center" }}>
+              <button className="btn btn--primary w-full justify-center">
                 {I.send} Enviar {fmtMXN(total)} a la terminal
               </button>
             </div>
@@ -163,15 +149,8 @@ export function PosPaymentModal({ total, cart, customerEmail, onClose, onPaid }:
         </div>
 
         <div>
-          <div className="label" style={{ marginBottom: 8 }}>Resumen</div>
-          <div
-            style={{
-              background: "var(--surface-2)",
-              border: "1px solid var(--line)",
-              borderRadius: "var(--r-md)",
-              padding: 14,
-            }}
-          >
+          <div className="label mb-2">Resumen</div>
+          <div className="bg-surface-2 border border-line rounded-md p-3.5">
             <SummaryRow label="Total a cobrar" value={fmtMXN(total)} big />
             {method === "Efectivo" && (
               <>
@@ -183,9 +162,9 @@ export function PosPaymentModal({ total, cart, customerEmail, onClose, onPaid }:
 
           <div className="divider" />
 
-          <div className="label" style={{ marginBottom: 8 }}>Comprobante</div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-            <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13 }}>
+          <div className="label mb-2">Comprobante</div>
+          <div className="flex flex-col gap-2">
+            <label className="flex items-center gap-2 text-[13px]">
               <input
                 type="checkbox"
                 checked={printTicket}
@@ -193,20 +172,20 @@ export function PosPaymentModal({ total, cart, customerEmail, onClose, onPaid }:
               />
               {I.printer} Imprimir ticket térmico (80 mm)
             </label>
-            <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13 }}>
+            <label className="flex items-center gap-2 text-[13px]">
               <input type="checkbox" />
               {I.printer} Imprimir ticket carta con logo
             </label>
-            <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13 }}>
+            <label className="flex items-center gap-2 text-[13px]">
               <input
                 type="checkbox"
                 checked={emailTicket}
                 onChange={(e) => setEmailTicket(e.target.checked)}
               />
               {I.mail} Enviar por correo a{" "}
-              <strong style={{ color: "var(--accent-ink)" }}>{customerEmail ?? "cliente@nexum.mx"}</strong>
+              <strong className="text-accent-ink">{customerEmail ?? "cliente@nexum.mx"}</strong>
             </label>
-            <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13 }}>
+            <label className="flex items-center gap-2 text-[13px]">
               <input type="checkbox" />
               {I.whatsapp} Enviar link de portal por WhatsApp
             </label>
@@ -215,20 +194,10 @@ export function PosPaymentModal({ total, cart, customerEmail, onClose, onPaid }:
           {consumption.length > 0 && (
             <>
               <div className="divider" />
-              <div
-                className="label"
-                style={{ marginBottom: 8, display: "flex", alignItems: "center", gap: 6 }}
-              >
+              <div className="label mb-2 flex items-center gap-1.5">
                 {I.layers} Inventario que se descontará
               </div>
-              <div
-                style={{
-                  background: "var(--surface-2)",
-                  border: "1px solid var(--line)",
-                  borderRadius: "var(--r-md)",
-                  padding: 10,
-                }}
-              >
+              <div className="bg-surface-2 border border-line rounded-md p-2.5">
                 {consumption.map((c) => {
                   const stockNow = c.variant ? c.variant.stock : c.mat.stock;
                   const after = stockNow - c.qty;
@@ -237,14 +206,14 @@ export function PosPaymentModal({ total, cart, customerEmail, onClose, onPaid }:
                   return (
                     <div
                       key={c.materialId + (c.variantId ?? "")}
-                      style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12, padding: "4px 0" }}
+                      className="flex items-center gap-2 text-xs py-1"
                     >
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontWeight: 500 }}>
+                      <div className="flex-1 min-w-0">
+                        <div className="font-medium">
                           {c.mat.name}
                           {c.variant ? ` · ${c.variant.label}` : ""}
                         </div>
-                        <div style={{ color: "var(--muted)", fontSize: 10 }}>
+                        <div className="text-muted text-[10px]">
                           {stockNow} →{" "}
                           <strong
                             style={{
@@ -260,20 +229,20 @@ export function PosPaymentModal({ total, cart, customerEmail, onClose, onPaid }:
                           {c.mat.unit}
                         </div>
                       </div>
-                      <span className="num" style={{ fontWeight: 600, color: "var(--danger)" }}>
+                      <span className="num font-semibold text-danger">
                         −{c.qty.toFixed(2)}
                       </span>
                       {willCritical && (
-                        <span className="pill pill--danger" style={{ fontSize: 9 }}>{I.alert}</span>
+                        <span className="pill pill--danger text-[9px]">{I.alert}</span>
                       )}
                       {!willCritical && willLow && (
-                        <span className="pill pill--warn" style={{ fontSize: 9 }}>!</span>
+                        <span className="pill pill--warn text-[9px]">!</span>
                       )}
                     </div>
                   );
                 })}
               </div>
-              <div style={{ fontSize: 10, color: "var(--muted)", marginTop: 6 }}>
+              <div className="text-[10px] text-muted mt-1.5">
                 Solo productos internos descuentan inventario. Productos con proveedor generan OC.
               </div>
             </>
