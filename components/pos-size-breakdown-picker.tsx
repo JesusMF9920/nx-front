@@ -21,6 +21,8 @@ type Props = {
   onAdd: (product: Product, line: SizeBreakdownLineData, editLineId?: string) => void;
 };
 
+const COLS = "80px 1fr 110px 110px 130px";
+
 export function PosSizeBreakdownPicker({ product, editLineId, editBreakdown, onClose, onAdd }: Props) {
   const material = NEXUM_MATERIALS.find((m) => m.id === product.sizedFromMaterial);
   const sizes = material?.variants ?? [];
@@ -55,34 +57,25 @@ export function PosSizeBreakdownPicker({ product, editLineId, editBreakdown, onC
 
   return (
     <Modal title={`${editLineId ? "Editar" : "Configurar"} · ${product.name}`} onClose={onClose} width={680}>
-      <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 10, fontSize: 12, color: "var(--muted)" }}>
-          <span style={{ color: "var(--accent)" }}>{I.layers}</span>
+      <div className="flex flex-col gap-4">
+        <div className="flex items-center gap-2.5 text-xs text-muted">
+          <span className="text-accent">{I.layers}</span>
           <div>
-            Las tallas vienen del insumo <strong style={{ color: "var(--ink)" }}>{material?.name}</strong>.
+            Las tallas vienen del insumo <strong className="text-ink">{material?.name}</strong>.
             Stock se descuenta por talla.
           </div>
         </div>
 
-        <div style={{ border: "1px solid var(--line)", borderRadius: "var(--r-md)", overflow: "hidden" }}>
+        <div className="border border-line rounded-md overflow-hidden">
           <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "80px 1fr 110px 110px 130px",
-              padding: "10px 14px",
-              background: "var(--surface-2)",
-              fontSize: 11,
-              color: "var(--muted)",
-              textTransform: "uppercase",
-              letterSpacing: ".04em",
-              fontWeight: 500,
-            }}
+            className="grid px-3.5 py-2.5 bg-surface-2 text-[11px] text-muted uppercase font-medium"
+            style={{ gridTemplateColumns: COLS, letterSpacing: ".04em" }}
           >
             <span>Talla</span>
             <span>Insumo</span>
-            <span style={{ textAlign: "right" }}>Precio u.</span>
-            <span style={{ textAlign: "center" }}>Cantidad</span>
-            <span style={{ textAlign: "right" }}>Subtotal</span>
+            <span className="text-right">Precio u.</span>
+            <span className="text-center">Cantidad</span>
+            <span className="text-right">Subtotal</span>
           </div>
           {sizes.map((sz) => {
             const q = qtys[sz.id] ?? 0;
@@ -93,34 +86,26 @@ export function PosSizeBreakdownPicker({ product, editLineId, editBreakdown, onC
             return (
               <div
                 key={sz.id}
+                className="grid px-3.5 py-2.5 items-center"
                 style={{
-                  display: "grid",
-                  gridTemplateColumns: "80px 1fr 110px 110px 130px",
-                  padding: "10px 14px",
+                  gridTemplateColumns: COLS,
                   borderTop: "1px solid var(--line)",
-                  alignItems: "center",
                 }}
               >
-                <div style={{ fontWeight: 600, fontFamily: "var(--font-mono)" }}>{sz.id}</div>
-                <div style={{ fontSize: 11, color: "var(--muted)" }}>
-                  Stock: <span style={{ color: lowStock ? "var(--warn)" : "var(--ink)" }}>{remaining}</span>{" "}
+                <div className="font-semibold font-mono">{sz.id}</div>
+                <div className="text-[11px] text-muted">
+                  Stock:{" "}
+                  <span style={{ color: lowStock ? "var(--warn)" : "var(--ink)" }}>{remaining}</span>{" "}
                   / {sz.stock}
                 </div>
-                <div className="num" style={{ textAlign: "right", fontSize: 13 }}>
+                <div className="num text-right text-[13px]">
                   {fmtMXN(unit)}
                   {surcharge > 0 && (
-                    <div style={{ fontSize: 10, color: "var(--muted)" }}>+${surcharge}</div>
+                    <div className="text-[10px] text-muted">+${surcharge}</div>
                   )}
                 </div>
-                <div style={{ display: "flex", justifyContent: "center" }}>
-                  <div
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      border: "1px solid var(--line)",
-                      borderRadius: "var(--r-md)",
-                    }}
-                  >
+                <div className="flex justify-center">
+                  <div className="flex items-center border border-line rounded-md">
                     <button
                       type="button"
                       className="btn btn--ghost btn--sm"
@@ -130,17 +115,10 @@ export function PosSizeBreakdownPicker({ product, editLineId, editBreakdown, onC
                       −
                     </button>
                     <input
-                      className="num"
+                      className="num text-center bg-transparent"
                       value={q}
                       onChange={(e) => setQty(sz.id, parseInt(e.target.value || "0", 10))}
-                      style={{
-                        width: 44,
-                        textAlign: "center",
-                        border: 0,
-                        outline: "none",
-                        height: 26,
-                        background: "transparent",
-                      }}
+                      style={{ width: 44, border: 0, outline: "none", height: 26 }}
                     />
                     <button
                       type="button"
@@ -153,9 +131,8 @@ export function PosSizeBreakdownPicker({ product, editLineId, editBreakdown, onC
                   </div>
                 </div>
                 <div
-                  className="num"
+                  className="num text-right"
                   style={{
-                    textAlign: "right",
                     fontWeight: q > 0 ? 600 : 400,
                     color: q > 0 ? "var(--ink)" : "var(--muted)",
                   }}
@@ -167,37 +144,25 @@ export function PosSizeBreakdownPicker({ product, editLineId, editBreakdown, onC
           })}
         </div>
 
-        <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-          <div style={{ fontSize: 12, color: "var(--muted)" }}>Total piezas</div>
-          <div className="num" style={{ fontSize: 18, fontWeight: 600 }}>{totalQty}</div>
+        <div className="flex items-center gap-3.5">
+          <div className="text-xs text-muted">Total piezas</div>
+          <div className="num text-lg font-semibold">{totalQty}</div>
           <div className="spacer" />
-          <div style={{ textAlign: "right" }}>
-            <div style={{ fontSize: 11, color: "var(--muted)" }}>Subtotal de la línea</div>
-            <div className="num" style={{ fontSize: 20, fontWeight: 600 }}>{fmtMXN(lineSubtotal)}</div>
+          <div className="text-right">
+            <div className="text-[11px] text-muted">Subtotal de la línea</div>
+            <div className="num text-xl font-semibold">{fmtMXN(lineSubtotal)}</div>
           </div>
         </div>
 
-        <div
-          style={{
-            background: "var(--surface-2)",
-            border: "1px solid var(--line)",
-            borderRadius: "var(--r-md)",
-            padding: 10,
-            fontSize: 11,
-            color: "var(--muted)",
-            display: "flex",
-            gap: 8,
-            alignItems: "flex-start",
-          }}
-        >
-          <span style={{ color: "var(--accent)" }}>{I.paint}</span>
+        <div className="bg-surface-2 border border-line rounded-md p-2.5 text-[11px] text-muted flex gap-2 items-start">
+          <span className="text-accent">{I.paint}</span>
           <div>
-            Todas las tallas comparten <strong style={{ color: "var(--ink)" }}>un solo job de diseño</strong>.
+            Todas las tallas comparten <strong className="text-ink">un solo job de diseño</strong>.
             Si el cliente quiere otro estampado, agrega el producto de nuevo.
           </div>
         </div>
 
-        <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+        <div className="flex gap-2 justify-end">
           <button type="button" className="btn" onClick={onClose}>Cancelar</button>
           <button type="button" className="btn btn--primary" disabled={totalQty === 0} onClick={submit}>
             {editLineId ? "Guardar cambios" : "Añadir al carrito"} · {fmtMXN(lineSubtotal)}

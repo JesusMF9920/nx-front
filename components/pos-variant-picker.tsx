@@ -62,39 +62,30 @@ export function PosVariantPicker({ product, onClose, onAdd }: Props) {
         </>
       }
     >
-      <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+      <div className="flex flex-col gap-4">
         {!isDim && (
           <div>
-            <div className="label" style={{ marginBottom: 8 }}>
+            <div className="label mb-2">
               {product.variantType === "size" ? "Talla" : "Variante"}
             </div>
             <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "repeat(auto-fill, minmax(96px, 1fr))",
-                gap: 6,
-              }}
+              className="grid gap-1.5"
+              style={{ gridTemplateColumns: "repeat(auto-fill, minmax(96px, 1fr))" }}
             >
               {(product.variants ?? []).map((v) => (
                 <button
                   type="button"
                   key={v.id}
                   onClick={() => setSelected(v)}
+                  className="py-2.5 px-2 rounded-md cursor-pointer flex flex-col gap-0.5 text-left"
                   style={{
                     border: selected?.id === v.id ? "1.5px solid var(--accent)" : "1px solid var(--line)",
                     background: selected?.id === v.id ? "var(--accent-soft)" : "var(--surface)",
-                    padding: "10px 8px",
-                    borderRadius: "var(--r-md)",
-                    cursor: "pointer",
-                    display: "flex",
-                    flexDirection: "column",
-                    gap: 2,
-                    textAlign: "left",
                     color: selected?.id === v.id ? "var(--accent-ink)" : "var(--ink)",
                   }}
                 >
-                  <div style={{ fontWeight: 500, fontSize: 13 }}>{v.label}</div>
-                  <div className="num" style={{ fontSize: 11, color: "var(--muted)" }}>
+                  <div className="font-medium text-[13px]">{v.label}</div>
+                  <div className="num text-[11px] text-muted">
                     {v.priceMod > 0
                       ? `+${fmtMXN(v.priceMod)}`
                       : v.priceMod < 0
@@ -102,7 +93,7 @@ export function PosVariantPicker({ product, onClose, onAdd }: Props) {
                         : "Precio base"}
                   </div>
                   {v.stock > 0 && (
-                    <div style={{ fontSize: 10, color: "var(--muted)" }}>{v.stock} en stock</div>
+                    <div className="text-[10px] text-muted">{v.stock} en stock</div>
                   )}
                 </button>
               ))}
@@ -112,8 +103,8 @@ export function PosVariantPicker({ product, onClose, onAdd }: Props) {
 
         {isDim && cfg && (
           <div>
-            <div className="label" style={{ marginBottom: 8 }}>Medidas ({cfg.unit})</div>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+            <div className="label mb-2">Medidas ({cfg.unit})</div>
+            <div className="grid grid-cols-2 gap-2.5">
               <label className="field">
                 <span className="label">Ancho</span>
                 <input
@@ -139,7 +130,7 @@ export function PosVariantPicker({ product, onClose, onAdd }: Props) {
                 />
               </label>
             </div>
-            <div style={{ marginTop: 8, fontSize: 11, color: "var(--muted)" }}>
+            <div className="mt-2 text-[11px] text-muted">
               Precio por m²: <span className="num">{fmtMXN(product.price)}</span> · Mínimo {cfg.min}{" "}
               {cfg.unit}, máximo {cfg.max} {cfg.unit}.
             </div>
@@ -148,17 +139,10 @@ export function PosVariantPicker({ product, onClose, onAdd }: Props) {
 
         <div className="divider" />
 
-        <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+        <div className="flex items-center gap-3.5">
           <div>
-            <div className="label" style={{ marginBottom: 4 }}>Cantidad</div>
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                border: "1px solid var(--line)",
-                borderRadius: "var(--r-md)",
-              }}
-            >
+            <div className="label mb-1">Cantidad</div>
+            <div className="flex items-center border border-line rounded-md">
               <button
                 type="button"
                 className="btn btn--ghost btn--sm"
@@ -168,17 +152,10 @@ export function PosVariantPicker({ product, onClose, onAdd }: Props) {
                 −
               </button>
               <input
-                className="num"
+                className="num text-center bg-transparent"
                 value={qty}
                 onChange={(e) => setQty(Math.max(1, parseInt(e.target.value || "1", 10)))}
-                style={{
-                  width: 60,
-                  textAlign: "center",
-                  border: 0,
-                  outline: "none",
-                  height: 28,
-                  background: "transparent",
-                }}
+                style={{ width: 60, border: 0, outline: "none", height: 28 }}
               />
               <button
                 type="button"
@@ -192,29 +169,17 @@ export function PosVariantPicker({ product, onClose, onAdd }: Props) {
           </div>
           <div className="spacer" />
           {lineData && (
-            <div style={{ textAlign: "right" }}>
-              <div style={{ fontSize: 11, color: "var(--muted)" }}>Subtotal de la línea</div>
-              <div className="num" style={{ fontSize: 18, fontWeight: 600 }}>
+            <div className="text-right">
+              <div className="text-[11px] text-muted">Subtotal de la línea</div>
+              <div className="num text-lg font-semibold">
                 {fmtMXN(lineData.qty * lineData.price)}
               </div>
             </div>
           )}
         </div>
 
-        <div
-          style={{
-            background: "var(--surface-2)",
-            border: "1px solid var(--line)",
-            borderRadius: "var(--r-md)",
-            padding: 10,
-            fontSize: 11,
-            color: "var(--muted)",
-            display: "flex",
-            gap: 8,
-            alignItems: "flex-start",
-          }}
-        >
-          <span style={{ color: "var(--accent)" }}>{I.layers}</span>
+        <div className="bg-surface-2 border border-line rounded-md p-2.5 text-[11px] text-muted flex gap-2 items-start">
+          <span className="text-accent">{I.layers}</span>
           <div>
             Cada línea es un <strong>job independiente</strong> con su propia ficha de diseño y aprobación.
             Para añadir otra talla o variante del mismo producto, vuelve a presionar el producto en el catálogo.
