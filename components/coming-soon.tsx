@@ -2,13 +2,16 @@ import { PageHeader } from "./page-header";
 
 const ROUTE_LABELS: Record<string, string> = {
   pos: "Punto de venta",
+  quotes: "Cotizaciones",
   orders: "Pedidos",
+  purchases: "Compras",
   calendar: "Calendario de entregas",
   approvals: "Aprobaciones",
   products: "Productos",
   inventory: "Inventario",
   suppliers: "Proveedores",
   clients: "Clientes",
+  roles: "Roles y permisos",
   reports: "Reportes",
   settings: "Configuración",
 };
