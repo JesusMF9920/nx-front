@@ -50,7 +50,7 @@ export function QuoteNewModal({ onClose }: { onClose: () => void }) {
         </>
       }
     >
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12, marginBottom: 14 }}>
+      <div className="grid grid-cols-3 gap-3 mb-3.5">
         <label className="field">
           <span className="label">Cliente</span>
           <select className="input">
@@ -73,14 +73,14 @@ export function QuoteNewModal({ onClose }: { onClose: () => void }) {
         </label>
       </div>
 
-      <div className="card" style={{ boxShadow: "none", border: "1px solid var(--line)" }}>
+      <div className="card border border-line" style={{ boxShadow: "none" }}>
         <table className="tbl">
           <thead>
             <tr>
               <th>Producto</th>
-              <th style={{ width: 80, textAlign: "right" }}>Cant.</th>
-              <th style={{ width: 110, textAlign: "right" }}>Precio</th>
-              <th style={{ width: 120, textAlign: "right" }}>Subtotal</th>
+              <th className="text-right" style={{ width: 80 }}>Cant.</th>
+              <th className="text-right" style={{ width: 110 }}>Precio</th>
+              <th className="text-right" style={{ width: 120 }}>Subtotal</th>
               <th style={{ width: 40 }} />
             </tr>
           </thead>
@@ -89,8 +89,7 @@ export function QuoteNewModal({ onClose }: { onClose: () => void }) {
               <tr key={i}>
                 <td>
                   <select
-                    className="input"
-                    style={{ width: "100%" }}
+                    className="input w-full"
                     value={l.productId}
                     onChange={(e) => {
                       const p = NEXUM_PRODUCTS.find((x) => x.id === e.target.value);
@@ -107,8 +106,7 @@ export function QuoteNewModal({ onClose }: { onClose: () => void }) {
                 <td>
                   <input
                     type="number"
-                    className="input num"
-                    style={{ textAlign: "right" }}
+                    className="input num text-right"
                     value={l.qty}
                     onChange={(e) => update(i, { qty: parseInt(e.target.value || "0", 10) })}
                   />
@@ -116,15 +114,12 @@ export function QuoteNewModal({ onClose }: { onClose: () => void }) {
                 <td>
                   <input
                     type="number"
-                    className="input num"
-                    style={{ textAlign: "right" }}
+                    className="input num text-right"
                     value={l.price}
                     onChange={(e) => update(i, { price: parseFloat(e.target.value || "0") })}
                   />
                 </td>
-                <td className="num" style={{ textAlign: "right", fontWeight: 600 }}>
-                  {fmtMXN(l.qty * l.price)}
-                </td>
+                <td className="num text-right font-semibold">{fmtMXN(l.qty * l.price)}</td>
                 <td>
                   <button className="icon-btn" onClick={() => remove(i)} aria-label="Quitar línea">
                     {I.x}
@@ -135,33 +130,26 @@ export function QuoteNewModal({ onClose }: { onClose: () => void }) {
           </tbody>
         </table>
       </div>
-      <button className="btn btn--sm btn--ghost" onClick={add} style={{ marginTop: 10 }}>
+      <button className="btn btn--sm btn--ghost mt-2.5" onClick={add}>
         {I.plus} Agregar línea
       </button>
 
       <div className="divider" />
-      <div style={{ display: "flex", justifyContent: "flex-end", gap: 30, fontSize: 13 }}>
-        <div style={{ textAlign: "right" }}>
-          <div style={{ color: "var(--muted)" }}>Subtotal</div>
-          <div style={{ color: "var(--muted)", marginTop: 4 }}>IVA 16%</div>
+      <div className="flex justify-end gap-[30px] text-[13px]">
+        <div className="text-right">
+          <div className="text-muted">Subtotal</div>
+          <div className="text-muted mt-1">IVA 16%</div>
           <div
-            style={{
-              marginTop: 6,
-              fontSize: 11,
-              color: "var(--muted)",
-              textTransform: "uppercase",
-              letterSpacing: ".06em",
-            }}
+            className="mt-1.5 text-[11px] text-muted uppercase"
+            style={{ letterSpacing: ".06em" }}
           >
             Total
           </div>
         </div>
-        <div style={{ textAlign: "right" }}>
+        <div className="text-right">
           <div className="num">{fmtMXN(subtotal)}</div>
-          <div className="num" style={{ marginTop: 4 }}>{fmtMXN(tax)}</div>
-          <div className="num" style={{ fontSize: 20, fontWeight: 600, marginTop: 4 }}>
-            {fmtMXN(grand)}
-          </div>
+          <div className="num mt-1">{fmtMXN(tax)}</div>
+          <div className="num text-xl font-semibold mt-1">{fmtMXN(grand)}</div>
         </div>
       </div>
     </Modal>

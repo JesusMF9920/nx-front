@@ -32,7 +32,7 @@ export function PurchaseSuggestedModal({
         </>
       }
     >
-      <div style={{ fontSize: 12, color: "var(--muted)", marginBottom: 12 }}>
+      <div className="text-xs text-muted mb-3">
         {materials.length} insumos por debajo del punto de reorden. Se generará una OC borrador por proveedor.
       </div>
       {Object.entries(bySupplier).map(([sup, mats]) => {
@@ -40,43 +40,24 @@ export function PurchaseSuggestedModal({
         return (
           <div
             key={sup}
-            style={{
-              border: "1px solid var(--line)",
-              borderRadius: "var(--r-md)",
-              marginBottom: 10,
-              overflow: "hidden",
-            }}
+            className="border border-line rounded-md mb-2.5 overflow-hidden"
           >
-            <div
-              style={{
-                padding: "10px 14px",
-                background: "var(--surface-2)",
-                display: "flex",
-                alignItems: "center",
-                gap: 10,
-              }}
-            >
+            <div className="px-3.5 py-2.5 bg-surface-2 flex items-center gap-2.5">
               <strong>{sup}</strong>
-              <span className="tag" style={{ fontSize: 10 }}>{mats.length} insumos</span>
+              <span className="tag text-[10px]">{mats.length} insumos</span>
               <div className="spacer" />
-              <span className="num" style={{ fontWeight: 600 }}>{fmtMXN(total)}</span>
+              <span className="num font-semibold">{fmtMXN(total)}</span>
             </div>
             {mats.map((m) => (
               <div
                 key={m.id}
-                style={{
-                  display: "flex",
-                  padding: "8px 14px",
-                  borderTop: "1px solid var(--line)",
-                  fontSize: 12,
-                  alignItems: "center",
-                  gap: 10,
-                }}
+                className="flex px-3.5 py-2 text-xs items-center gap-2.5"
+                style={{ borderTop: "1px solid var(--line)" }}
               >
                 <input type="checkbox" defaultChecked />
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontWeight: 500 }}>{m.name}</div>
-                  <div style={{ color: "var(--muted)", fontSize: 10 }}>
+                <div className="flex-1">
+                  <div className="font-medium">{m.name}</div>
+                  <div className="text-muted text-[10px]">
                     Stock <span className="num">{m.stock}</span> · Reorden{" "}
                     <span className="num">{m.reorder}</span> {m.unit}
                   </div>
@@ -84,7 +65,7 @@ export function PurchaseSuggestedModal({
                 <div className="num">
                   {m.suggested} {m.unit}
                 </div>
-                <div className="num" style={{ width: 80, textAlign: "right", fontWeight: 600 }}>
+                <div className="num text-right font-semibold" style={{ width: 80 }}>
                   {fmtMXN(m.suggested * m.cost)}
                 </div>
               </div>

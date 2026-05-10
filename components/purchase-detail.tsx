@@ -6,52 +6,49 @@ import type { Purchase, PurchaseLine, PurchaseStatus } from "@/lib/types";
 
 export function PurchaseDetail({ po }: { po: Purchase }) {
   return (
-    <div className="card" style={{ position: "sticky", top: 16 }}>
+    <div className="card sticky top-4">
       <div className="card__head">
         <div>
           <div className="card__title num">{po.id}</div>
-          <div style={{ color: "var(--muted)", fontSize: 12 }}>{po.supplier}</div>
+          <div className="text-muted text-xs">{po.supplier}</div>
         </div>
         <div className="spacer" />
         <button className="icon-btn" aria-label="Descargar OC">{I.download}</button>
       </div>
 
       <div
-        style={{
-          padding: 14,
-          display: "grid",
-          gridTemplateColumns: "1fr 1fr",
-          gap: 10,
-          fontSize: 12,
-          borderBottom: "1px solid var(--line)",
-        }}
+        className="p-3.5 grid grid-cols-2 gap-2.5 text-xs"
+        style={{ borderBottom: "1px solid var(--line)" }}
       >
         <Kv k="Fecha" v={<span className="num">{po.date}</span>} />
         <Kv k="Esperada" v={<span className="num">{po.expected}</span>} />
         <Kv k="Comprador" v={po.buyer} />
-        <Kv k="Total" v={<span className="num" style={{ fontWeight: 600 }}>{fmtMXN(po.total)}</span>} />
+        <Kv k="Total" v={<span className="num font-semibold">{fmtMXN(po.total)}</span>} />
       </div>
 
-      <div style={{ padding: 14 }}>
-        <div className="label" style={{ marginBottom: 8 }}>Líneas</div>
+      <div className="p-3.5">
+        <div className="label mb-2">Líneas</div>
         {po.lines.map((l, i) => (
           <PurchaseLineRow key={i} line={l} status={po.status} first={i === 0} />
         ))}
       </div>
 
-      <div style={{ padding: 12, borderTop: "1px solid var(--line)", display: "flex", gap: 8 }}>
+      <div
+        className="p-3 flex gap-2"
+        style={{ borderTop: "1px solid var(--line)" }}
+      >
         {po.status === "Borrador" && (
-          <button className="btn btn--primary" style={{ flex: 1, justifyContent: "center" }}>
+          <button className="btn btn--primary flex-1 justify-center">
             {I.whatsapp} Enviar al proveedor
           </button>
         )}
         {(po.status === "Enviada" || po.status === "Recibida parcial") && (
-          <button className="btn btn--accent" style={{ flex: 1, justifyContent: "center" }}>
+          <button className="btn btn--accent flex-1 justify-center">
             {I.download} Recibir mercancía
           </button>
         )}
         {po.status === "Recibida" && (
-          <button className="btn btn--ghost" style={{ flex: 1, justifyContent: "center" }}>
+          <button className="btn btn--ghost flex-1 justify-center">
             {I.check} Cerrada
           </button>
         )}
@@ -78,14 +75,15 @@ function PurchaseLineRow({
   const receivedColor = pct === 100 ? "var(--ok)" : pct > 0 ? "var(--warn)" : "var(--muted)";
 
   return (
-    <div style={{ padding: "10px 0", borderTop: first ? "none" : "1px solid var(--line)" }}>
-      <div style={{ display: "flex", gap: 8, alignItems: "baseline" }}>
-        <div style={{ flex: 1, fontSize: 13 }}>{name}</div>
-        <div className="num" style={{ fontSize: 12, fontWeight: 600 }}>
-          {fmtMXN(line.qty * line.cost)}
-        </div>
+    <div
+      className="py-2.5"
+      style={{ borderTop: first ? "none" : "1px solid var(--line)" }}
+    >
+      <div className="flex gap-2 items-baseline">
+        <div className="flex-1 text-[13px]">{name}</div>
+        <div className="num text-xs font-semibold">{fmtMXN(line.qty * line.cost)}</div>
       </div>
-      <div style={{ display: "flex", gap: 8, fontSize: 11, color: "var(--muted)", marginTop: 2 }}>
+      <div className="flex gap-2 text-[11px] text-muted mt-0.5">
         <span className="num">{line.qty} {unit}</span>
         <span>·</span>
         <span className="num">{fmtMXN(line.cost)} c/u</span>
@@ -95,15 +93,10 @@ function PurchaseLineRow({
         </span>
       </div>
       <div
-        style={{
-          height: 4,
-          background: "var(--surface-3)",
-          borderRadius: 2,
-          marginTop: 4,
-          overflow: "hidden",
-        }}
+        className="bg-surface-3 mt-1 overflow-hidden"
+        style={{ height: 4, borderRadius: 2 }}
       >
-        <div style={{ width: `${pct}%`, height: "100%", background: barColor }} />
+        <div className="h-full" style={{ width: `${pct}%`, background: barColor }} />
       </div>
     </div>
   );
@@ -113,12 +106,8 @@ function Kv({ k, v }: { k: string; v: ReactNode }) {
   return (
     <div>
       <div
-        style={{
-          color: "var(--muted)",
-          fontSize: 10,
-          textTransform: "uppercase",
-          letterSpacing: ".06em",
-        }}
+        className="text-muted text-[10px] uppercase"
+        style={{ letterSpacing: ".06em" }}
       >
         {k}
       </div>
