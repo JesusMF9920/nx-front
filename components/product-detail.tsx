@@ -32,10 +32,10 @@ export function ProductDetail({ product }: { product: Product }) {
         <button className="btn btn--sm">{I.edit} Editar</button>
       </div>
       <div className="card__body">
-        <div style={{ display: "grid", gridTemplateColumns: "200px 1fr 1fr", gap: 24 }}>
+        <div className="grid gap-6" style={{ gridTemplateColumns: "200px 1fr 1fr" }}>
           <div className="skeleton-img" style={{ height: 180 }}>{product.method}</div>
 
-          <div className="grid" style={{ gap: 10 }}>
+          <div className="grid gap-2.5">
             <Kv k="Categoría" v={product.category} />
             <Kv k="Método" v={product.method} />
             <Kv k="Unidad de venta" v={product.unit} />
@@ -43,7 +43,7 @@ export function ProductDetail({ product }: { product: Product }) {
             <Kv k="Aprobación de diseño" v={product.needsApproval ? "Requerida" : "No requiere"} />
           </div>
 
-          <div className="grid" style={{ gap: 10 }}>
+          <div className="grid gap-2.5">
             <Kv
               k={product.variantType === "dimension" ? "Precio base" : "Precio"}
               v={`${fmtMXN(product.price)} / ${product.unit}`}
@@ -62,9 +62,9 @@ export function ProductDetail({ product }: { product: Product }) {
 
         <div className="divider" />
 
-        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10 }}>
-          <span style={{ color: "var(--accent)" }}>{I.layers}</span>
-          <div style={{ fontWeight: 500 }}>{variantLabel}</div>
+        <div className="flex items-center gap-2.5 mb-2.5">
+          <span className="text-accent">{I.layers}</span>
+          <div className="font-medium">{variantLabel}</div>
           {variantCount > 0 && (
             <span className="tag">
               {variantCount} {product.variantType === "size" ? "tallas" : "opciones"}
@@ -82,15 +82,8 @@ export function ProductDetail({ product }: { product: Product }) {
             variantType={product.variantType}
           />
         ) : product.variantType === "dimension" && product.dimensionConfig ? (
-          <div
-            style={{
-              padding: 14,
-              border: "1px solid var(--line)",
-              borderRadius: "var(--r-md)",
-              background: "var(--surface-2)",
-            }}
-          >
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 14 }}>
+          <div className="p-3.5 border border-line rounded-md bg-surface-2">
+            <div className="grid grid-cols-4 gap-3.5">
               <Kv k="Unidad" v={product.dimensionConfig.unit} mono />
               <Kv k="Mínimo" v={`${product.dimensionConfig.min} ${product.dimensionConfig.unit}`} mono />
               <Kv k="Máximo" v={`${product.dimensionConfig.max} ${product.dimensionConfig.unit}`} mono />
@@ -99,7 +92,7 @@ export function ProductDetail({ product }: { product: Product }) {
                 v={product.dimensionConfig.priceMode === "area" ? "Por m²" : "Por metro lineal"}
               />
             </div>
-            <div className="help" style={{ marginTop: 10 }}>
+            <div className="help mt-2.5">
               En el POS, el cajero captura alto × ancho y el sistema calcula el precio:{" "}
               <span className="num">
                 {fmtMXN(product.price)}/{product.unit}
@@ -108,18 +101,11 @@ export function ProductDetail({ product }: { product: Product }) {
             </div>
           </div>
         ) : product.variantType === "sizedFromMaterial" && product.sizeSurcharges ? (
-          <div
-            style={{
-              padding: 14,
-              border: "1px solid var(--line)",
-              borderRadius: "var(--r-md)",
-              background: "var(--surface-2)",
-            }}
-          >
-            <div className="help" style={{ marginBottom: 8 }}>
+          <div className="p-3.5 border border-line rounded-md bg-surface-2">
+            <div className="help mb-2">
               Las tallas y stock viven en el <strong>insumo</strong> ({product.sizedFromMaterial}). Aquí sólo se configura el cargo extra por talla.
             </div>
-            <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+            <div className="flex gap-1.5 flex-wrap">
               {Object.entries(product.sizeSurcharges).map(([size, surcharge]) => (
                 <span key={size} className="tag">
                   {size}: +{fmtMXN(surcharge)}
@@ -128,14 +114,14 @@ export function ProductDetail({ product }: { product: Product }) {
             </div>
           </div>
         ) : (
-          <div className="empty" style={{ padding: 18 }}>
+          <div className="empty p-4">
             Este producto se vende sin opciones de talla o medida.
           </div>
         )}
 
         <div className="divider" />
 
-        <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+        <div className="flex gap-1.5 flex-wrap">
           <Link href="/pos" className="btn btn--accent btn--sm">
             {I.cart} Vender ahora
           </Link>
@@ -164,16 +150,13 @@ function VariantsTable({
   variantType: VariantType;
 }) {
   return (
-    <table
-      className="tbl"
-      style={{ border: "1px solid var(--line)", borderRadius: "var(--r-md)", overflow: "hidden" }}
-    >
+    <table className="tbl border border-line rounded-md overflow-hidden">
       <thead>
         <tr>
           <th>{variantType === "size" ? "Talla" : "Medida"}</th>
-          <th style={{ textAlign: "right" }}>Precio</th>
-          <th style={{ textAlign: "right" }}>Modificador</th>
-          {source !== "Proveedor" && <th style={{ textAlign: "right" }}>Stock</th>}
+          <th className="text-right">Precio</th>
+          <th className="text-right">Modificador</th>
+          {source !== "Proveedor" && <th className="text-right">Stock</th>}
         </tr>
       </thead>
       <tbody>
@@ -182,13 +165,10 @@ function VariantsTable({
             <td>
               <strong>{v.label}</strong>
             </td>
-            <td className="num" style={{ textAlign: "right" }}>
-              {fmtMXN(basePrice + v.priceMod)}
-            </td>
+            <td className="num text-right">{fmtMXN(basePrice + v.priceMod)}</td>
             <td
-              className="num"
+              className="num text-right"
               style={{
-                textAlign: "right",
                 color: v.priceMod === 0 ? "var(--muted)" : v.priceMod > 0 ? "var(--ok)" : "var(--danger)",
               }}
             >
@@ -196,11 +176,8 @@ function VariantsTable({
             </td>
             {source !== "Proveedor" && (
               <td
-                className="num"
-                style={{
-                  textAlign: "right",
-                  color: v.stock < 15 ? "var(--warn)" : "var(--ink)",
-                }}
+                className="num text-right"
+                style={{ color: v.stock < 15 ? "var(--warn)" : "var(--ink)" }}
               >
                 {fmtInt(v.stock)}
               </td>

@@ -44,38 +44,24 @@ export function InventoryStockAdjustModal({ onClose }: { onClose: () => void }) 
         </select>
       </label>
 
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginTop: 12 }}>
-        <div
-          style={{
-            background: "var(--surface-2)",
-            border: "1px solid var(--line)",
-            borderRadius: "var(--r-md)",
-            padding: 12,
-          }}
-        >
+      <div className="grid grid-cols-2 gap-3.5 mt-3">
+        <div className="bg-surface-2 border border-line rounded-md p-3">
           <div className="label">Stock actual</div>
-          <div className="num" style={{ fontSize: 24, fontWeight: 600 }}>
+          <div className="num font-semibold" style={{ fontSize: 24 }}>
             {m.stock}{" "}
-            <span style={{ fontSize: 12, color: "var(--muted)", fontWeight: 400 }}>{m.unit}</span>
+            <span className="text-xs text-muted font-normal">{m.unit}</span>
           </div>
         </div>
-        <div
-          style={{
-            background: "var(--accent-soft)",
-            border: "1px solid var(--line)",
-            borderRadius: "var(--r-md)",
-            padding: 12,
-          }}
-        >
+        <div className="bg-accent-soft border border-line rounded-md p-3">
           <div className="label">Stock resultante</div>
-          <div className="num" style={{ fontSize: 24, fontWeight: 600, color: "var(--accent-ink)" }}>
+          <div className="num font-semibold text-accent-ink" style={{ fontSize: 24 }}>
             {m.stock + delta}{" "}
-            <span style={{ fontSize: 12, color: "var(--muted)", fontWeight: 400 }}>{m.unit}</span>
+            <span className="text-xs text-muted font-normal">{m.unit}</span>
           </div>
         </div>
       </div>
 
-      <label className="field" style={{ marginTop: 12 }}>
+      <label className="field mt-3">
         <span className="label">Diferencia (+/−)</span>
         <input
           type="number"
@@ -85,7 +71,7 @@ export function InventoryStockAdjustModal({ onClose }: { onClose: () => void }) 
         />
       </label>
 
-      <label className="field" style={{ marginTop: 12 }}>
+      <label className="field mt-3">
         <span className="label">Motivo</span>
         <select className="input" value={reason} onChange={(e) => setReason(e.target.value)}>
           {REASONS.map((r) => (
@@ -94,7 +80,7 @@ export function InventoryStockAdjustModal({ onClose }: { onClose: () => void }) 
         </select>
       </label>
 
-      <label className="field" style={{ marginTop: 12 }}>
+      <label className="field mt-3">
         <span className="label">Nota</span>
         <input className="input" placeholder="Detalles del ajuste" />
       </label>

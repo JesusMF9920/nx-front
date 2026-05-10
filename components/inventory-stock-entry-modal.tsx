@@ -44,7 +44,7 @@ export function InventoryStockEntryModal({ onClose }: { onClose: () => void }) {
         </>
       }
     >
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginBottom: 14 }}>
+      <div className="grid grid-cols-2 gap-3.5 mb-3.5">
         <label className="field">
           <span className="label">Proveedor</span>
           <select className="input" value={supplier} onChange={(e) => setSupplier(e.target.value)}>
@@ -59,14 +59,14 @@ export function InventoryStockEntryModal({ onClose }: { onClose: () => void }) {
         </label>
       </div>
 
-      <div className="card" style={{ boxShadow: "none", border: "1px solid var(--line)" }}>
+      <div className="card border border-line" style={{ boxShadow: "none" }}>
         <table className="tbl">
           <thead>
             <tr>
               <th>Insumo</th>
-              <th style={{ width: 100, textAlign: "right" }}>Cantidad</th>
-              <th style={{ width: 120, textAlign: "right" }}>Costo unit.</th>
-              <th style={{ width: 120, textAlign: "right" }}>Subtotal</th>
+              <th className="text-right" style={{ width: 100 }}>Cantidad</th>
+              <th className="text-right" style={{ width: 120 }}>Costo unit.</th>
+              <th className="text-right" style={{ width: 120 }}>Subtotal</th>
               <th style={{ width: 40 }} />
             </tr>
           </thead>
@@ -75,8 +75,7 @@ export function InventoryStockEntryModal({ onClose }: { onClose: () => void }) {
               <tr key={i}>
                 <td>
                   <select
-                    className="input"
-                    style={{ width: "100%" }}
+                    className="input w-full"
                     value={l.materialId}
                     onChange={(e) => {
                       const next = NEXUM_MATERIALS.find((x) => x.id === e.target.value);
@@ -93,8 +92,7 @@ export function InventoryStockEntryModal({ onClose }: { onClose: () => void }) {
                 <td>
                   <input
                     type="number"
-                    className="input num"
-                    style={{ textAlign: "right" }}
+                    className="input num text-right"
                     value={l.qty}
                     onChange={(e) => updateLine(i, { qty: parseFloat(e.target.value || "0") })}
                   />
@@ -102,15 +100,12 @@ export function InventoryStockEntryModal({ onClose }: { onClose: () => void }) {
                 <td>
                   <input
                     type="number"
-                    className="input num"
-                    style={{ textAlign: "right" }}
+                    className="input num text-right"
                     value={l.cost}
                     onChange={(e) => updateLine(i, { cost: parseFloat(e.target.value || "0") })}
                   />
                 </td>
-                <td className="num" style={{ textAlign: "right", fontWeight: 600 }}>
-                  {fmtMXN(l.qty * l.cost)}
-                </td>
+                <td className="num text-right font-semibold">{fmtMXN(l.qty * l.cost)}</td>
                 <td>
                   <button
                     className="icon-btn"
@@ -126,17 +121,15 @@ export function InventoryStockEntryModal({ onClose }: { onClose: () => void }) {
         </table>
       </div>
 
-      <button className="btn btn--ghost btn--sm" onClick={addLine} style={{ marginTop: 10 }}>
+      <button className="btn btn--ghost btn--sm mt-2.5" onClick={addLine}>
         {I.plus} Agregar línea
       </button>
 
       <div className="divider" />
 
-      <div style={{ display: "flex", justifyContent: "flex-end", alignItems: "baseline", gap: 14 }}>
-        <span style={{ color: "var(--muted)" }}>Total entrada:</span>
-        <span className="num" style={{ fontSize: 22, fontWeight: 600 }}>
-          {fmtMXN(total)}
-        </span>
+      <div className="flex justify-end items-baseline gap-3.5">
+        <span className="text-muted">Total entrada:</span>
+        <span className="num font-semibold" style={{ fontSize: 22 }}>{fmtMXN(total)}</span>
       </div>
     </Modal>
   );
