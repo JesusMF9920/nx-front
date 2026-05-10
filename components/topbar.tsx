@@ -2,31 +2,13 @@
 
 import { usePathname } from "next/navigation";
 import { Fragment } from "react";
+import { labelForRoute } from "@/lib/routes";
 import { I } from "./icons";
-
-const ROUTE_LABELS: Record<string, string> = {
-  dashboard: "Dashboard",
-  pos: "Punto de venta",
-  quotes: "Cotizaciones",
-  orders: "Pedidos",
-  purchases: "Compras",
-  calendar: "Calendario",
-  approvals: "Aprobaciones",
-  products: "Productos",
-  inventory: "Inventario",
-  suppliers: "Proveedores",
-  clients: "Clientes",
-  users: "Usuarios",
-  roles: "Roles y permisos",
-  reports: "Reportes",
-  settings: "Configuración",
-};
 
 function crumbsFor(pathname: string): string[] {
   const segments = pathname.split("/").filter(Boolean);
   if (segments.length === 0) return ["Nexum POS"];
-  const head = segments[0];
-  return ["Nexum POS", ROUTE_LABELS[head] ?? head];
+  return ["Nexum POS", labelForRoute(segments[0])];
 }
 
 export function Topbar() {
