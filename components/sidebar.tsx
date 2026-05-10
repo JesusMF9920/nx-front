@@ -1,0 +1,115 @@
+"use client";
+
+import Link from "next/link";
+import { usePathname, useRouter } from "next/navigation";
+import type { ReactNode } from "react";
+import { I } from "./icons";
+
+type NavItem = {
+  href: string;
+  label: string;
+  icon: ReactNode;
+  badge?: string;
+};
+
+type NavGroup = {
+  title: string;
+  items: NavItem[];
+};
+
+const NAV_GROUPS: NavGroup[] = [
+  {
+    title: "Operación",
+    items: [
+      { href: "/dashboard", label: "Dashboard",      icon: I.home },
+      { href: "/pos",       label: "Punto de venta", icon: I.cart,    badge: "F2" },
+      { href: "/orders",    label: "Pedidos",        icon: I.receipt, badge: "23" },
+      { href: "/calendar",  label: "Entregas",       icon: I.calendar, badge: "8" },
+      { href: "/approvals", label: "Aprobaciones",   icon: I.paint,   badge: "5" },
+    ],
+  },
+  {
+    title: "Catálogo",
+    items: [
+      { href: "/products",  label: "Productos",   icon: I.box },
+      { href: "/inventory", label: "Inventario",  icon: I.layers, badge: "3" },
+      { href: "/suppliers", label: "Proveedores", icon: I.factory },
+    ],
+  },
+  {
+    title: "Personas",
+    items: [
+      { href: "/clients", label: "Clientes", icon: I.users },
+      { href: "/users",   label: "Usuarios", icon: I.shield },
+    ],
+  },
+  {
+    title: "Análisis",
+    items: [
+      { href: "/reports",  label: "Reportes",      icon: I.chart },
+      { href: "/settings", label: "Configuración", icon: I.settings },
+    ],
+  },
+];
+
+type CurrentUser = { name: string; initials: string; role: string };
+
+export function Sidebar({ currentUser }: { currentUser: CurrentUser }) {
+  const pathname = usePathname();
+  const router = useRouter();
+
+  return (
+    <aside className="sidebar">
+      <div className="sidebar__brand">
+        <div className="brand-mark">N</div>
+        <div className="brand-name">
+          Nexum <small>POS</small>
+        </div>
+      </div>
+
+      <Link href="/settings" className="sidebar__org" style={{ textDecoration: "none", color: "inherit" }}>
+        <div className="org-avatar">IM</div>
+        <div className="org-name">Imprenta Centro</div>
+        <span className="chev">{I.chevronDown}</span>
+      </Link>
+
+      <nav className="sidebar__nav">
+        {NAV_GROUPS.map((g) => (
+          <div className="nav-group" key={g.title}>
+            <div className="nav-group__title">{g.title}</div>
+            {g.items.map((it) => {
+              const active = pathname === it.href || pathname.startsWith(it.href + "/");
+              return (
+                <Link
+                  key={it.href}
+                  href={it.href}
+                  className={`nav-item ${active ? "is-active" : ""}`}
+                >
+                  <span className="nav-item__icon">{it.icon}</span>
+                  {it.label}
+                  {it.badge && <span className="nav-item__badge">{it.badge}</span>}
+                </Link>
+              );
+            })}
+          </div>
+        ))}
+      </nav>
+
+      <div className="sidebar__user">
+        <div className="user-avatar">{currentUser.initials}</div>
+        <div className="user-meta">
+          <div className="user-name">{currentUser.name}</div>
+          <div className="user-role">{currentUser.role}</div>
+        </div>
+        <button
+          className="icon-btn"
+          title="Cerrar sesión"
+          onClick={() => router.push("/login")}
+          aria-label="Cerrar sesión"
+        >
+          {I.logout}
+        </button>
+      </div>
+    </aside>
+  );
+}
