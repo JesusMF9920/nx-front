@@ -56,8 +56,8 @@ export default function ProductsPage() {
       />
 
       <div className="card">
-        <div className="card__head" style={{ gap: 8 }}>
-          <div className="topbar__search" style={{ margin: 0, width: 280 }}>
+        <div className="card__head gap-2">
+          <div className="topbar__search m-0" style={{ width: 280 }}>
             {I.search}
             <input
               placeholder="Buscar por nombre o SKU"
@@ -65,7 +65,7 @@ export default function ProductsPage() {
               onChange={(e) => setSearch(e.target.value)}
             />
           </div>
-          <div className="row" style={{ gap: 4 }}>
+          <div className="row gap-1">
             {FILTERS.map((f) => (
               <button
                 key={f}
@@ -77,14 +77,7 @@ export default function ProductsPage() {
             ))}
           </div>
           <div className="spacer" />
-          <div
-            style={{
-              display: "flex",
-              border: "1px solid var(--line)",
-              borderRadius: "var(--r-md)",
-              overflow: "hidden",
-            }}
-          >
+          <div className="flex border border-line rounded-md overflow-hidden">
             <button
               className={`btn btn--sm ${view === "list" ? "btn--primary" : "btn--ghost"}`}
               style={{ borderRadius: 0, border: 0 }}
@@ -111,21 +104,21 @@ export default function ProductsPage() {
                 <th>Categoría</th>
                 <th>Origen</th>
                 <th>Lead</th>
-                <th style={{ textAlign: "right" }}>Precio</th>
-                <th style={{ textAlign: "right" }}>Stock</th>
+                <th className="text-right">Precio</th>
+                <th className="text-right">Stock</th>
               </tr>
             </thead>
             <tbody>
               {filtered.map((p) => (
                 <tr key={p.id} onClick={() => open(p.id)}>
                   <td>
-                    <div className="skeleton-img" style={{ width: 36, height: 36, fontSize: 9 }}>
+                    <div className="skeleton-img text-[9px]" style={{ width: 36, height: 36 }}>
                       {p.method.slice(0, 3).toUpperCase()}
                     </div>
                   </td>
                   <td>
-                    <div style={{ fontWeight: 500 }}>{p.name}</div>
-                    <div style={{ color: "var(--muted)", fontSize: 11, fontFamily: "var(--font-mono)" }}>{p.sku}</div>
+                    <div className="font-medium">{p.name}</div>
+                    <div className="text-muted text-[11px] font-mono">{p.sku}</div>
                   </td>
                   <td><span className="tag">{p.category}</span></td>
                   <td>
@@ -136,14 +129,13 @@ export default function ProductsPage() {
                     )}
                   </td>
                   <td className="num">{p.leadDays}d</td>
-                  <td className="num" style={{ textAlign: "right" }}>
+                  <td className="num text-right">
                     {fmtMXN(p.price)}
-                    <span style={{ color: "var(--muted)", fontSize: 11 }}> /{p.unit}</span>
+                    <span className="text-muted text-[11px]"> /{p.unit}</span>
                   </td>
                   <td
-                    className="num"
+                    className="num text-right"
                     style={{
-                      textAlign: "right",
                       color:
                         p.source === "Proveedor"
                           ? "var(--muted-2)"
@@ -160,25 +152,25 @@ export default function ProductsPage() {
           </table>
         ) : (
           <div className="card__body">
-            <div className="grid" style={{ gridTemplateColumns: "repeat(4,1fr)", gap: 14 }}>
+            <div className="grid gap-3.5" style={{ gridTemplateColumns: "repeat(4,1fr)" }}>
               {filtered.map((p) => (
                 <div
                   key={p.id}
-                  className="card"
-                  style={{ cursor: "pointer", boxShadow: "none" }}
+                  className="card cursor-pointer"
+                  style={{ boxShadow: "none" }}
                   onClick={() => open(p.id)}
                 >
                   <div className="skeleton-img" style={{ height: 120, borderRadius: "10px 10px 0 0" }}>
                     {p.method}
                   </div>
-                  <div style={{ padding: 12 }}>
-                    <div style={{ fontWeight: 500, fontSize: 13 }}>{p.name}</div>
-                    <div style={{ color: "var(--muted)", fontSize: 11, fontFamily: "var(--font-mono)" }}>{p.sku}</div>
-                    <div style={{ display: "flex", alignItems: "center", marginTop: 10, gap: 6 }}>
-                      <span className="num" style={{ fontWeight: 600 }}>{fmtMXN(p.price)}</span>
+                  <div className="p-3">
+                    <div className="font-medium text-[13px]">{p.name}</div>
+                    <div className="text-muted text-[11px] font-mono">{p.sku}</div>
+                    <div className="flex items-center mt-2.5 gap-1.5">
+                      <span className="num font-semibold">{fmtMXN(p.price)}</span>
                       <span className="spacer" />
                       {p.source === "Proveedor" ? (
-                        <span className="tag" style={{ color: "var(--supplier)" }}>Prov.</span>
+                        <span className="tag text-supplier">Prov.</span>
                       ) : (
                         <span className="tag">{p.stock} stock</span>
                       )}

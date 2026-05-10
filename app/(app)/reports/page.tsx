@@ -39,16 +39,7 @@ export default function ReportsPage() {
         sub="Ventas, margen, cobranza y desempeño · vista de gerencia"
         actions={
           <>
-            <div
-              className="row"
-              style={{
-                gap: 4,
-                border: "1px solid var(--line)",
-                borderRadius: "var(--r-md)",
-                padding: 3,
-                background: "var(--surface)",
-              }}
-            >
+            <div className="row gap-1 border border-line rounded-md p-[3px] bg-surface">
               {RANGES.map((r) => (
                 <button
                   key={r}
@@ -66,7 +57,7 @@ export default function ReportsPage() {
         }
       />
 
-      <div className="kpi-grid" style={{ marginBottom: 18 }}>
+      <div className="kpi-grid mb-[18px]">
         <Kpi
           label="Ventas netas"
           value={fmtMXN(totSales)}
@@ -99,18 +90,7 @@ export default function ReportsPage() {
         />
       </div>
 
-      <div
-        className="row"
-        style={{
-          gap: 4,
-          marginBottom: 14,
-          padding: 3,
-          background: "var(--surface)",
-          border: "1px solid var(--line)",
-          borderRadius: "var(--r-md)",
-          display: "inline-flex",
-        }}
-      >
+      <div className="row gap-1 mb-3.5 p-[3px] bg-surface border border-line rounded-md inline-flex">
         {TABS.map((t) => (
           <button
             key={t}

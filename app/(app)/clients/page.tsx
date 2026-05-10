@@ -58,10 +58,10 @@ export default function ClientsPage() {
         }
       />
 
-      <div style={{ display: "grid", gridTemplateColumns: "1.6fr 1fr", gap: 20 }}>
+      <div className="grid gap-5" style={{ gridTemplateColumns: "1.6fr 1fr" }}>
         <div className="card">
-          <div className="card__head" style={{ gap: 8 }}>
-            <div className="topbar__search" style={{ margin: 0, width: 240 }}>
+          <div className="card__head gap-2">
+            <div className="topbar__search m-0" style={{ width: 240 }}>
               {I.search}
               <input
                 placeholder="Buscar por nombre, RFC, teléfono…"
@@ -69,7 +69,7 @@ export default function ClientsPage() {
                 onChange={(e) => setQuery(e.target.value)}
               />
             </div>
-            <div className="row" style={{ gap: 4 }}>
+            <div className="row gap-1">
               {FILTERS.map((f) => (
                 <button
                   key={f}
@@ -89,8 +89,8 @@ export default function ClientsPage() {
               <tr>
                 <th>Cliente</th>
                 <th>Contacto</th>
-                <th style={{ textAlign: "right" }}>Pedidos</th>
-                <th style={{ textAlign: "right" }}>Saldo</th>
+                <th className="text-right">Pedidos</th>
+                <th className="text-right">Saldo</th>
                 <th>Último</th>
               </tr>
             </thead>
@@ -102,27 +102,24 @@ export default function ClientsPage() {
                   style={{ background: selected.id === c.id ? "var(--surface-2)" : "" }}
                 >
                   <td>
-                    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                    <div className="flex items-center gap-2.5">
                       <Avatar name={c.name} size={26} />
                       <div>
-                        <div style={{ fontWeight: 500 }}>{c.name}</div>
-                        <div style={{ color: "var(--muted)", fontSize: 11 }}>
+                        <div className="font-medium">{c.name}</div>
+                        <div className="text-muted text-[11px]">
                           {c.type} · {c.rfc}
                         </div>
                       </div>
                     </div>
                   </td>
                   <td>
-                    <div style={{ fontSize: 12 }}>{c.contact}</div>
-                    <div style={{ color: "var(--muted)", fontSize: 11 }}>{c.phone}</div>
+                    <div className="text-xs">{c.contact}</div>
+                    <div className="text-muted text-[11px]">{c.phone}</div>
                   </td>
-                  <td className="num" style={{ textAlign: "right" }}>{c.orders}</td>
+                  <td className="num text-right">{c.orders}</td>
                   <td
-                    className="num"
-                    style={{
-                      textAlign: "right",
-                      color: c.balance > 0 ? "var(--danger)" : "var(--muted)",
-                    }}
+                    className="num text-right"
+                    style={{ color: c.balance > 0 ? "var(--danger)" : "var(--muted)" }}
                   >
                     {c.balance > 0 ? fmtMXN(c.balance) : "—"}
                   </td>
