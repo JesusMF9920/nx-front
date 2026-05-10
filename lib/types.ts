@@ -123,6 +123,58 @@ export type ProductFilter = "Todos" | "Internos" | "Proveedor" | "Bajo stock";
 
 export type ProductView = "list" | "grid";
 
+export type MaterialVariant = {
+  id: string;
+  label: string;
+  stock: number;
+};
+
+export type Material = {
+  id: string;
+  sku: string;
+  name: string;
+  category: string;
+  unit: string;
+  stock: number;
+  reorder: number;
+  cost: number;
+  location: string;
+  supplierName: string;
+  variants?: MaterialVariant[];
+};
+
+export type RecipeItem = {
+  materialId: string;
+  qty: number;
+  byVariant?: boolean;
+  note?: string;
+};
+
+export type Recipe = RecipeItem[];
+
+export type SizeBreakdownEntry = {
+  sizeId: string;
+  qty: number;
+  surcharge: number;
+};
+
+export type PaymentMethod = "Efectivo" | "Terminal" | "Mixto" | "Crédito";
+
+export type CartLine = {
+  lineId: string;
+  id: string;
+  name: string;
+  sku: string;
+  source: ProductSource;
+  supplier?: string;
+  needsApproval: boolean;
+  qty: number;
+  price: number;
+  variantLabel?: string;
+  sizeBreakdown?: SizeBreakdownEntry[];
+  sizedFromMaterial?: string;
+};
+
 export type Approval = {
   id: string;
   order: string;
