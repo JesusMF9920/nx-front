@@ -25,7 +25,7 @@ export function ReportsAging() {
 
   return (
     <div>
-      <div className="kpi-grid" style={{ marginBottom: 18 }}>
+      <div className="kpi-grid mb-[18px]">
         <AgingBucket label="Corriente · 0-30 días"  value={tot.b030}  total={grand} tone="ok" />
         <AgingBucket label="Atrasado · 31-60 días"  value={tot.b3160} total={grand} tone="warn" />
         <AgingBucket label="Atrasado · 61-90 días"  value={tot.b6190} total={grand} tone="warn-strong" />
@@ -44,67 +44,48 @@ export function ReportsAging() {
               <th>Cliente</th>
               <th>Factura</th>
               <th>Emisión</th>
-              <th style={{ textAlign: "right" }}>0-30</th>
-              <th style={{ textAlign: "right" }}>31-60</th>
-              <th style={{ textAlign: "right" }}>61-90</th>
-              <th style={{ textAlign: "right" }}>90+</th>
-              <th style={{ textAlign: "right" }}>Total</th>
+              <th className="text-right">0-30</th>
+              <th className="text-right">31-60</th>
+              <th className="text-right">61-90</th>
+              <th className="text-right">90+</th>
+              <th className="text-right">Total</th>
             </tr>
           </thead>
           <tbody>
             {NEXUM_AGING.map((a) => (
               <tr key={a.invoice}>
-                <td style={{ fontWeight: 500 }}>{a.client}</td>
+                <td className="font-medium">{a.client}</td>
                 <td className="num">{a.invoice}</td>
-                <td className="num" style={{ fontSize: 12, color: "var(--muted)" }}>{a.date}</td>
-                <td className="num" style={{ textAlign: "right" }}>
-                  {a.b030 ? fmtMXN(a.b030) : "—"}
-                </td>
+                <td className="num text-xs text-muted">{a.date}</td>
+                <td className="num text-right">{a.b030 ? fmtMXN(a.b030) : "—"}</td>
                 <td
-                  className="num"
-                  style={{
-                    textAlign: "right",
-                    color: a.b3160 ? "var(--warn)" : "var(--muted-2)",
-                  }}
+                  className="num text-right"
+                  style={{ color: a.b3160 ? "var(--warn)" : "var(--muted-2)" }}
                 >
                   {a.b3160 ? fmtMXN(a.b3160) : "—"}
                 </td>
                 <td
-                  className="num"
-                  style={{
-                    textAlign: "right",
-                    color: a.b6190 ? "var(--warn)" : "var(--muted-2)",
-                  }}
+                  className="num text-right"
+                  style={{ color: a.b6190 ? "var(--warn)" : "var(--muted-2)" }}
                 >
                   {a.b6190 ? fmtMXN(a.b6190) : "—"}
                 </td>
                 <td
-                  className="num"
-                  style={{
-                    textAlign: "right",
-                    color: a.b90 ? "var(--danger)" : "var(--muted-2)",
-                  }}
+                  className="num text-right"
+                  style={{ color: a.b90 ? "var(--danger)" : "var(--muted-2)" }}
                 >
                   {a.b90 ? fmtMXN(a.b90) : "—"}
                 </td>
-                <td className="num" style={{ textAlign: "right", fontWeight: 600 }}>
-                  {fmtMXN(a.total)}
-                </td>
+                <td className="num text-right font-semibold">{fmtMXN(a.total)}</td>
               </tr>
             ))}
-            <tr style={{ background: "var(--surface-2)", fontWeight: 600 }}>
+            <tr className="bg-surface-2 font-semibold">
               <td colSpan={3}>Totales</td>
-              <td className="num" style={{ textAlign: "right" }}>{fmtMXN(tot.b030)}</td>
-              <td className="num" style={{ textAlign: "right", color: "var(--warn)" }}>
-                {fmtMXN(tot.b3160)}
-              </td>
-              <td className="num" style={{ textAlign: "right", color: "var(--warn)" }}>
-                {fmtMXN(tot.b6190)}
-              </td>
-              <td className="num" style={{ textAlign: "right", color: "var(--danger)" }}>
-                {fmtMXN(tot.b90)}
-              </td>
-              <td className="num" style={{ textAlign: "right" }}>{fmtMXN(grand)}</td>
+              <td className="num text-right">{fmtMXN(tot.b030)}</td>
+              <td className="num text-right text-warn">{fmtMXN(tot.b3160)}</td>
+              <td className="num text-right text-warn">{fmtMXN(tot.b6190)}</td>
+              <td className="num text-right text-danger">{fmtMXN(tot.b90)}</td>
+              <td className="num text-right">{fmtMXN(grand)}</td>
             </tr>
           </tbody>
         </table>
@@ -133,17 +114,12 @@ function AgingBucket({
         {fmtMXN(value)}
       </div>
       <div
-        style={{
-          height: 4,
-          background: "var(--surface-3)",
-          borderRadius: 2,
-          marginTop: 8,
-          overflow: "hidden",
-        }}
+        className="bg-surface-3 mt-2 overflow-hidden"
+        style={{ height: 4, borderRadius: 2 }}
       >
-        <div style={{ width: `${pct}%`, height: "100%", background: color }} />
+        <div className="h-full" style={{ width: `${pct}%`, background: color }} />
       </div>
-      <div style={{ fontSize: 11, color: "var(--muted)", marginTop: 4 }}>
+      <div className="text-[11px] text-muted mt-1">
         {pct.toFixed(0)}% del saldo
       </div>
     </div>

@@ -13,10 +13,10 @@ export function ReportsProducts() {
           <tr>
             <th>Producto</th>
             <th>Categoría</th>
-            <th style={{ textAlign: "right" }}>Unidades</th>
+            <th className="text-right">Unidades</th>
             <th>Ventas</th>
-            <th style={{ textAlign: "right" }}>Margen</th>
-            <th style={{ textAlign: "right" }}>%</th>
+            <th className="text-right">Margen</th>
+            <th className="text-right">%</th>
           </tr>
         </thead>
         <tbody>
@@ -24,39 +24,27 @@ export function ReportsProducts() {
             const mPct = (p.margin / p.sales) * 100;
             return (
               <tr key={p.name}>
-                <td style={{ fontWeight: 500 }}>{p.name}</td>
+                <td className="font-medium">{p.name}</td>
                 <td>
-                  <span className="tag" style={{ fontSize: 10 }}>{p.cat}</span>
+                  <span className="tag text-[10px]">{p.cat}</span>
                 </td>
-                <td className="num" style={{ textAlign: "right" }}>{p.qty}</td>
+                <td className="num text-right">{p.qty}</td>
                 <td>
-                  <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                  <div className="flex items-center gap-2.5">
                     <div
-                      style={{
-                        width: 140,
-                        height: 6,
-                        background: "var(--surface-3)",
-                        borderRadius: 3,
-                        overflow: "hidden",
-                      }}
+                      className="bg-surface-3 overflow-hidden"
+                      style={{ width: 140, height: 6, borderRadius: 3 }}
                     >
                       <div
-                        style={{
-                          width: `${(p.sales / max) * 100}%`,
-                          height: "100%",
-                          background: "var(--accent)",
-                        }}
+                        className="h-full bg-accent"
+                        style={{ width: `${(p.sales / max) * 100}%` }}
                       />
                     </div>
-                    <span className="num" style={{ fontWeight: 600 }}>{fmtMXN(p.sales)}</span>
+                    <span className="num font-semibold">{fmtMXN(p.sales)}</span>
                   </div>
                 </td>
-                <td className="num" style={{ textAlign: "right", color: "var(--ok)" }}>
-                  {fmtMXN(p.margin)}
-                </td>
-                <td className="num" style={{ textAlign: "right", color: "var(--muted)" }}>
-                  {mPct.toFixed(0)}%
-                </td>
+                <td className="num text-right text-ok">{fmtMXN(p.margin)}</td>
+                <td className="num text-right text-muted">{mPct.toFixed(0)}%</td>
               </tr>
             );
           })}

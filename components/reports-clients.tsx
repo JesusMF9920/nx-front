@@ -11,29 +11,22 @@ export function ReportsClients() {
         <thead>
           <tr>
             <th>Cliente</th>
-            <th style={{ textAlign: "right" }}>Pedidos</th>
-            <th style={{ textAlign: "right" }}>Ventas</th>
-            <th style={{ textAlign: "right" }}>Margen</th>
-            <th style={{ textAlign: "right" }}>Saldo</th>
+            <th className="text-right">Pedidos</th>
+            <th className="text-right">Ventas</th>
+            <th className="text-right">Margen</th>
+            <th className="text-right">Saldo</th>
           </tr>
         </thead>
         <tbody>
           {NEXUM_TOP_CLIENTS.map((c) => (
             <tr key={c.name}>
-              <td style={{ fontWeight: 500 }}>{c.name}</td>
-              <td className="num" style={{ textAlign: "right" }}>{c.orders}</td>
-              <td className="num" style={{ textAlign: "right", fontWeight: 600 }}>
-                {fmtMXN(c.sales)}
-              </td>
-              <td className="num" style={{ textAlign: "right", color: "var(--ok)" }}>
-                {fmtMXN(c.margin)}
-              </td>
+              <td className="font-medium">{c.name}</td>
+              <td className="num text-right">{c.orders}</td>
+              <td className="num text-right font-semibold">{fmtMXN(c.sales)}</td>
+              <td className="num text-right text-ok">{fmtMXN(c.margin)}</td>
               <td
-                className="num"
-                style={{
-                  textAlign: "right",
-                  color: c.debt ? "var(--warn)" : "var(--muted)",
-                }}
+                className="num text-right"
+                style={{ color: c.debt ? "var(--warn)" : "var(--muted)" }}
               >
                 {c.debt ? fmtMXN(c.debt) : "—"}
               </td>

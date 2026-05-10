@@ -8,40 +8,29 @@ export function ReportsSellers() {
       <div className="card__head">
         <div className="card__title">Desempeño por vendedor</div>
       </div>
-      <div style={{ padding: 14 }}>
+      <div className="p-3.5">
         {NEXUM_TOP_SELLERS.map((s) => (
           <div
             key={s.initials}
+            className="grid gap-4 items-center"
             style={{
               padding: "14px 0",
               borderTop: "1px solid var(--line)",
-              display: "grid",
               gridTemplateColumns: "auto 1fr auto auto auto",
-              gap: 16,
-              alignItems: "center",
             }}
           >
-            <div className="avatar" style={{ width: 36, height: 36, fontSize: 13 }}>
+            <div className="avatar text-[13px]" style={{ width: 36, height: 36 }}>
               {s.initials}
             </div>
             <div>
-              <div style={{ fontWeight: 500 }}>{s.name}</div>
+              <div className="font-medium">{s.name}</div>
               <div
-                style={{
-                  height: 6,
-                  background: "var(--surface-3)",
-                  borderRadius: 3,
-                  marginTop: 6,
-                  width: "70%",
-                  overflow: "hidden",
-                }}
+                className="bg-surface-3 mt-1.5 overflow-hidden"
+                style={{ height: 6, borderRadius: 3, width: "70%" }}
               >
                 <div
-                  style={{
-                    width: `${(s.sales / max) * 100}%`,
-                    height: "100%",
-                    background: "var(--accent)",
-                  }}
+                  className="h-full bg-accent"
+                  style={{ width: `${(s.sales / max) * 100}%` }}
                 />
               </div>
             </div>
@@ -65,20 +54,13 @@ function SellerStat({
   big?: boolean;
 }) {
   return (
-    <div style={{ textAlign: "right", minWidth: 80 }}>
-      <div
-        className="num"
-        style={{ fontSize: big ? 18 : 13, fontWeight: big ? 600 : 500 }}
-      >
+    <div className="text-right" style={{ minWidth: 80 }}>
+      <div className={`num ${big ? "text-lg font-semibold" : "text-[13px] font-medium"}`}>
         {value}
       </div>
       <div
-        style={{
-          fontSize: 10,
-          color: "var(--muted)",
-          textTransform: "uppercase",
-          letterSpacing: ".06em",
-        }}
+        className="text-[10px] text-muted uppercase"
+        style={{ letterSpacing: ".06em" }}
       >
         {label}
       </div>
