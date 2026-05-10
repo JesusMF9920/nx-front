@@ -48,26 +48,26 @@ export default function UsersPage() {
         }
       />
 
-      <div className="grid" style={{ gridTemplateColumns: "repeat(4,1fr)", marginBottom: 20 }}>
+      <div className="grid mb-5" style={{ gridTemplateColumns: "repeat(4,1fr)" }}>
         {ROLE_DEFINITIONS.map((r) => (
-          <div key={r.name} className="card" style={{ padding: 14 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <span style={{ color: "var(--accent)" }}>{I.shield}</span>
-              <div style={{ fontWeight: 500 }}>{r.name}</div>
+          <div key={r.name} className="card p-3.5">
+            <div className="flex items-center gap-2">
+              <span className="text-accent">{I.shield}</span>
+              <div className="font-medium">{r.name}</div>
               <div className="spacer" />
               <span className="tag">{roleCount(r.name)} usuarios</span>
             </div>
-            <div style={{ color: "var(--muted)", fontSize: 12, marginTop: 6 }}>{r.scope}</div>
+            <div className="text-muted text-xs mt-1.5">{r.scope}</div>
           </div>
         ))}
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "1.6fr 1fr", gap: 20 }}>
+      <div className="grid gap-5" style={{ gridTemplateColumns: "1.6fr 1fr" }}>
         <div className="card">
           <div className="card__head">
             <div className="card__title">Todos los usuarios</div>
             <div className="spacer" />
-            <div className="topbar__search" style={{ margin: 0, width: 220 }}>
+            <div className="topbar__search m-0" style={{ width: 220 }}>
               {I.search}
               <input
                 placeholder="Buscar usuario"
@@ -94,11 +94,11 @@ export default function UsersPage() {
                   style={{ background: selected.id === u.id ? "var(--surface-2)" : "" }}
                 >
                   <td>
-                    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                    <div className="flex items-center gap-2.5">
                       <Avatar name={u.name} size={28} />
                       <div>
-                        <div style={{ fontWeight: 500 }}>{u.name}</div>
-                        <div style={{ color: "var(--muted)", fontSize: 11 }}>{u.email}</div>
+                        <div className="font-medium">{u.name}</div>
+                        <div className="text-muted text-[11px]">{u.email}</div>
                       </div>
                     </div>
                   </td>
@@ -112,9 +112,7 @@ export default function UsersPage() {
                       <span className="pill pill--neutral">Inactivo</span>
                     )}
                   </td>
-                  <td className="num" style={{ color: "var(--muted)" }}>
-                    {u.lastLogin}
-                  </td>
+                  <td className="num text-muted">{u.lastLogin}</td>
                   <td>
                     <button
                       className="icon-btn"
@@ -130,13 +128,13 @@ export default function UsersPage() {
           </table>
         </div>
 
-        <div className="card" style={{ alignSelf: "start" }}>
+        <div className="card self-start">
           <div className="card__body">
-            <div style={{ display: "flex", gap: 14, alignItems: "center" }}>
+            <div className="flex items-center gap-3.5">
               <Avatar name={selected.name} size={48} />
-              <div style={{ flex: 1 }}>
-                <div style={{ fontSize: 18, fontWeight: 600 }}>{selected.name}</div>
-                <div style={{ color: "var(--muted)", fontSize: 12 }}>{selected.email}</div>
+              <div className="flex-1">
+                <div className="text-lg font-semibold">{selected.name}</div>
+                <div className="text-muted text-xs">{selected.email}</div>
               </div>
               <button className="icon-btn" aria-label="Más acciones">{I.more}</button>
             </div>
@@ -162,8 +160,8 @@ export default function UsersPage() {
 
             <div className="divider" />
 
-            <div style={{ fontWeight: 500, marginBottom: 8 }}>Permisos</div>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+            <div className="font-medium mb-2">Permisos</div>
+            <div className="grid grid-cols-2 gap-2">
               {permsFor(selected.role).map(([k, on]) => (
                 <PermRow key={k} label={k} on={on} />
               ))}
@@ -171,7 +169,7 @@ export default function UsersPage() {
 
             <div className="divider" />
 
-            <div style={{ display: "flex", gap: 6 }}>
+            <div className="flex gap-1.5">
               <button className="btn btn--sm">{I.edit} Editar usuario</button>
               <button className="btn btn--sm">{I.lock} Restablecer contraseña</button>
               <button className="btn btn--sm btn--danger">{I.x} Desactivar</button>
