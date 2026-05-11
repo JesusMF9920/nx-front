@@ -1,282 +1,1048 @@
 "use client";
 
-import Link from "next/link";
-import { useMemo, useState, type ReactNode } from "react";
+import { useEffect, useState, type FormEvent } from "react";
+import { ConfirmDialog } from "@/components/confirm-dialog";
 import { I } from "@/components/icons";
-import { InventoryMaterialDetail } from "@/components/inventory-material-detail";
-import { InventoryNewMaterialModal } from "@/components/inventory-new-material-modal";
-import { InventoryStockAdjustModal } from "@/components/inventory-stock-adjust-modal";
-import { InventoryStockEntryModal } from "@/components/inventory-stock-entry-modal";
+import { MenuButton, type MenuItem } from "@/components/menu-button";
+import { Modal } from "@/components/modal";
 import { PageHeader } from "@/components/page-header";
-import { fmtMXN } from "@/lib/format";
-import { NEXUM_MATERIALS } from "@/lib/mock-materials";
-import { NEXUM_STOCK_MOVES } from "@/lib/mock-stock-moves";
-import type { Material } from "@/lib/types";
+import { ApiError } from "@/lib/api/errors";
+import { inventoryApi } from "@/lib/api/inventory";
+import type {
+  ApiMaterial,
+  ApiStockMove,
+  ApiStockMoveType,
+} from "@/lib/api/types";
+import { fmtInt, fmtMXN } from "@/lib/format";
 
-const SPECIAL_FILTER = "Bajo stock" as const;
+const PAGE_SIZE = 25;
 
-type Tone = "neutral" | "info" | "warn" | "danger";
+type OrderByKey = "name" | "sku" | "stock" | "createdAt" | "updatedAt";
 
-const TONE_COLOR: Record<Tone, string> = {
-  neutral: "var(--ink)",
-  info: "var(--info)",
-  warn: "var(--warn)",
-  danger: "var(--danger)",
-};
+const ORDER_OPTIONS: { key: OrderByKey; label: string }[] = [
+  { key: "name", label: "Nombre (A-Z)" },
+  { key: "sku", label: "SKU (A-Z)" },
+  { key: "stock", label: "Stock (menor primero)" },
+  { key: "createdAt", label: "Más recientes" },
+];
+
+const dateTimeFmt = new Intl.DateTimeFormat("es-MX", {
+  dateStyle: "short",
+  timeStyle: "short",
+});
+function formatDateTime(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return iso;
+  return dateTimeFmt.format(d);
+}
+
+function moveLabel(t: ApiStockMoveType): string {
+  return t === "entry" ? "Entrada" : t === "exit" ? "Salida" : "Ajuste";
+}
+function moveTone(t: ApiStockMoveType): string {
+  return t === "entry"
+    ? "var(--ok)"
+    : t === "exit"
+      ? "var(--danger)"
+      : "var(--info)";
+}
 
 export default function InventoryPage() {
-  const [filter, setFilter] = useState<string>("Todos");
-  const [search, setSearch] = useState("");
-  const [selectedId, setSelectedId] = useState<string>(NEXUM_MATERIALS[0].id);
-  const [showEntry, setShowEntry] = useState(false);
-  const [showAdjust, setShowAdjust] = useState(false);
+  const [materials, setMaterials] = useState<ApiMaterial[]>([]);
+  const [total, setTotal] = useState(0);
+  const [page, setPage] = useState(1);
+  const [orderBy, setOrderBy] = useState<OrderByKey>("name");
+  const [showInactive, setShowInactive] = useState(false);
+  const [query, setQuery] = useState("");
+  const [debounced, setDebounced] = useState("");
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [selectedDetail, setSelectedDetail] = useState<ApiMaterial | null>(null);
+  const [selectedMoves, setSelectedMoves] = useState<ApiStockMove[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
   const [showNew, setShowNew] = useState(false);
-
-  const categories = useMemo(
-    () => ["Todos", ...Array.from(new Set(NEXUM_MATERIALS.map((m) => m.category)))],
-    [],
+  const [editTarget, setEditTarget] = useState<ApiMaterial | null>(null);
+  const [deactivateTarget, setDeactivateTarget] = useState<ApiMaterial | null>(
+    null,
   );
+  const [moveTarget, setMoveTarget] = useState<
+    { material: ApiMaterial; type: ApiStockMoveType } | null
+  >(null);
 
-  const filtered = useMemo(() => {
-    return NEXUM_MATERIALS.filter((m) => {
-      if (search && !`${m.name} ${m.sku}`.toLowerCase().includes(search.toLowerCase())) return false;
-      if (filter === SPECIAL_FILTER) return m.stock <= m.reorder;
-      if (filter !== "Todos") return m.category === filter;
-      return true;
-    });
-  }, [filter, search]);
+  useEffect(() => {
+    const id = setTimeout(() => {
+      setDebounced(query.trim());
+      setPage(1);
+    }, 250);
+    return () => clearTimeout(id);
+  }, [query]);
 
-  const selected: Material =
-    NEXUM_MATERIALS.find((m) => m.id === selectedId) ?? NEXUM_MATERIALS[0];
+  const reload = async (targetPage = page) => {
+    setLoading(true);
+    setLoadError(null);
+    try {
+      const res = await inventoryApi.list({
+        skip: (targetPage - 1) * PAGE_SIZE,
+        take: PAGE_SIZE,
+        search: debounced || undefined,
+        isActive: showInactive ? undefined : true,
+        orderBy,
+        order: orderBy === "stock" || orderBy === "createdAt" ? "asc" : "asc",
+      });
+      setMaterials(res.items);
+      setTotal(res.total);
+      if (!selectedId && res.items.length > 0) {
+        setSelectedId(res.items[0].id);
+      }
+    } catch (err) {
+      setLoadError(
+        err instanceof ApiError
+          ? err.message
+          : "No se pudieron cargar los materiales.",
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
 
-  const totalValue = NEXUM_MATERIALS.reduce((s, m) => s + m.stock * m.cost, 0);
-  const lowStockCount = NEXUM_MATERIALS.filter((m) => m.stock <= m.reorder).length;
-  const criticalCount = NEXUM_MATERIALS.filter((m) => m.stock <= m.reorder * 0.5).length;
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    void reload();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [page, orderBy, debounced, showInactive]);
+
+  useEffect(() => {
+    if (!selectedId) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setSelectedDetail(null);
+      setSelectedMoves([]);
+      return;
+    }
+    let cancelled = false;
+    void (async () => {
+      try {
+        const [detail, moves] = await Promise.all([
+          inventoryApi.get(selectedId),
+          inventoryApi.listStockMoves(selectedId, { take: 20 }),
+        ]);
+        if (cancelled) return;
+        setSelectedDetail(detail);
+        setSelectedMoves(moves.items);
+      } catch {
+        if (!cancelled) {
+          setSelectedDetail(null);
+          setSelectedMoves([]);
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedId]);
+
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  const selected = selectedDetail;
+
+  const refreshSelected = async () => {
+    if (!selected) return;
+    try {
+      const [detail, moves] = await Promise.all([
+        inventoryApi.get(selected.id),
+        inventoryApi.listStockMoves(selected.id, { take: 20 }),
+      ]);
+      setSelectedDetail(detail);
+      setSelectedMoves(moves.items);
+      setMaterials((ms) => ms.map((m) => (m.id === detail.id ? detail : m)));
+    } catch {
+      // ignore
+    }
+  };
+
+  const lowStockCount = materials.filter(
+    (m) => m.stock <= m.reorderPoint && m.isActive,
+  ).length;
+  const totalValue = materials.reduce((s, m) => s + m.stock * m.cost, 0);
+
+  const buildRowMenu = (m: ApiMaterial): MenuItem[] => {
+    const items: MenuItem[] = [
+      { label: "Editar", icon: I.edit, onClick: () => setEditTarget(m) },
+    ];
+    if (m.isActive) {
+      items.push({
+        label: "Registrar entrada",
+        icon: I.plus,
+        onClick: () => setMoveTarget({ material: m, type: "entry" }),
+      });
+      items.push({
+        label: "Registrar salida",
+        icon: I.x,
+        onClick: () => setMoveTarget({ material: m, type: "exit" }),
+      });
+      items.push({
+        label: "Ajustar stock",
+        icon: I.edit,
+        onClick: () => setMoveTarget({ material: m, type: "adjust" }),
+      });
+      items.push({
+        label: "Desactivar",
+        icon: I.x,
+        kind: "danger",
+        onClick: () => setDeactivateTarget(m),
+      });
+    } else {
+      items.push({
+        label: "Activar",
+        icon: I.check,
+        onClick: async () => {
+          setActionError(null);
+          try {
+            await inventoryApi.activate(m.id);
+            await reload(page);
+          } catch (err) {
+            setActionError(
+              err instanceof ApiError
+                ? err.message
+                : "No se pudo activar el material.",
+            );
+          }
+        },
+      });
+    }
+    return items;
+  };
 
   return (
     <>
       <PageHeader
         title="Inventario"
-        sub={`${NEXUM_MATERIALS.length} insumos · ${lowStockCount} bajo stock · ${fmtMXN(totalValue)} valor en almacén`}
+        sub={`${total} insumos · ${lowStockCount} bajo stock (en página actual) · ${fmtMXN(totalValue)} valor en página`}
         actions={
-          <>
-            <button className="btn" onClick={() => setShowAdjust(true)}>
-              {I.edit} Ajuste
-            </button>
-            <button className="btn" onClick={() => setShowEntry(true)}>
-              {I.download} Entrada de mercancía
-            </button>
-            <button className="btn btn--accent" onClick={() => setShowNew(true)}>
-              {I.plus} Nuevo insumo
-            </button>
-          </>
+          <button className="btn btn--accent" onClick={() => setShowNew(true)}>
+            <span>{I.plus}</span>Nuevo material
+          </button>
         }
       />
 
-      <div className="grid gap-3.5 mb-[18px]" style={{ gridTemplateColumns: "repeat(4, 1fr)" }}>
-        <KpiCard
-          label="Insumos activos"
-          value={NEXUM_MATERIALS.length}
-          sub="categorías: textil, tinta, papel, vinil"
-          tone="neutral"
-        />
-        <KpiCard
-          label="Valor en almacén"
-          value={fmtMXN(totalValue)}
-          sub="al costo, sin IVA"
-          tone="info"
-        />
-        <KpiCard
-          label="Bajo stock"
-          value={lowStockCount}
-          sub="por debajo del punto de reorden"
-          tone="warn"
-          icon={I.alert}
-        />
-        <KpiCard
-          label="Críticos"
-          value={criticalCount}
-          sub="< 50% del reorden"
-          tone="danger"
-          icon={I.alert}
-        />
-      </div>
+      {(loadError || actionError) && (
+        <div
+          className="card mb-3 flex items-start gap-2"
+          style={{
+            padding: 12,
+            border: "1px solid var(--danger)",
+            color: "var(--danger)",
+            background: "var(--danger-soft)",
+          }}
+          role="alert"
+        >
+          <span className="flex-1">{loadError ?? actionError}</span>
+          {actionError && !loadError && (
+            <button
+              className="icon-btn"
+              type="button"
+              onClick={() => setActionError(null)}
+              aria-label="Cerrar"
+            >
+              {I.x}
+            </button>
+          )}
+        </div>
+      )}
 
-      <div className="grid gap-[18px] items-start" style={{ gridTemplateColumns: "1fr 380px" }}>
+      <div className="grid gap-5" style={{ gridTemplateColumns: "1.6fr 1fr" }}>
         <div className="card">
-          <div className="card__head gap-2">
-            <div className="topbar__search m-0" style={{ width: 260 }}>
+          <div className="card__head gap-2 flex-wrap">
+            <div className="topbar__search m-0 relative" style={{ width: 240 }}>
               {I.search}
               <input
-                placeholder="Buscar insumo o SKU"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Buscar por nombre, SKU, ubicación…"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
               />
-            </div>
-            <div className="row gap-1 flex-wrap">
-              {[...categories, SPECIAL_FILTER].map((f) => (
+              {query.length > 0 && (
                 <button
-                  key={f}
-                  className={`btn btn--sm ${filter === f ? "btn--primary" : "btn--ghost"}`}
-                  onClick={() => setFilter(f)}
+                  type="button"
+                  className="icon-btn"
+                  onClick={() => setQuery("")}
+                  aria-label="Limpiar"
+                  style={{
+                    position: "absolute",
+                    right: 4,
+                    top: "50%",
+                    transform: "translateY(-50%)",
+                  }}
                 >
-                  {f === SPECIAL_FILTER ? (
-                    <>
-                      {I.alert} {f}
-                    </>
-                  ) : (
-                    f
-                  )}
+                  {I.x}
                 </button>
-              ))}
+              )}
             </div>
+            <button
+              className={`btn btn--sm ${showInactive ? "btn--primary" : "btn--ghost"}`}
+              onClick={() => {
+                setShowInactive((v) => !v);
+                setPage(1);
+              }}
+            >
+              + Inactivos
+            </button>
+            <div className="spacer" />
+            <select
+              className="input"
+              style={{ width: 200, height: 32, fontSize: 12 }}
+              value={orderBy}
+              onChange={(e) => {
+                setOrderBy(e.target.value as OrderByKey);
+                setPage(1);
+              }}
+              aria-label="Ordenar por"
+            >
+              {ORDER_OPTIONS.map((o) => (
+                <option key={o.key} value={o.key}>
+                  Orden: {o.label}
+                </option>
+              ))}
+            </select>
           </div>
 
-          <table className="tbl">
-            <thead>
-              <tr>
-                <th>Insumo</th>
-                <th>Categoría</th>
-                <th className="text-right">Stock</th>
-                <th className="text-right">Reorden</th>
-                <th>Estado</th>
-                <th className="text-right">Costo unit.</th>
-                <th className="text-right">Valor</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.map((m) => {
-                const isLow = m.stock <= m.reorder;
-                const isCritical = m.stock <= m.reorder * 0.5;
-                return (
-                  <tr
-                    key={m.id}
-                    onClick={() => setSelectedId(m.id)}
-                    style={{ background: selected.id === m.id ? "var(--accent-soft)" : "" }}
-                  >
-                    <td>
-                      <div className="font-medium">{m.name}</div>
-                      <div className="text-muted font-mono text-[11px]">{m.sku}</div>
-                    </td>
-                    <td>
-                      <span className="pill pill--neutral">{m.category}</span>
-                    </td>
-                    <td className="num text-right font-semibold">
-                      {m.stock}{" "}
-                      <span className="text-muted font-normal text-[11px]">{m.unit}</span>
-                    </td>
-                    <td className="num text-right text-muted">{m.reorder}</td>
-                    <td>
-                      {isCritical ? (
-                        <span className="pill pill--danger">{I.alert} Crítico</span>
-                      ) : isLow ? (
-                        <span className="pill pill--warn">Reordenar</span>
-                      ) : (
-                        <span className="pill pill--ok">{I.check} OK</span>
-                      )}
-                    </td>
-                    <td className="num text-right">{fmtMXN(m.cost)}</td>
-                    <td className="num text-right font-semibold">{fmtMXN(m.stock * m.cost)}</td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-
-        <InventoryMaterialDetail material={selected} />
-      </div>
-
-      <div className="card mt-[18px]">
-        <div className="card__head">
-          <div className="card__title">Movimientos recientes</div>
-          <div className="spacer" />
-          <button className="btn btn--sm btn--ghost">Ver todos</button>
-        </div>
-        <table className="tbl">
-          <thead>
-            <tr>
-              <th>Fecha</th>
-              <th>Tipo</th>
-              <th>Insumo</th>
-              <th className="text-right">Cantidad</th>
-              <th>Referencia</th>
-              <th>Nota</th>
-              <th>Usuario</th>
-            </tr>
-          </thead>
-          <tbody>
-            {NEXUM_STOCK_MOVES.map((mv) => {
-              const mat = NEXUM_MATERIALS.find((m) => m.id === mv.materialId);
-              return (
-                <tr key={mv.id}>
-                  <td className="num text-[11px] text-muted">{mv.date}</td>
-                  <td>
-                    {mv.type === "entrada" && <span className="pill pill--ok">↓ Entrada</span>}
-                    {mv.type === "salida" && <span className="pill pill--info">↑ Salida</span>}
-                    {mv.type === "ajuste" && <span className="pill pill--warn">± Ajuste</span>}
-                  </td>
-                  <td>{mat?.name ?? mv.materialId}</td>
-                  <td
-                    className="num text-right font-semibold"
-                    style={{ color: mv.qty > 0 ? "var(--ok)" : "var(--danger)" }}
-                  >
-                    {mv.qty > 0 ? "+" : ""}
-                    {mv.qty}{" "}
-                    <span className="text-muted font-normal text-[11px]">{mat?.unit}</span>
-                  </td>
-                  <td>
-                    {mv.ref.startsWith("ORD") ? (
-                      <Link className="num text-accent-ink" href={`/orders/${mv.ref}`}>
-                        {mv.ref}
-                      </Link>
-                    ) : (
-                      <span className="num text-xs">{mv.ref}</span>
-                    )}
-                  </td>
-                  <td className="text-muted text-xs">{mv.note}</td>
-                  <td className="text-xs">{mv.user}</td>
+          {loading ? (
+            <div className="card__body text-muted text-sm">Cargando…</div>
+          ) : materials.length === 0 ? (
+            <div className="card__body text-muted text-sm">
+              {debounced
+                ? "Sin coincidencias."
+                : "Sin materiales. Crea uno con el botón de arriba."}
+            </div>
+          ) : (
+            <table className="tbl">
+              <thead>
+                <tr>
+                  <th>Material</th>
+                  <th>Categoría</th>
+                  <th className="text-right">Stock</th>
+                  <th className="text-right">Reorden</th>
+                  <th>Ubicación</th>
+                  <th></th>
                 </tr>
-              );
-            })}
-          </tbody>
-        </table>
+              </thead>
+              <tbody>
+                {materials.map((m) => {
+                  const low = m.stock <= m.reorderPoint;
+                  return (
+                    <tr
+                      key={m.id}
+                      onClick={() => setSelectedId(m.id)}
+                      style={{
+                        background: selectedId === m.id ? "var(--surface-2)" : "",
+                        opacity: m.isActive ? 1 : 0.6,
+                      }}
+                    >
+                      <td>
+                        <div className="font-medium">{m.name}</div>
+                        <div className="text-muted text-[11px] font-mono">
+                          {m.sku}
+                          {!m.isActive && " · Inactivo"}
+                        </div>
+                      </td>
+                      <td>
+                        <span className="tag">{m.category}</span>
+                      </td>
+                      <td
+                        className="num text-right"
+                        style={{ color: low ? "var(--warn)" : "var(--ink)" }}
+                      >
+                        {fmtInt(m.stock)} {m.unit}
+                      </td>
+                      <td className="num text-right text-muted">
+                        {m.reorderPoint > 0 ? fmtInt(m.reorderPoint) : "—"}
+                      </td>
+                      <td className="text-xs text-muted">{m.location ?? "—"}</td>
+                      <td>
+                        <MenuButton trigger={I.more} items={buildRowMenu(m)} />
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          )}
+
+          <div
+            className="flex items-center gap-3 text-xs text-muted"
+            style={{
+              padding: "10px 14px",
+              borderTop: "1px solid var(--line)",
+            }}
+          >
+            <span>
+              {total === 0
+                ? "Sin materiales"
+                : `Mostrando ${(page - 1) * PAGE_SIZE + 1}–${Math.min(
+                    page * PAGE_SIZE,
+                    total,
+                  )} de ${total}`}
+            </span>
+            <div className="spacer" />
+            <span className="num">
+              Página {page} de {totalPages}
+            </span>
+            <button
+              className="btn btn--sm btn--ghost"
+              type="button"
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+              disabled={loading || page <= 1}
+              aria-label="Página anterior"
+            >
+              {I.chevronLeft}
+            </button>
+            <button
+              className="btn btn--sm btn--ghost"
+              type="button"
+              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+              disabled={loading || page >= totalPages}
+              aria-label="Página siguiente"
+            >
+              {I.chevronRight}
+            </button>
+          </div>
+        </div>
+
+        {selected ? (
+          <MaterialDetailPanel
+            material={selected}
+            moves={selectedMoves}
+            onEdit={() => setEditTarget(selected)}
+            onMove={(type) => setMoveTarget({ material: selected, type })}
+            onDeactivate={() => setDeactivateTarget(selected)}
+            onActivate={async () => {
+              setActionError(null);
+              try {
+                await inventoryApi.activate(selected.id);
+                await reload(page);
+                await refreshSelected();
+              } catch (err) {
+                setActionError(
+                  err instanceof ApiError
+                    ? err.message
+                    : "No se pudo activar el material.",
+                );
+              }
+            }}
+          />
+        ) : (
+          <div className="card self-start">
+            <div className="card__body text-muted text-sm">
+              Selecciona un material para ver detalles.
+            </div>
+          </div>
+        )}
       </div>
 
-      {showEntry && <InventoryStockEntryModal onClose={() => setShowEntry(false)} />}
-      {showAdjust && <InventoryStockAdjustModal onClose={() => setShowAdjust(false)} />}
-      {showNew && <InventoryNewMaterialModal onClose={() => setShowNew(false)} />}
+      {showNew && (
+        <MaterialFormModal
+          mode="create"
+          onClose={() => setShowNew(false)}
+          onDone={async (id) => {
+            setShowNew(false);
+            if (id) setSelectedId(id);
+            await reload(page);
+          }}
+        />
+      )}
+
+      {editTarget && (
+        <MaterialFormModal
+          mode="edit"
+          material={editTarget}
+          onClose={() => setEditTarget(null)}
+          onDone={async () => {
+            setEditTarget(null);
+            await refreshSelected();
+            await reload(page);
+          }}
+        />
+      )}
+
+      {moveTarget && (
+        <StockMoveModal
+          material={moveTarget.material}
+          type={moveTarget.type}
+          onClose={() => setMoveTarget(null)}
+          onDone={async () => {
+            setMoveTarget(null);
+            await refreshSelected();
+            await reload(page);
+          }}
+        />
+      )}
+
+      {deactivateTarget && (
+        <ConfirmDialog
+          title="Desactivar material"
+          kind="danger"
+          confirmLabel="Desactivar"
+          message={
+            <>
+              ¿Desactivar{" "}
+              <span className="font-medium text-ink-2">
+                {deactivateTarget.name}
+              </span>
+              ? Su histórico de movimientos se conserva pero dejará de
+              aparecer en la lista activa.
+            </>
+          }
+          onClose={() => setDeactivateTarget(null)}
+          onConfirm={async () => {
+            try {
+              await inventoryApi.deactivate(deactivateTarget.id);
+              setDeactivateTarget(null);
+              await reload(page);
+              await refreshSelected();
+            } catch (err) {
+              throw new Error(
+                err instanceof ApiError
+                  ? err.message
+                  : "No se pudo desactivar el material.",
+              );
+            }
+          }}
+        />
+      )}
     </>
   );
 }
 
-function KpiCard({
-  label,
-  value,
-  sub,
-  tone,
-  icon,
+function MaterialDetailPanel({
+  material,
+  moves,
+  onEdit,
+  onMove,
+  onDeactivate,
+  onActivate,
 }: {
-  label: string;
-  value: ReactNode;
-  sub: string;
-  tone: Tone;
-  icon?: ReactNode;
+  material: ApiMaterial;
+  moves: ApiStockMove[];
+  onEdit: () => void;
+  onMove: (type: ApiStockMoveType) => void;
+  onDeactivate: () => void;
+  onActivate: () => void;
 }) {
-  const color = TONE_COLOR[tone];
+  const lowStock =
+    material.reorderPoint > 0 && material.stock <= material.reorderPoint;
   return (
-    <div className="card p-4">
-      <div
-        className="flex items-center gap-1.5 text-muted text-[11px] uppercase"
-        style={{ letterSpacing: ".06em" }}
-      >
-        {icon && <span style={{ color }}>{icon}</span>}
-        {label}
+    <div className="card self-start">
+      <div className="card__body pb-0">
+        <div className="text-lg font-semibold" style={{ letterSpacing: "-.01em" }}>
+          {material.name}
+        </div>
+        <div className="text-muted text-xs">
+          <span className="font-mono">{material.sku}</span> ·{" "}
+          <span className="tag">{material.category}</span>
+          {!material.isActive && (
+            <>
+              {" · "}
+              <span style={{ color: "var(--danger)" }}>Inactivo</span>
+            </>
+          )}
+        </div>
+
+        <div className="divider" style={{ margin: "12px 0" }} />
+
+        <div className="grid grid-cols-2 gap-3 text-[13px]">
+          <Kv
+            label="Stock"
+            v={
+              <span style={{ color: lowStock ? "var(--warn)" : "var(--ink)" }}>
+                {fmtInt(material.stock)} {material.unit}
+              </span>
+            }
+          />
+          <Kv
+            label="Reorden"
+            v={material.reorderPoint > 0 ? `${fmtInt(material.reorderPoint)} ${material.unit}` : "—"}
+          />
+          <Kv label="Costo" v={`${fmtMXN(material.cost)} / ${material.unit}`} />
+          <Kv
+            label="Valor"
+            v={fmtMXN(material.stock * material.cost)}
+          />
+          <Kv label="Ubicación" v={material.location ?? "—"} />
+          <Kv label="Proveedor" v={material.supplierName ?? "—"} />
+        </div>
       </div>
-      <div className="font-semibold mt-1.5" style={{ fontSize: 26, color }}>
-        {value}
+
+      <div className="divider m-0 mt-3" />
+
+      {material.isActive && (
+        <div className="px-4 py-3 flex gap-2 flex-wrap">
+          <button
+            className="btn btn--sm btn--accent"
+            onClick={() => onMove("entry")}
+          >
+            {I.plus} Entrada
+          </button>
+          <button
+            className="btn btn--sm"
+            onClick={() => onMove("exit")}
+          >
+            {I.x} Salida
+          </button>
+          <button
+            className="btn btn--sm"
+            onClick={() => onMove("adjust")}
+          >
+            {I.edit} Ajustar
+          </button>
+        </div>
+      )}
+
+      <div className="divider m-0" />
+
+      <div className="card__head" style={{ borderTop: 0 }}>
+        <div className="card__title">Movimientos recientes</div>
+        <div className="spacer" />
+        <span className="text-muted text-xs">
+          {moves.length === 0 ? "—" : `últimos ${moves.length}`}
+        </span>
       </div>
-      <div className="text-[11px] text-muted mt-0.5">{sub}</div>
+      {moves.length === 0 ? (
+        <div className="card__body text-muted text-sm py-2">
+          Sin movimientos.
+        </div>
+      ) : (
+        <div>
+          {moves.map((mv) => (
+            <div
+              key={mv.id}
+              className="px-4 py-2 text-[12px] flex items-baseline gap-2"
+              style={{ borderTop: "1px solid var(--line)" }}
+            >
+              <span className="text-muted-2 num text-[11px]" style={{ minWidth: 92 }}>
+                {formatDateTime(mv.createdAt)}
+              </span>
+              <span
+                className="tag"
+                style={{ color: moveTone(mv.type) }}
+              >
+                {moveLabel(mv.type)}
+              </span>
+              <span className="num font-medium" style={{ color: moveTone(mv.type) }}>
+                {mv.type === "exit" ? "-" : mv.type === "adjust" && mv.qty < 0 ? "" : "+"}
+                {fmtInt(Math.abs(mv.qty))}
+              </span>
+              <span className="text-muted text-[11px]">
+                → {fmtInt(mv.resultingStock)} {material.unit}
+              </span>
+              {mv.ref && (
+                <span className="text-muted-2 text-[11px] font-mono ml-auto">
+                  {mv.ref}
+                </span>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+
+      <div className="divider m-0" />
+
+      <div className="px-4 py-3 flex gap-2 flex-wrap">
+        <button className="btn btn--sm" onClick={onEdit}>
+          {I.edit} Editar
+        </button>
+        {material.isActive ? (
+          <button className="btn btn--sm btn--danger" onClick={onDeactivate}>
+            {I.x} Desactivar
+          </button>
+        ) : (
+          <button className="btn btn--sm btn--accent" onClick={onActivate}>
+            {I.check} Activar
+          </button>
+        )}
+      </div>
     </div>
+  );
+}
+
+function Kv({ label, v }: { label: string; v: React.ReactNode }) {
+  return (
+    <div>
+      <div className="text-muted text-[11px]">{label}</div>
+      <div>{v}</div>
+    </div>
+  );
+}
+
+function MaterialFormModal({
+  mode,
+  material,
+  onClose,
+  onDone,
+}: {
+  mode: "create" | "edit";
+  material?: ApiMaterial;
+  onClose: () => void;
+  onDone: (createdId?: string) => void | Promise<void>;
+}) {
+  const [sku, setSku] = useState(material?.sku ?? "");
+  const [name, setName] = useState(material?.name ?? "");
+  const [category, setCategory] = useState(material?.category ?? "");
+  const [unit, setUnit] = useState(material?.unit ?? "pieza");
+  const [initialStock, setInitialStock] = useState(
+    String(material?.stock ?? 0),
+  );
+  const [reorderPoint, setReorderPoint] = useState(
+    String(material?.reorderPoint ?? 0),
+  );
+  const [cost, setCost] = useState(String(material?.cost ?? ""));
+  const [location, setLocation] = useState(material?.location ?? "");
+  const [supplierName, setSupplierName] = useState(material?.supplierName ?? "");
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const submit = async (e: FormEvent) => {
+    e.preventDefault();
+    if (submitting) return;
+    setError(null);
+    const costNum = Number(cost);
+    const stockNum = Number(initialStock);
+    const reorderNum = Number(reorderPoint);
+    if (!Number.isFinite(costNum) || costNum < 0) {
+      setError("El costo debe ser un número >= 0.");
+      return;
+    }
+    if (!Number.isInteger(stockNum) || stockNum < 0) {
+      setError("Stock inicial debe ser un entero >= 0.");
+      return;
+    }
+    if (!Number.isInteger(reorderNum) || reorderNum < 0) {
+      setError("Punto de reorden debe ser un entero >= 0.");
+      return;
+    }
+    setSubmitting(true);
+    try {
+      if (mode === "create") {
+        const { id } = await inventoryApi.create({
+          sku: sku.trim(),
+          name: name.trim(),
+          category: category.trim(),
+          unit: unit.trim() || "pieza",
+          initialStock: stockNum,
+          reorderPoint: reorderNum,
+          cost: costNum,
+          location: location.trim() || null,
+          supplierName: supplierName.trim() || null,
+        });
+        await onDone(id);
+      } else if (material) {
+        await inventoryApi.update(material.id, {
+          sku: sku.trim(),
+          name: name.trim(),
+          category: category.trim(),
+          unit: unit.trim() || "pieza",
+          reorderPoint: reorderNum,
+          cost: costNum,
+          location: location.trim() || null,
+          supplierName: supplierName.trim() || null,
+        });
+        await onDone();
+      }
+    } catch (err) {
+      setError(
+        err instanceof ApiError
+          ? err.status === 409
+            ? "Ya existe un material con ese SKU."
+            : err.message
+          : "No se pudo guardar.",
+      );
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <Modal
+      title={mode === "create" ? "Nuevo material" : "Editar material"}
+      onClose={onClose}
+      width={640}
+      footer={
+        <>
+          <button className="btn btn--ghost" type="button" onClick={onClose}>
+            Cancelar
+          </button>
+          <button
+            className="btn btn--accent"
+            type="submit"
+            form="material-form"
+            disabled={submitting}
+          >
+            {submitting
+              ? "Guardando…"
+              : mode === "create"
+                ? "Crear material"
+                : "Guardar cambios"}
+          </button>
+        </>
+      }
+    >
+      <form id="material-form" onSubmit={submit} className="grid grid-cols-2 gap-3.5">
+        <div className="field">
+          <span className="label">SKU</span>
+          <input
+            className="input"
+            value={sku}
+            onChange={(e) => setSku(e.target.value.toUpperCase())}
+            required
+            maxLength={60}
+          />
+        </div>
+        <div className="field">
+          <span className="label">Categoría</span>
+          <input
+            className="input"
+            value={category}
+            onChange={(e) => setCategory(e.target.value)}
+            required
+            maxLength={80}
+          />
+        </div>
+        <div className="field col-span-full">
+          <span className="label">Nombre</span>
+          <input
+            className="input"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            required
+            maxLength={180}
+          />
+        </div>
+        <div className="field">
+          <span className="label">Unidad</span>
+          <input
+            className="input"
+            value={unit}
+            onChange={(e) => setUnit(e.target.value)}
+            placeholder="hoja, m², kg…"
+            maxLength={20}
+          />
+        </div>
+        <div className="field">
+          <span className="label">Costo / unidad (MXN)</span>
+          <input
+            className="input"
+            type="number"
+            step="0.01"
+            min={0}
+            value={cost}
+            onChange={(e) => setCost(e.target.value)}
+            required
+          />
+        </div>
+        {mode === "create" && (
+          <div className="field">
+            <span className="label">Stock inicial</span>
+            <input
+              className="input"
+              type="number"
+              min={0}
+              step={1}
+              value={initialStock}
+              onChange={(e) => setInitialStock(e.target.value)}
+            />
+          </div>
+        )}
+        <div className="field">
+          <span className="label">Punto de reorden</span>
+          <input
+            className="input"
+            type="number"
+            min={0}
+            step={1}
+            value={reorderPoint}
+            onChange={(e) => setReorderPoint(e.target.value)}
+          />
+        </div>
+        <div className="field">
+          <span className="label">Ubicación</span>
+          <input
+            className="input"
+            value={location}
+            onChange={(e) => setLocation(e.target.value)}
+            placeholder="Bodega A · Rack 3"
+            maxLength={120}
+          />
+        </div>
+        <div className="field">
+          <span className="label">Proveedor</span>
+          <input
+            className="input"
+            value={supplierName}
+            onChange={(e) => setSupplierName(e.target.value)}
+            maxLength={120}
+          />
+        </div>
+        {error && (
+          <div
+            className="col-span-full rounded-md text-xs"
+            style={{
+              padding: "10px 12px",
+              border: "1px solid var(--danger)",
+              color: "var(--danger)",
+              background: "var(--danger-soft)",
+            }}
+            role="alert"
+          >
+            {error}
+          </div>
+        )}
+      </form>
+    </Modal>
+  );
+}
+
+function StockMoveModal({
+  material,
+  type,
+  onClose,
+  onDone,
+}: {
+  material: ApiMaterial;
+  type: ApiStockMoveType;
+  onClose: () => void;
+  onDone: () => void | Promise<void>;
+}) {
+  const [qty, setQty] = useState("");
+  const [ref, setRef] = useState("");
+  const [note, setNote] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const title =
+    type === "entry"
+      ? "Registrar entrada"
+      : type === "exit"
+        ? "Registrar salida"
+        : "Ajustar stock";
+
+  const submit = async (e: FormEvent) => {
+    e.preventDefault();
+    if (submitting) return;
+    setError(null);
+    const qtyNum = Number(qty);
+    if (!Number.isInteger(qtyNum)) {
+      setError("La cantidad debe ser un entero.");
+      return;
+    }
+    if (type !== "adjust" && qtyNum <= 0) {
+      setError("Para entrada/salida la cantidad debe ser positiva.");
+      return;
+    }
+    if (type === "adjust" && qtyNum === 0) {
+      setError("Para ajuste la cantidad no puede ser cero.");
+      return;
+    }
+    setSubmitting(true);
+    try {
+      await inventoryApi.recordStockMove(material.id, {
+        type,
+        qty: qtyNum,
+        ref: ref.trim() || null,
+        note: note.trim() || null,
+      });
+      await onDone();
+    } catch (err) {
+      setError(
+        err instanceof ApiError
+          ? err.message
+          : "No se pudo registrar el movimiento.",
+      );
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <Modal
+      title={title}
+      onClose={onClose}
+      width={480}
+      footer={
+        <>
+          <button className="btn btn--ghost" type="button" onClick={onClose}>
+            Cancelar
+          </button>
+          <button
+            className="btn btn--accent"
+            type="submit"
+            form="stock-move-form"
+            disabled={submitting}
+          >
+            {submitting ? "Guardando…" : "Registrar"}
+          </button>
+        </>
+      }
+    >
+      <form id="stock-move-form" onSubmit={submit} className="grid" style={{ gap: 14 }}>
+        <div className="text-sm text-muted">
+          Material: <span className="font-medium text-ink-2">{material.name}</span>
+          <br />
+          Stock actual:{" "}
+          <span className="font-medium text-ink-2">
+            {fmtInt(material.stock)} {material.unit}
+          </span>
+        </div>
+        <div className="field">
+          <span className="label">
+            {type === "adjust"
+              ? "Delta (positivo o negativo)"
+              : "Cantidad"}
+          </span>
+          <input
+            className="input"
+            type="number"
+            step={1}
+            value={qty}
+            onChange={(e) => setQty(e.target.value)}
+            required
+            autoFocus
+          />
+          {type === "adjust" && (
+            <small className="help mt-1">
+              Usa positivo para aumentar, negativo para reducir.
+            </small>
+          )}
+        </div>
+        <div className="field">
+          <span className="label">Referencia (opcional)</span>
+          <input
+            className="input"
+            placeholder="PO-001, pedido 42, conteo…"
+            value={ref}
+            onChange={(e) => setRef(e.target.value)}
+            maxLength={80}
+          />
+        </div>
+        <div className="field">
+          <span className="label">Nota (opcional)</span>
+          <textarea
+            className="textarea"
+            rows={2}
+            value={note}
+            onChange={(e) => setNote(e.target.value)}
+            maxLength={500}
+          />
+        </div>
+        {error && (
+          <div
+            className="rounded-md text-xs"
+            style={{
+              padding: "10px 12px",
+              border: "1px solid var(--danger)",
+              color: "var(--danger)",
+              background: "var(--danger-soft)",
+            }}
+            role="alert"
+          >
+            {error}
+          </div>
+        )}
+      </form>
+    </Modal>
   );
 }
