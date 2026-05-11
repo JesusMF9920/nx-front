@@ -13,10 +13,13 @@ export type UpdateUserInput = {
 };
 
 export const usersApi = {
-  list(params: { skip?: number; take?: number } = {}): Promise<ApiList<ApiUser>> {
+  list(
+    params: { skip?: number; take?: number; roleId?: string } = {},
+  ): Promise<ApiList<ApiUser>> {
     const search = new URLSearchParams();
     if (params.skip !== undefined) search.set("skip", String(params.skip));
     if (params.take !== undefined) search.set("take", String(params.take));
+    if (params.roleId) search.set("roleId", params.roleId);
     const qs = search.toString();
     return apiFetch<ApiList<ApiUser>>(`/users${qs ? `?${qs}` : ""}`);
   },

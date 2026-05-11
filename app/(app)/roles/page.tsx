@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { Avatar } from "@/components/avatar";
 import { ConfirmDialog } from "@/components/confirm-dialog";
@@ -9,19 +8,47 @@ import { MenuButton, type MenuItem } from "@/components/menu-button";
 import { Modal } from "@/components/modal";
 import { PageHeader } from "@/components/page-header";
 import { ApiError } from "@/lib/api/errors";
+import { auditApi, type ApiAuditEntry } from "@/lib/api/audit";
+import {
+  permissionsApi,
+  type ApiPermission,
+} from "@/lib/api/permissions";
 import { rolesApi } from "@/lib/api/roles";
 import { usersApi } from "@/lib/api/users";
 import type { ApiRole, ApiUser } from "@/lib/api/types";
-import {
-  PERMISSION_GROUPS,
-  TOTAL_PERMISSIONS,
-} from "@/lib/permissions-catalog";
 
 const SYSTEM_ROLE_NAMES = new Set(["super-admin"]);
+const USERS_PAGE_SIZE = 100;
+
+const dateTimeFmt = new Intl.DateTimeFormat("es-MX", {
+  dateStyle: "medium",
+  timeStyle: "short",
+});
+
+function formatDateTime(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return iso;
+  return dateTimeFmt.format(d);
+}
+
+function actionLabel(action: string): string {
+  switch (action) {
+    case "iam.role.created":
+      return "Creado";
+    case "iam.role.updated":
+      return "Modificado";
+    case "iam.role.deleted":
+      return "Eliminado";
+    default:
+      return action;
+  }
+}
 
 export default function RolesPage() {
   const [roles, setRoles] = useState<ApiRole[]>([]);
-  const [users, setUsers] = useState<ApiUser[]>([]);
+  const [permissions, setPermissions] = useState<ApiPermission[]>([]);
+  const [allUsers, setAllUsers] = useState<ApiUser[]>([]);
+  const [allUsersTotal, setAllUsersTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
@@ -29,21 +56,32 @@ export default function RolesPage() {
   const [showNew, setShowNew] = useState(false);
   const [editTarget, setEditTarget] = useState<ApiRole | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<ApiRole | null>(null);
-  const [query, setQuery] = useState("");
   const [assignTarget, setAssignTarget] = useState<ApiRole | null>(null);
   const [savingPermKey, setSavingPermKey] = useState<string | null>(null);
+  const [query, setQuery] = useState("");
+
+  // Detalles del rol seleccionado (carga independiente al seleccionar).
+  const [roleUsers, setRoleUsers] = useState<ApiUser[]>([]);
+  const [roleUsersTotal, setRoleUsersTotal] = useState(0);
+  const [latestAudit, setLatestAudit] = useState<ApiAuditEntry | null>(null);
+  const [detailLoading, setDetailLoading] = useState(false);
 
   const reload = async (preserveId?: string) => {
     setLoading(true);
     setLoadError(null);
     try {
-      const [rolesRes, usersRes] = await Promise.all([
+      const [rolesRes, usersRes, catalogRes] = await Promise.all([
         rolesApi.list(),
-        usersApi.list({ take: 100 }),
+        usersApi.list({ take: USERS_PAGE_SIZE }),
+        permissions.length === 0
+          ? permissionsApi.catalog()
+          : Promise.resolve({ items: permissions }),
       ]);
       const visible = rolesRes.filter((r) => !SYSTEM_ROLE_NAMES.has(r.name));
       setRoles(visible);
-      setUsers(usersRes.items);
+      setAllUsers(usersRes.items);
+      setAllUsersTotal(usersRes.total);
+      setPermissions(catalogRes.items);
       const nextSelected =
         preserveId && visible.some((r) => r.id === preserveId)
           ? preserveId
@@ -68,15 +106,66 @@ export default function RolesPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Detalle del rol seleccionado: users-by-role + last audit.
+  useEffect(() => {
+    if (!selectedId) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setRoleUsers([]);
+      setRoleUsersTotal(0);
+      setLatestAudit(null);
+      return;
+    }
+    let cancelled = false;
+    const load = async () => {
+      setDetailLoading(true);
+      try {
+        const [usersRes, auditRes] = await Promise.all([
+          usersApi.list({ roleId: selectedId, take: USERS_PAGE_SIZE }),
+          auditApi.list({ target: `role:${selectedId}`, take: 1 }),
+        ]);
+        if (cancelled) return;
+        setRoleUsers(usersRes.items);
+        setRoleUsersTotal(usersRes.total);
+        setLatestAudit(auditRes.items[0] ?? null);
+      } catch (err) {
+        if (cancelled) return;
+        setActionError(
+          err instanceof ApiError
+            ? err.message
+            : "No se pudo cargar el detalle del rol.",
+        );
+      } finally {
+        if (!cancelled) setDetailLoading(false);
+      }
+    };
+    void load();
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedId]);
+
+  const permissionGroups = useMemo(() => {
+    const order: string[] = [];
+    const map = new Map<string, ApiPermission[]>();
+    for (const p of permissions) {
+      if (!map.has(p.group)) {
+        map.set(p.group, []);
+        order.push(p.group);
+      }
+      map.get(p.group)!.push(p);
+    }
+    return order.map((g) => ({ group: g, items: map.get(g) ?? [] }));
+  }, [permissions]);
+
   const usersPerRole = useMemo(() => {
     const map = new Map<string, number>();
-    for (const u of users) {
+    for (const u of allUsers) {
       for (const rid of u.roleIds) {
         map.set(rid, (map.get(rid) ?? 0) + 1);
       }
     }
     return map;
-  }, [users]);
+  }, [allUsers]);
 
   const selected = useMemo(
     () => roles.find((r) => r.id === selectedId) ?? null,
@@ -93,24 +182,11 @@ export default function RolesPage() {
     );
   }, [roles, query]);
 
-  const buildRoleMenu = (r: ApiRole): MenuItem[] => [
-    {
-      label: "Editar",
-      icon: I.edit,
-      onClick: () => setEditTarget(r),
-    },
-    {
-      label: "Asignar usuario",
-      icon: I.plus,
-      onClick: () => setAssignTarget(r),
-    },
-    {
-      label: "Eliminar",
-      icon: I.x,
-      kind: "danger",
-      onClick: () => setDeleteTarget(r),
-    },
-  ];
+  const actorById = useMemo(() => {
+    const m = new Map<string, ApiUser>();
+    for (const u of allUsers) m.set(u.id, u);
+    return m;
+  }, [allUsers]);
 
   const updateRoleLocal = (roleId: string, patch: Partial<ApiRole>) => {
     setRoles((rs) => rs.map((r) => (r.id === roleId ? { ...r, ...patch } : r)));
@@ -132,6 +208,12 @@ export default function RolesPage() {
     updateRoleLocal(role.id, { permissions: next });
     try {
       await rolesApi.update(role.id, { permissions: next });
+      // Refrescar última modificación.
+      const auditRes = await auditApi.list({
+        target: `role:${role.id}`,
+        take: 1,
+      });
+      setLatestAudit(auditRes.items[0] ?? null);
     } catch (err) {
       updateRoleLocal(role.id, { permissions: prev });
       setActionError(
@@ -148,7 +230,15 @@ export default function RolesPage() {
     setActionError(null);
     try {
       await rolesApi.revoke(role.id, user.id);
-      await reload(role.id);
+      // Recarga del detalle + del rail (counts).
+      const [detail, allUsersRes] = await Promise.all([
+        usersApi.list({ roleId: role.id, take: USERS_PAGE_SIZE }),
+        usersApi.list({ take: USERS_PAGE_SIZE }),
+      ]);
+      setRoleUsers(detail.items);
+      setRoleUsersTotal(detail.total);
+      setAllUsers(allUsersRes.items);
+      setAllUsersTotal(allUsersRes.total);
     } catch (err) {
       setActionError(
         err instanceof ApiError
@@ -158,15 +248,42 @@ export default function RolesPage() {
     }
   };
 
-  const selectedUsers = selected
-    ? users.filter((u) => u.roleIds.includes(selected.id))
-    : [];
+  const buildRoleMenu = (r: ApiRole): MenuItem[] => [
+    { label: "Editar", icon: I.edit, onClick: () => setEditTarget(r) },
+    {
+      label: "Asignar usuario",
+      icon: I.plus,
+      onClick: () => setAssignTarget(r),
+    },
+    {
+      label: "Eliminar",
+      icon: I.x,
+      kind: "danger",
+      onClick: () => setDeleteTarget(r),
+    },
+  ];
+
+  const renderAuditLine = (entry: ApiAuditEntry) => {
+    const actor = entry.actorId ? actorById.get(entry.actorId) : null;
+    const actorLabel = actor
+      ? actor.name
+      : entry.actorId
+        ? `usuario ${entry.actorId.slice(0, 8)}…`
+        : "sistema";
+    return (
+      <>
+        {actionLabel(entry.action)} por{" "}
+        <span className="font-medium text-ink-2">{actorLabel}</span> ·{" "}
+        {formatDateTime(entry.createdAt)}
+      </>
+    );
+  };
 
   return (
     <>
       <PageHeader
         title="Roles y permisos"
-        sub={`${roles.length} roles · ${TOTAL_PERMISSIONS} permisos disponibles`}
+        sub={`${roles.length} roles · ${permissions.length} permisos disponibles`}
         actions={
           <button className="btn btn--accent" onClick={() => setShowNew(true)}>
             {I.plus} Nuevo rol
@@ -264,6 +381,15 @@ export default function RolesPage() {
               })
             )}
           </div>
+          {allUsersTotal > USERS_PAGE_SIZE && (
+            <div
+              className="px-3.5 py-2 text-[11px] text-muted-2"
+              style={{ borderTop: "1px solid var(--line)" }}
+            >
+              Conteo basado en los primeros {USERS_PAGE_SIZE} de {allUsersTotal}{" "}
+              usuarios.
+            </div>
+          )}
         </div>
 
         <div className="card">
@@ -275,6 +401,11 @@ export default function RolesPage() {
                   <div className="text-muted text-xs">
                     {selected.description ?? "Sin descripción"}
                   </div>
+                  {latestAudit && (
+                    <div className="text-muted text-[11px] mt-1">
+                      {renderAuditLine(latestAudit)}
+                    </div>
+                  )}
                 </div>
                 <div className="spacer" />
                 <button
@@ -289,80 +420,85 @@ export default function RolesPage() {
                 >
                   {I.x} Eliminar
                 </button>
-                <Link className="btn btn--sm btn--ghost" href="/users">
-                  Ver {usersPerRole.get(selected.id) ?? 0}{" "}
-                  {(usersPerRole.get(selected.id) ?? 0) === 1
-                    ? "usuario"
-                    : "usuarios"}
-                </Link>
               </div>
 
               <div className="p-2">
-                {PERMISSION_GROUPS.map((grp) => {
-                  const granted = grp.items.filter((p) =>
-                    selected.permissions.includes(p.id),
-                  ).length;
-                  return (
-                    <div
-                      key={grp.group}
-                      style={{ borderBottom: "1px solid var(--line)" }}
-                    >
-                      <div className="px-3.5 py-2.5 flex items-center gap-2 bg-surface-2">
-                        <div
-                          className="text-[11px] uppercase text-muted font-medium"
-                          style={{ letterSpacing: ".06em" }}
-                        >
-                          {grp.group}
-                        </div>
-                        <div className="spacer" />
-                        <span className="tag text-[10px]">
-                          {granted}/{grp.items.length}
-                        </span>
-                      </div>
-                      {grp.items.map((p) => {
-                        const has = selected.permissions.includes(p.id);
-                        const key = `${selected.id}|${p.id}`;
-                        const saving = savingPermKey === key;
-                        return (
-                          <label
-                            key={p.id}
-                            className="flex items-center gap-2.5 px-3.5 py-2 text-[13px] cursor-pointer"
-                            style={{ opacity: saving ? 0.6 : 1 }}
+                {permissionGroups.length === 0 ? (
+                  <div className="px-3.5 py-3 text-muted text-sm">
+                    No hay permisos en el catálogo.
+                  </div>
+                ) : (
+                  permissionGroups.map((grp) => {
+                    const granted = grp.items.filter((p) =>
+                      selected.permissions.includes(p.id),
+                    ).length;
+                    return (
+                      <div
+                        key={grp.group}
+                        style={{ borderBottom: "1px solid var(--line)" }}
+                      >
+                        <div className="px-3.5 py-2.5 flex items-center gap-2 bg-surface-2">
+                          <div
+                            className="text-[11px] uppercase text-muted font-medium"
+                            style={{ letterSpacing: ".06em" }}
                           >
-                            <input
-                              type="checkbox"
-                              checked={has}
-                              disabled={savingPermKey !== null}
-                              onChange={() =>
-                                togglePermission(selected, p.id, has)
-                              }
-                            />
-                            <span
-                              className="flex-1"
-                              style={{
-                                color: has ? "var(--ink)" : "var(--muted)",
-                              }}
+                            {grp.group}
+                          </div>
+                          <div className="spacer" />
+                          <span className="tag text-[10px]">
+                            {granted}/{grp.items.length}
+                          </span>
+                        </div>
+                        {grp.items.map((p) => {
+                          const has = selected.permissions.includes(p.id);
+                          const key = `${selected.id}|${p.id}`;
+                          const saving = savingPermKey === key;
+                          return (
+                            <label
+                              key={p.id}
+                              className="flex items-center gap-2.5 px-3.5 py-2 text-[13px] cursor-pointer"
+                              style={{ opacity: saving ? 0.6 : 1 }}
                             >
-                              {p.label}
-                            </span>
-                            <span className="font-mono text-[10px] text-muted-2">
-                              {p.id}
-                            </span>
-                            {saving && (
-                              <span className="text-[10px] text-muted-2 ml-1">
-                                Guardando…
+                              <input
+                                type="checkbox"
+                                checked={has}
+                                disabled={savingPermKey !== null}
+                                onChange={() =>
+                                  togglePermission(selected, p.id, has)
+                                }
+                              />
+                              <span
+                                className="flex-1"
+                                style={{
+                                  color: has ? "var(--ink)" : "var(--muted)",
+                                }}
+                              >
+                                {p.label}
                               </span>
-                            )}
-                          </label>
-                        );
-                      })}
-                    </div>
-                  );
-                })}
+                              <span className="font-mono text-[10px] text-muted-2">
+                                {p.id}
+                              </span>
+                              {saving && (
+                                <span className="text-[10px] text-muted-2 ml-1">
+                                  Guardando…
+                                </span>
+                              )}
+                            </label>
+                          );
+                        })}
+                      </div>
+                    );
+                  })
+                )}
               </div>
 
               <div className="card__head" style={{ borderTop: "1px solid var(--line)" }}>
-                <div className="card__title">Usuarios con este rol</div>
+                <div className="card__title">
+                  Usuarios con este rol{" "}
+                  <span className="text-muted text-xs font-normal">
+                    ({roleUsersTotal})
+                  </span>
+                </div>
                 <div className="spacer" />
                 <button
                   className="btn btn--sm btn--accent"
@@ -371,13 +507,15 @@ export default function RolesPage() {
                   {I.plus} Asignar usuario
                 </button>
               </div>
-              {selectedUsers.length === 0 ? (
+              {detailLoading ? (
+                <div className="card__body text-muted text-sm">Cargando…</div>
+              ) : roleUsers.length === 0 ? (
                 <div className="card__body text-muted text-sm">
                   Nadie tiene este rol todavía.
                 </div>
               ) : (
                 <div>
-                  {selectedUsers.map((u) => (
+                  {roleUsers.map((u) => (
                     <div
                       key={u.id}
                       className="flex items-center gap-2.5 px-3.5 py-2 text-[13px]"
@@ -401,13 +539,12 @@ export default function RolesPage() {
                   ))}
                 </div>
               )}
-              {users.length >= 100 && (
+              {roleUsersTotal > USERS_PAGE_SIZE && (
                 <div
                   className="px-3.5 py-2 text-[11px] text-muted-2"
                   style={{ borderTop: "1px solid var(--line)" }}
                 >
-                  Mostrando los primeros 100 usuarios. Si hay más, la asignación
-                  por rol no los considera.
+                  Mostrando los primeros {USERS_PAGE_SIZE} de {roleUsersTotal}.
                 </div>
               )}
             </>
@@ -492,9 +629,6 @@ export default function RolesPage() {
       {assignTarget && (
         <AssignUserModal
           role={assignTarget}
-          candidates={users.filter(
-            (u) => u.isActive && !u.roleIds.includes(assignTarget.id),
-          )}
           onClose={() => setAssignTarget(null)}
           onDone={async () => {
             const id = assignTarget.id;
@@ -738,18 +872,46 @@ function EditRoleModal({
 
 function AssignUserModal({
   role,
-  candidates,
   onClose,
   onDone,
 }: {
   role: ApiRole;
-  candidates: ApiUser[];
   onClose: () => void;
   onDone: () => void | Promise<void>;
 }) {
-  const [userId, setUserId] = useState<string>(candidates[0]?.id ?? "");
+  const [candidates, setCandidates] = useState<ApiUser[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [userId, setUserId] = useState<string>("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    const load = async () => {
+      try {
+        const res = await usersApi.list({ take: 100 });
+        if (cancelled) return;
+        const eligible = res.items.filter(
+          (u) => u.isActive && !u.roleIds.includes(role.id),
+        );
+        setCandidates(eligible);
+        setUserId(eligible[0]?.id ?? "");
+      } catch (err) {
+        if (cancelled) return;
+        setError(
+          err instanceof ApiError
+            ? err.message
+            : "No se pudieron cargar los usuarios.",
+        );
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    };
+    void load();
+    return () => {
+      cancelled = true;
+    };
+  }, [role.id]);
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
@@ -783,7 +945,7 @@ function AssignUserModal({
             className="btn btn--accent"
             type="submit"
             form="assign-user-form"
-            disabled={submitting || candidates.length === 0}
+            disabled={submitting || candidates.length === 0 || loading}
           >
             {submitting ? "Asignando…" : "Asignar"}
           </button>
@@ -791,7 +953,9 @@ function AssignUserModal({
       }
     >
       <form id="assign-user-form" onSubmit={submit}>
-        {candidates.length === 0 ? (
+        {loading ? (
+          <div className="text-sm text-muted">Cargando usuarios…</div>
+        ) : candidates.length === 0 ? (
           <div className="text-sm text-muted">
             No hay usuarios activos disponibles para asignar a este rol.
           </div>

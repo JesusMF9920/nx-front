@@ -11,6 +11,8 @@ type NavItem = {
   label: string;
   icon: ReactNode;
   badge?: string;
+  /** Si está presente, sólo se muestra cuando el usuario tiene este permiso. */
+  perm?: string;
 };
 
 type NavGroup = {
@@ -51,6 +53,7 @@ const NAV_GROUPS: NavGroup[] = [
     title: "Análisis",
     items: [
       { href: "/reports",  label: "Reportes",      icon: I.chart },
+      { href: "/audit",    label: "Bitácora",      icon: I.shield, perm: "audit.read" },
       { href: "/settings", label: "Configuración", icon: I.settings },
     ],
   },
@@ -66,11 +69,16 @@ function initialsFor(name: string): string {
 export function Sidebar() {
   const pathname = usePathname();
   const router = useRouter();
-  const { user, roles, logout } = useAuth();
+  const { user, roles, permissions, logout } = useAuth();
   const displayName = user?.name ?? "—";
   const displayInitials = user ? initialsFor(user.name) : "·";
   const displayRole =
     roles.find((r) => user?.roleIds.includes(r.id))?.name ?? "Sin rol";
+  const permsSet = new Set(permissions);
+  const groups = NAV_GROUPS.map((g) => ({
+    ...g,
+    items: g.items.filter((it) => !it.perm || permsSet.has(it.perm)),
+  })).filter((g) => g.items.length > 0);
 
   const handleLogout = async () => {
     await logout();
@@ -93,7 +101,7 @@ export function Sidebar() {
       </Link>
 
       <nav className="sidebar__nav">
-        {NAV_GROUPS.map((g) => (
+        {groups.map((g) => (
           <div className="nav-group" key={g.title}>
             <div className="nav-group__title">{g.title}</div>
             {g.items.map((it) => {
