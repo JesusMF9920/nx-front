@@ -7,14 +7,50 @@ import { I } from "@/components/icons";
 import { MenuButton, type MenuItem } from "@/components/menu-button";
 import { Modal } from "@/components/modal";
 import { PageHeader } from "@/components/page-header";
+import { auditApi, type ApiAuditEntry } from "@/lib/api/audit";
 import { clientsApi } from "@/lib/api/clients";
 import { ApiError } from "@/lib/api/errors";
-import type { ApiClient, ApiClientType } from "@/lib/api/types";
+import type { ApiClient, ApiClientType, ApiUser } from "@/lib/api/types";
+import { usersApi } from "@/lib/api/users";
 import { fmtDate } from "@/lib/format";
 
 type FilterKey = "Todos" | "Frecuentes" | "Con crédito" | "Inactivos";
+type TypeFilter = "all" | ApiClientType;
+type OrderByKey = "createdAt" | "name" | "updatedAt";
 
 const FILTERS: FilterKey[] = ["Todos", "Frecuentes", "Con crédito", "Inactivos"];
+
+const ORDER_OPTIONS: { key: OrderByKey; label: string }[] = [
+  { key: "createdAt", label: "Más recientes" },
+  { key: "name", label: "Nombre (A-Z)" },
+  { key: "updatedAt", label: "Última modificación" },
+];
+
+const dateTimeFmt = new Intl.DateTimeFormat("es-MX", {
+  dateStyle: "medium",
+  timeStyle: "short",
+});
+
+function formatDateTime(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return iso;
+  return dateTimeFmt.format(d);
+}
+
+function auditActionLabel(action: string): string {
+  switch (action) {
+    case "clients.client.created":
+      return "Creado";
+    case "clients.client.updated":
+      return "Modificado";
+    case "clients.client.deactivated":
+      return "Desactivado";
+    case "clients.client.reactivated":
+      return "Reactivado";
+    default:
+      return action;
+  }
+}
 
 const SUGGESTED_TAGS = [
   "Frecuente",
@@ -36,9 +72,16 @@ export default function ClientsPage() {
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
   const [filter, setFilter] = useState<FilterKey>("Todos");
+  const [typeFilter, setTypeFilter] = useState<TypeFilter>("all");
+  const [orderBy, setOrderBy] = useState<OrderByKey>("createdAt");
   const [query, setQuery] = useState("");
   const [debounced, setDebounced] = useState("");
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [selectedDetail, setSelectedDetail] = useState<ApiClient | null>(null);
+  const [selectedAudit, setSelectedAudit] = useState<ApiAuditEntry | null>(
+    null,
+  );
+  const [users, setUsers] = useState<ApiUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
@@ -47,6 +90,27 @@ export default function ClientsPage() {
   const [deactivateTarget, setDeactivateTarget] = useState<ApiClient | null>(
     null,
   );
+
+  const actorById = useMemo(
+    () => new Map(users.map((u) => [u.id, u])),
+    [users],
+  );
+
+  // Lista de usuarios sólo para resolver nombres en la auditoría. Falla silenciosa.
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      try {
+        const res = await usersApi.list({ take: 100 });
+        if (!cancelled) setUsers(res.items);
+      } catch {
+        // ignore
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   // Debounce de búsqueda (250ms). Resetea page al mismo tiempo para que
   // la siguiente fetch sea atómica con el nuevo término.
@@ -63,15 +127,26 @@ export default function ClientsPage() {
     setPage(1);
   };
 
+  const changeTypeFilter = (t: TypeFilter) => {
+    setTypeFilter(t);
+    setPage(1);
+  };
+
+  const changeOrderBy = (o: OrderByKey) => {
+    setOrderBy(o);
+    setPage(1);
+  };
+
   const filterParams = useMemo<{
     tag?: string;
+    tagStartsWith?: string;
     isActive?: boolean;
   }>(() => {
     switch (filter) {
       case "Frecuentes":
         return { tag: "Frecuente" };
       case "Con crédito":
-        return { tag: "Crédito 30" }; // TODO: backend no soporta tag-starts-with
+        return { tagStartsWith: "Crédito" };
       case "Inactivos":
         return { isActive: false };
       default:
@@ -87,6 +162,9 @@ export default function ClientsPage() {
         skip: (targetPage - 1) * PAGE_SIZE,
         take: PAGE_SIZE,
         search: debounced || undefined,
+        type: typeFilter === "all" ? undefined : typeFilter,
+        orderBy,
+        order: orderBy === "name" ? "asc" : "desc",
         ...filterParams,
       });
       setClients(res.items);
@@ -109,19 +187,56 @@ export default function ClientsPage() {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     void reload();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [page, filter, debounced]);
+  }, [page, filter, debounced, typeFilter, orderBy]);
+
+  // Carga el detalle y la última entrada de auditoría del cliente seleccionado.
+  // Independiente de la lista paginada para que el panel sobreviva a cambios
+  // de filtro/orden donde el cliente deja de estar visible.
+  useEffect(() => {
+    if (!selectedId) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setSelectedDetail(null);
+      setSelectedAudit(null);
+      return;
+    }
+    let cancelled = false;
+    void (async () => {
+      try {
+        const [detail, audit] = await Promise.all([
+          clientsApi.get(selectedId),
+          auditApi.list({ target: `client:${selectedId}`, take: 1 }),
+        ]);
+        if (cancelled) return;
+        setSelectedDetail(detail);
+        setSelectedAudit(audit.items[0] ?? null);
+      } catch {
+        if (!cancelled) {
+          // Si el cliente fue borrado, deselecciona.
+          setSelectedDetail(null);
+          setSelectedAudit(null);
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedId]);
 
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
-  const selected = useMemo(
-    () => clients.find((c) => c.id === selectedId) ?? null,
-    [clients, selectedId],
-  );
+  const selected = selectedDetail;
 
   const refreshSelected = async () => {
     if (!selected) return;
     try {
       const fresh = await clientsApi.get(selected.id);
+      setSelectedDetail(fresh);
       setClients((cs) => cs.map((c) => (c.id === fresh.id ? fresh : c)));
+      // Refrescar también la última modificación.
+      const audit = await auditApi.list({
+        target: `client:${fresh.id}`,
+        take: 1,
+      });
+      setSelectedAudit(audit.items[0] ?? null);
     } catch {
       // ignore — el reload general lo arregla
     }
@@ -199,14 +314,30 @@ export default function ClientsPage() {
 
       <div className="grid gap-5" style={{ gridTemplateColumns: "1.6fr 1fr" }}>
         <div className="card">
-          <div className="card__head gap-2">
-            <div className="topbar__search m-0" style={{ width: 260 }}>
+          <div className="card__head gap-2 flex-wrap">
+            <div className="topbar__search m-0 relative" style={{ width: 260 }}>
               {I.search}
               <input
                 placeholder="Buscar por nombre, RFC, teléfono…"
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
               />
+              {query.length > 0 && (
+                <button
+                  type="button"
+                  className="icon-btn"
+                  onClick={() => setQuery("")}
+                  aria-label="Limpiar búsqueda"
+                  style={{
+                    position: "absolute",
+                    right: 4,
+                    top: "50%",
+                    transform: "translateY(-50%)",
+                  }}
+                >
+                  {I.x}
+                </button>
+              )}
             </div>
             <div className="row gap-1">
               {FILTERS.map((f) => (
@@ -221,7 +352,47 @@ export default function ClientsPage() {
                 </button>
               ))}
             </div>
+            <div className="row gap-1">
+              <button
+                className={`btn btn--sm ${
+                  typeFilter === "all" ? "btn--primary" : "btn--ghost"
+                }`}
+                onClick={() => changeTypeFilter("all")}
+                title="Todos los tipos"
+              >
+                Todos
+              </button>
+              <button
+                className={`btn btn--sm ${
+                  typeFilter === "business" ? "btn--primary" : "btn--ghost"
+                }`}
+                onClick={() => changeTypeFilter("business")}
+              >
+                Negocio
+              </button>
+              <button
+                className={`btn btn--sm ${
+                  typeFilter === "individual" ? "btn--primary" : "btn--ghost"
+                }`}
+                onClick={() => changeTypeFilter("individual")}
+              >
+                Persona
+              </button>
+            </div>
             <div className="spacer" />
+            <select
+              className="input"
+              style={{ width: 180, height: 32, fontSize: 12 }}
+              value={orderBy}
+              onChange={(e) => changeOrderBy(e.target.value as OrderByKey)}
+              aria-label="Ordenar por"
+            >
+              {ORDER_OPTIONS.map((o) => (
+                <option key={o.key} value={o.key}>
+                  Orden: {o.label}
+                </option>
+              ))}
+            </select>
           </div>
 
           {loading ? (
@@ -339,6 +510,8 @@ export default function ClientsPage() {
         {selected ? (
           <ClientDetailPanel
             client={selected}
+            audit={selectedAudit}
+            actorById={actorById}
             onEdit={() => setEditTarget(selected)}
             onDeactivate={() => setDeactivateTarget(selected)}
             onActivate={async () => {
@@ -346,6 +519,7 @@ export default function ClientsPage() {
               try {
                 await clientsApi.activate(selected.id);
                 await reload(page);
+                await refreshSelected();
               } catch (err) {
                 setActionError(
                   err instanceof ApiError
@@ -426,15 +600,25 @@ export default function ClientsPage() {
 
 function ClientDetailPanel({
   client,
+  audit,
+  actorById,
   onEdit,
   onDeactivate,
   onActivate,
 }: {
   client: ApiClient;
+  audit: ApiAuditEntry | null;
+  actorById: Map<string, ApiUser>;
   onEdit: () => void;
   onDeactivate: () => void;
   onActivate: () => void;
 }) {
+  const actorLabel = (entry: ApiAuditEntry): string => {
+    if (!entry.actorId) return "sistema";
+    const u = actorById.get(entry.actorId);
+    return u ? u.name : `${entry.actorId.slice(0, 8)}…`;
+  };
+
   return (
     <div className="card self-start">
       <div className="card__body pb-0">
@@ -453,6 +637,15 @@ function ClientDetailPanel({
                 </>
               )}
             </div>
+            {audit && (
+              <div className="text-muted text-[11px] mt-1">
+                {auditActionLabel(audit.action)} por{" "}
+                <span className="font-medium text-ink-2">
+                  {actorLabel(audit)}
+                </span>{" "}
+                · {formatDateTime(audit.createdAt)}
+              </div>
+            )}
             <div className="mt-2 flex gap-1.5 flex-wrap">
               {client.tags.length === 0 ? (
                 <span className="tag text-muted-2">sin etiquetas</span>

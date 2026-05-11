@@ -20,7 +20,11 @@ export type ListClientsParams = {
   take?: number;
   search?: string;
   tag?: string;
+  tagStartsWith?: string;
   isActive?: boolean;
+  type?: ApiClientType;
+  orderBy?: "name" | "createdAt" | "updatedAt";
+  order?: "asc" | "desc";
 };
 
 export const clientsApi = {
@@ -32,9 +36,13 @@ export const clientsApi = {
       search.set("search", params.search.trim());
     }
     if (params.tag) search.set("tag", params.tag);
+    if (params.tagStartsWith) search.set("tagStartsWith", params.tagStartsWith);
     if (params.isActive !== undefined) {
       search.set("isActive", params.isActive ? "true" : "false");
     }
+    if (params.type) search.set("type", params.type);
+    if (params.orderBy) search.set("orderBy", params.orderBy);
+    if (params.order) search.set("order", params.order);
     const qs = search.toString();
     return apiFetch<ApiList<ApiClient>>(`/clients${qs ? `?${qs}` : ""}`);
   },
