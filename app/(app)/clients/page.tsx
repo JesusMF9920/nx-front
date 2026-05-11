@@ -48,17 +48,20 @@ export default function ClientsPage() {
     null,
   );
 
-  // Debounce de búsqueda (250ms).
+  // Debounce de búsqueda (250ms). Resetea page al mismo tiempo para que
+  // la siguiente fetch sea atómica con el nuevo término.
   useEffect(() => {
-    const id = setTimeout(() => setDebounced(query.trim()), 250);
+    const id = setTimeout(() => {
+      setDebounced(query.trim());
+      setPage(1);
+    }, 250);
     return () => clearTimeout(id);
   }, [query]);
 
-  // Reset page cuando cambian filtro o búsqueda.
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
+  const changeFilter = (f: FilterKey) => {
+    setFilter(f);
     setPage(1);
-  }, [filter, debounced]);
+  };
 
   const filterParams = useMemo<{
     tag?: string;
@@ -212,7 +215,7 @@ export default function ClientsPage() {
                   className={`btn btn--sm ${
                     filter === f ? "btn--primary" : "btn--ghost"
                   }`}
-                  onClick={() => setFilter(f)}
+                  onClick={() => changeFilter(f)}
                 >
                   {f}
                 </button>
