@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import { Inter_Tight, IBM_Plex_Mono } from "next/font/google";
 import "./globals.css";
 
+import { AuthProvider } from "@/lib/auth/auth-context";
+
 const interTight = Inter_Tight({
   variable: "--font-inter-tight",
   subsets: ["latin"],
@@ -26,7 +28,9 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="es-MX" className={`${interTight.variable} ${ibmPlexMono.variable}`}>
-      <body>{children}</body>
+      <body>
+        <AuthProvider>{children}</AuthProvider>
+      </body>
     </html>
   );
 }

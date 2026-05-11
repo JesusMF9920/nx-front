@@ -1,6 +1,11 @@
-import type { PermissionGroup } from "./types";
+// TODO: Mock heredado. La fuente de verdad para los permisos del backend
+// vive en `lib/permissions-catalog.ts`. Este catálogo más amplio queda como
+// inspiración de UI para cuando existan los dominios POS/diseño/producción.
 
-export const NEXUM_PERMISSIONS: PermissionGroup[] = [
+type MockPermissionItem = { id: string; label: string };
+type MockPermissionGroup = { group: string; items: MockPermissionItem[] };
+
+export const NEXUM_PERMISSIONS: MockPermissionGroup[] = [
   {
     group: "Ventas",
     items: [

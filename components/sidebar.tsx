@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import type { ReactNode } from "react";
 import { I } from "./icons";
+import { useAuth } from "@/lib/auth/auth-context";
 
 type NavItem = {
   href: string;
@@ -55,11 +56,26 @@ const NAV_GROUPS: NavGroup[] = [
   },
 ];
 
-type CurrentUser = { name: string; initials: string; role: string };
+function initialsFor(name: string): string {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return "·";
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+}
 
-export function Sidebar({ currentUser }: { currentUser: CurrentUser }) {
+export function Sidebar() {
   const pathname = usePathname();
   const router = useRouter();
+  const { user, roles, logout } = useAuth();
+  const displayName = user?.name ?? "—";
+  const displayInitials = user ? initialsFor(user.name) : "·";
+  const displayRole =
+    roles.find((r) => user?.roleIds.includes(r.id))?.name ?? "Sin rol";
+
+  const handleLogout = async () => {
+    await logout();
+    router.replace("/login");
+  };
 
   return (
     <aside className="sidebar">
@@ -99,15 +115,15 @@ export function Sidebar({ currentUser }: { currentUser: CurrentUser }) {
       </nav>
 
       <div className="sidebar__user">
-        <div className="user-avatar">{currentUser.initials}</div>
+        <div className="user-avatar">{displayInitials}</div>
         <div className="user-meta">
-          <div className="user-name">{currentUser.name}</div>
-          <div className="user-role">{currentUser.role}</div>
+          <div className="user-name">{displayName}</div>
+          <div className="user-role">{displayRole}</div>
         </div>
         <button
           className="icon-btn"
           title="Cerrar sesión"
-          onClick={() => router.push("/login")}
+          onClick={handleLogout}
           aria-label="Cerrar sesión"
         >
           {I.logout}
