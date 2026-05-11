@@ -12,6 +12,7 @@ import { ApiError } from "@/lib/api/errors";
 import { rolesApi } from "@/lib/api/roles";
 import type { ApiRole, ApiUser } from "@/lib/api/types";
 import { usersApi } from "@/lib/api/users";
+import { useAuth } from "@/lib/auth/auth-context";
 
 const dateFmt = new Intl.DateTimeFormat("es-MX", {
   dateStyle: "medium",
@@ -49,6 +50,9 @@ export default function UsersPage() {
   const [actionError, setActionError] = useState<string | null>(null);
   const [query, setQuery] = useState("");
 
+  const { user: currentUser } = useAuth();
+  const isSelf = (u: ApiUser) => !!currentUser && currentUser.id === u.id;
+
   const activateUser = async (u: ApiUser) => {
     setActionError(null);
     try {
@@ -63,34 +67,38 @@ export default function UsersPage() {
     }
   };
 
-  const buildRowMenu = (u: ApiUser): MenuItem[] => [
-    {
-      label: "Editar usuario",
-      icon: I.edit,
-      onClick: () => setEditTarget(u),
-    },
-    ...(u.isActive
-      ? [
-          {
-            label: "Restablecer contraseña",
-            icon: I.lock,
-            onClick: () => setResetTarget(u),
-          } as MenuItem,
-          {
-            label: "Desactivar",
-            icon: I.x,
-            kind: "danger" as const,
-            onClick: () => setDeactivateTarget(u),
-          },
-        ]
-      : [
-          {
-            label: "Activar",
-            icon: I.check,
-            onClick: () => activateUser(u),
-          } as MenuItem,
-        ]),
-  ];
+  const buildRowMenu = (u: ApiUser): MenuItem[] => {
+    const items: MenuItem[] = [
+      {
+        label: "Editar usuario",
+        icon: I.edit,
+        onClick: () => setEditTarget(u),
+      },
+    ];
+    if (u.isActive) {
+      items.push({
+        label: "Restablecer contraseña",
+        icon: I.lock,
+        onClick: () => setResetTarget(u),
+      });
+      // No permitir desactivarse a uno mismo (backend también lo rechaza).
+      if (!isSelf(u)) {
+        items.push({
+          label: "Desactivar",
+          icon: I.x,
+          kind: "danger",
+          onClick: () => setDeactivateTarget(u),
+        });
+      }
+    } else {
+      items.push({
+        label: "Activar",
+        icon: I.check,
+        onClick: () => activateUser(u),
+      });
+    }
+    return items;
+  };
 
   const rolesById = useMemo(
     () => new Map(roles.map((r) => [r.id, r])),
@@ -430,12 +438,21 @@ export default function UsersPage() {
                   </button>
                 )}
                 {selected.isActive ? (
-                  <button
-                    className="btn btn--sm btn--danger"
-                    onClick={() => setDeactivateTarget(selected)}
-                  >
-                    {I.x} Desactivar
-                  </button>
+                  isSelf(selected) ? (
+                    <span
+                      className="text-muted text-[11px] self-center ml-1"
+                      title="No puedes desactivar tu propia cuenta."
+                    >
+                      No puedes desactivarte a ti mismo
+                    </span>
+                  ) : (
+                    <button
+                      className="btn btn--sm btn--danger"
+                      onClick={() => setDeactivateTarget(selected)}
+                    >
+                      {I.x} Desactivar
+                    </button>
+                  )
                 ) : (
                   <button
                     className="btn btn--sm btn--accent"
