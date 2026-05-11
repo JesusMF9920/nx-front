@@ -481,6 +481,7 @@ export default function UsersPage() {
       {editTarget && (
         <EditUserModal
           user={editTarget}
+          roles={visibleRoles}
           onClose={() => setEditTarget(null)}
           onDone={async () => {
             setEditTarget(null);
@@ -818,17 +819,31 @@ function ResetPasswordModal({
 
 function EditUserModal({
   user,
+  roles,
   onClose,
   onDone,
 }: {
   user: ApiUser;
+  roles: ApiRole[];
   onClose: () => void;
   onDone: () => void | Promise<void>;
 }) {
   const [name, setName] = useState(user.name);
   const [email, setEmail] = useState(user.email);
+  const [selectedRoleIds, setSelectedRoleIds] = useState<Set<string>>(
+    () => new Set(user.roleIds),
+  );
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const toggleRole = (id: string) => {
+    setSelectedRoleIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
@@ -840,16 +855,37 @@ function EditUserModal({
       setError("El nombre no puede estar vacío.");
       return;
     }
+    if (selectedRoleIds.size === 0) {
+      setError("El usuario debe tener al menos un rol.");
+      return;
+    }
+    const currentRoleIds = new Set(user.roleIds);
+    const toAdd = [...selectedRoleIds].filter((id) => !currentRoleIds.has(id));
+    const toRemove = [...currentRoleIds].filter(
+      (id) => !selectedRoleIds.has(id),
+    );
     const patch: { name?: string; email?: string } = {};
     if (trimmedName !== user.name) patch.name = trimmedName;
     if (trimmedEmail !== user.email) patch.email = trimmedEmail;
-    if (Object.keys(patch).length === 0) {
+    if (
+      Object.keys(patch).length === 0 &&
+      toAdd.length === 0 &&
+      toRemove.length === 0
+    ) {
       onClose();
       return;
     }
     setSubmitting(true);
     try {
-      await usersApi.update(user.id, patch);
+      if (Object.keys(patch).length > 0) {
+        await usersApi.update(user.id, patch);
+      }
+      for (const roleId of toAdd) {
+        await rolesApi.assign(roleId, user.id);
+      }
+      for (const roleId of toRemove) {
+        await rolesApi.revoke(roleId, user.id);
+      }
       await onDone();
     } catch (err) {
       const message =
@@ -867,7 +903,7 @@ function EditUserModal({
     <Modal
       title="Editar usuario"
       onClose={onClose}
-      width={480}
+      width={520}
       footer={
         <>
           <button className="btn btn--ghost" onClick={onClose} type="button">
@@ -909,6 +945,49 @@ function EditUserModal({
               Cambiar el correo marca al usuario como no verificado.
             </small>
           )}
+        </div>
+        <div className="field">
+          <span className="label">Roles</span>
+          <div
+            className="grid"
+            style={{
+              gap: 6,
+              maxHeight: 180,
+              overflowY: "auto",
+              border: "1px solid var(--line)",
+              borderRadius: 6,
+              padding: 8,
+            }}
+          >
+            {roles.length === 0 ? (
+              <div className="text-muted text-xs">
+                No hay roles disponibles. Crea uno primero en /roles.
+              </div>
+            ) : (
+              roles.map((r) => {
+                const checked = selectedRoleIds.has(r.id);
+                return (
+                  <label
+                    key={r.id}
+                    className="flex items-center gap-2 cursor-pointer text-[13px]"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={checked}
+                      onChange={() => toggleRole(r.id)}
+                    />
+                    <span className="font-medium">{r.name}</span>
+                    {r.description && (
+                      <span className="text-muted text-[11px] ml-1">
+                        {r.description}
+                      </span>
+                    )}
+                  </label>
+                );
+              })
+            )}
+          </div>
+          <small className="help mt-1">Selecciona al menos uno.</small>
         </div>
         {error && (
           <div
