@@ -1,6 +1,21 @@
-import type { Role, RoleSummary, User } from "./types";
+// TODO: Este archivo ya no es la fuente de verdad para usuarios — IAM real vive
+// en `lib/api/users.ts`. Se mantiene sólo para el select de "Vendedor" en
+// quote-new-modal.tsx mientras no exista el módulo de ventas en el backend.
 
-export const NEXUM_USERS: User[] = [
+type MockRoleName = "Administrador" | "Cajero" | "Diseñadora" | "Producción";
+
+export type MockUser = {
+  id: string;
+  name: string;
+  initials: string;
+  email: string;
+  role: MockRoleName;
+  status: "Activo" | "Inactivo";
+  lastLogin: string;
+  permissions: string[];
+};
+
+export const NEXUM_USERS: MockUser[] = [
   { id: "u1", name: "Mariana Castillo", initials: "MC", email: "mariana@nexum.mx", role: "Administrador", status: "Activo",   lastLogin: "Hace 2 min",   permissions: ["Todo"] },
   { id: "u2", name: "Diego Fuentes",    initials: "DF", email: "diego@nexum.mx",   role: "Cajero",        status: "Activo",   lastLogin: "Hace 14 min",  permissions: ["POS", "Tickets"] },
   { id: "u3", name: "Alma Reyes",       initials: "AR", email: "alma@nexum.mx",    role: "Diseñadora",    status: "Activo",   lastLogin: "Hace 1 h",     permissions: ["Diseños", "Aprobaciones"] },
@@ -8,16 +23,3 @@ export const NEXUM_USERS: User[] = [
   { id: "u5", name: "Sofía Lara",       initials: "SL", email: "sofia@nexum.mx",   role: "Cajero",        status: "Inactivo", lastLogin: "Hace 12 días", permissions: ["POS"] },
   { id: "u6", name: "Tomás Ibarra",     initials: "TI", email: "tomas@nexum.mx",   role: "Administrador", status: "Activo",   lastLogin: "Hace 5 h",     permissions: ["Todo"] },
 ];
-
-export const ROLE_DEFINITIONS: RoleSummary[] = [
-  { name: "Administrador", scope: "Todo el sistema, configuración y reportes." },
-  { name: "Cajero",        scope: "POS, tickets, clientes." },
-  { name: "Diseñadora",    scope: "Diseños, versiones y aprobaciones." },
-  { name: "Producción",    scope: "Pedidos, status de producción y entrega." },
-];
-
-export const CURRENT_USER: { name: string; initials: string; role: Role } = {
-  name: "Mariana Castillo",
-  initials: "MC",
-  role: "Administrador",
-};

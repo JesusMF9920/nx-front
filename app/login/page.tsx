@@ -3,19 +3,35 @@
 import { useRouter } from "next/navigation";
 import { useState, type FormEvent } from "react";
 import { I } from "@/components/icons";
+import { useAuth } from "@/lib/auth/auth-context";
+import { ApiError } from "@/lib/api/errors";
 
 export default function LoginPage() {
   const router = useRouter();
-  const [email, setEmail] = useState("mariana@nexum.mx");
-  const [pwd, setPwd] = useState("••••••••");
+  const { login } = useAuth();
+  const [email, setEmail] = useState("");
+  const [pwd, setPwd] = useState("");
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const submit = (e: FormEvent) => {
+  const submit = async (e: FormEvent) => {
     e.preventDefault();
+    if (loading) return;
     setLoading(true);
-    setTimeout(() => {
-      router.push("/dashboard");
-    }, 500);
+    setError(null);
+    try {
+      const { mustChangePassword } = await login(email, pwd);
+      router.replace(mustChangePassword ? "/change-password" : "/dashboard");
+    } catch (err) {
+      const message =
+        err instanceof ApiError
+          ? err.status === 401
+            ? "Correo o contraseña incorrectos."
+            : err.message
+          : "No se pudo iniciar sesión. Intenta de nuevo.";
+      setError(message);
+      setLoading(false);
+    }
   };
 
   return (
@@ -53,6 +69,8 @@ export default function LoginPage() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 autoComplete="email"
+                type="email"
+                required
               />
             </div>
 
@@ -72,13 +90,24 @@ export default function LoginPage() {
                 value={pwd}
                 onChange={(e) => setPwd(e.target.value)}
                 autoComplete="current-password"
+                required
               />
             </div>
 
-            <label className="flex items-center gap-2 text-[13px] text-ink-2">
-              <input type="checkbox" defaultChecked />
-              Mantener sesión iniciada en este equipo
-            </label>
+            {error && (
+              <div
+                className="rounded-md text-xs"
+                style={{
+                  padding: "10px 12px",
+                  border: "1px solid var(--danger, #d33)",
+                  color: "var(--danger, #d33)",
+                  background: "rgba(211,51,51,.06)",
+                }}
+                role="alert"
+              >
+                {error}
+              </div>
+            )}
 
             <button className="btn btn--primary btn--lg" type="submit" disabled={loading}>
               {loading ? "Entrando…" : "Entrar"}

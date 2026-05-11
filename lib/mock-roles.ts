@@ -1,6 +1,18 @@
-import type { RoleDefinition } from "./types";
+// TODO: Mock heredado. La fuente de verdad para roles vive en
+// `lib/api/roles.ts` (`rolesApi.list()`). Sin consumidores activos hoy; se
+// mantiene como referencia visual hasta migrar otras pantallas.
 
-export const NEXUM_ROLE_DEFINITIONS: RoleDefinition[] = [
+type MockRoleDefinition = {
+  id: string;
+  name: string;
+  color: string;
+  desc: string;
+  users: number;
+  system: boolean;
+  perms: { all?: true; [permissionId: string]: 1 | true | undefined };
+};
+
+export const NEXUM_ROLE_DEFINITIONS: MockRoleDefinition[] = [
   {
     id: "admin",
     name: "Administrador",

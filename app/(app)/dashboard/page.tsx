@@ -1,3 +1,5 @@
+"use client";
+
 import Link from "next/link";
 import { ApprovalPill } from "@/components/approval-pill";
 import { I } from "@/components/icons";
@@ -5,7 +7,7 @@ import { PageHeader } from "@/components/page-header";
 import { SalesChart } from "@/components/sales-chart";
 import { StatusPill } from "@/components/status-pill";
 import { fmtDate, fmtMXN } from "@/lib/format";
-import { CURRENT_USER } from "@/lib/mock-users";
+import { useAuth } from "@/lib/auth/auth-context";
 import { NEXUM_APPROVALS, NEXUM_DELIVERIES_BY_DAY, NEXUM_ORDERS } from "@/lib/mock-orders";
 
 const TODAY_KEY = "2026-05-08";
@@ -28,7 +30,8 @@ const STATS: Stat[] = [
 ];
 
 export default function DashboardPage() {
-  const firstName = CURRENT_USER.name.split(" ")[0];
+  const { user } = useAuth();
+  const firstName = (user?.name ?? "").split(" ")[0] || "tú";
   const recent = NEXUM_ORDERS.slice(0, 6);
   const todayDeliveries = NEXUM_DELIVERIES_BY_DAY[TODAY_KEY] ?? [];
   const pendingApprovals = NEXUM_APPROVALS.filter((a) => a.status !== "Aprobado").slice(0, 4);

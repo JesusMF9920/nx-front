@@ -1,22 +1,8 @@
-export type Role = "Administrador" | "Cajero" | "Diseñadora" | "Producción";
-
-export type UserStatus = "Activo" | "Inactivo";
-
-export type User = {
-  id: string;
-  name: string;
-  initials: string;
-  email: string;
-  role: Role;
-  status: UserStatus;
-  lastLogin: string;
-  permissions: string[];
-};
-
-export type RoleSummary = {
-  name: Role;
-  scope: string;
-};
+// NOTE: Los tipos de IAM (Role, User, RoleSummary, UserStatus, RoleDefinition,
+// PermissionItem, PermissionGroup) viven ahora en `lib/api/types.ts` (datos reales)
+// y `lib/permissions-catalog.ts` (catálogo de permisos). Los archivos mock
+// (lib/mock-users.ts, mock-roles.ts, mock-permissions.ts) declaran sus propios
+// shapes ya que no son la fuente de verdad para IAM — sólo prototipo de UI.
 
 export type OrderStatus =
   | "En diseño"
@@ -171,26 +157,6 @@ export type StockMove = {
   ref: string;
   note: string;
   user: string;
-};
-
-export type PermissionItem = {
-  id: string;
-  label: string;
-};
-
-export type PermissionGroup = {
-  group: string;
-  items: PermissionItem[];
-};
-
-export type RoleDefinition = {
-  id: string;
-  name: string;
-  color: string;
-  desc: string;
-  users: number;
-  system: boolean;
-  perms: { all?: true; [permissionId: string]: 1 | true | undefined };
 };
 
 export type QuoteStatus = "Enviada" | "Aprobada" | "Convertida" | "Rechazada" | "Vencida" | "Borrador";
