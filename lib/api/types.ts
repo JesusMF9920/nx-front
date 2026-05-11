@@ -49,6 +49,22 @@ export type ApiList<T> = {
 
 export type ApiClientType = "business" | "individual";
 
+export type ApiClientAddressType = "billing" | "delivery" | "other";
+
+export type ApiClientAddress = {
+  id: string;
+  type: ApiClientAddressType;
+  label: string | null;
+  line1: string;
+  line2: string | null;
+  city: string | null;
+  state: string | null;
+  postalCode: string | null;
+  country: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
 export type ApiClient = {
   id: string;
   name: string;
@@ -60,7 +76,10 @@ export type ApiClient = {
   taxRegimen: string | null;
   notes: string | null;
   tags: string[];
+  additionalPhones: string[];
+  additionalEmails: string[];
   isActive: boolean;
+  addresses: ApiClientAddress[];
   createdAt: string;
   updatedAt: string;
 };

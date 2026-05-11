@@ -11,9 +11,22 @@ export type CreateClientInput = {
   taxRegimen?: string | null;
   notes?: string | null;
   tags?: string[];
+  additionalPhones?: string[];
+  additionalEmails?: string[];
 };
 
 export type UpdateClientInput = Partial<CreateClientInput>;
+
+export type ClientAddressInput = {
+  type: "billing" | "delivery" | "other";
+  label?: string | null;
+  line1: string;
+  line2?: string | null;
+  city?: string | null;
+  state?: string | null;
+  postalCode?: string | null;
+  country?: string | null;
+};
 
 export type ListClientsParams = {
   skip?: number;
@@ -71,5 +84,49 @@ export const clientsApi = {
 
   activate(id: string): Promise<void> {
     return apiFetch<void>(`/clients/${id}/activate`, { method: "POST" });
+  },
+
+  addAddress(
+    clientId: string,
+    input: ClientAddressInput,
+  ): Promise<{ id: string }> {
+    return apiFetch<{ id: string }>(`/clients/${clientId}/addresses`, {
+      method: "POST",
+      body: JSON.stringify(input),
+    });
+  },
+
+  updateAddress(
+    clientId: string,
+    addressId: string,
+    patch: Partial<ClientAddressInput>,
+  ): Promise<void> {
+    return apiFetch<void>(`/clients/${clientId}/addresses/${addressId}`, {
+      method: "PATCH",
+      body: JSON.stringify(patch),
+    });
+  },
+
+  removeAddress(clientId: string, addressId: string): Promise<void> {
+    return apiFetch<void>(`/clients/${clientId}/addresses/${addressId}`, {
+      method: "DELETE",
+    });
+  },
+
+  /** URL absoluta para `<a download>` (sin token — el browser usa el cookie/header del cliente). */
+  exportCsvUrl(params: ListClientsParams = {}): string {
+    const base = process.env.NEXT_PUBLIC_API_URL ?? "";
+    const search = new URLSearchParams();
+    if (params.search) search.set("search", params.search);
+    if (params.tag) search.set("tag", params.tag);
+    if (params.tagStartsWith) search.set("tagStartsWith", params.tagStartsWith);
+    if (params.isActive !== undefined) {
+      search.set("isActive", params.isActive ? "true" : "false");
+    }
+    if (params.type) search.set("type", params.type);
+    if (params.orderBy) search.set("orderBy", params.orderBy);
+    if (params.order) search.set("order", params.order);
+    const qs = search.toString();
+    return `${base}/clients/export.csv${qs ? `?${qs}` : ""}`;
   },
 };

@@ -8,9 +8,19 @@ import { MenuButton, type MenuItem } from "@/components/menu-button";
 import { Modal } from "@/components/modal";
 import { PageHeader } from "@/components/page-header";
 import { auditApi, type ApiAuditEntry } from "@/lib/api/audit";
-import { clientsApi } from "@/lib/api/clients";
+import {
+  clientsApi,
+  type ClientAddressInput,
+} from "@/lib/api/clients";
 import { ApiError } from "@/lib/api/errors";
-import type { ApiClient, ApiClientType, ApiUser } from "@/lib/api/types";
+import type {
+  ApiClient,
+  ApiClientAddress,
+  ApiClientAddressType,
+  ApiClientType,
+  ApiUser,
+} from "@/lib/api/types";
+import { tokenStorage } from "@/lib/auth/tokens";
 import { usersApi } from "@/lib/api/users";
 import { fmtDate } from "@/lib/format";
 
@@ -47,9 +57,59 @@ function auditActionLabel(action: string): string {
       return "Desactivado";
     case "clients.client.reactivated":
       return "Reactivado";
+    case "clients.address.added":
+      return "Dirección agregada";
+    case "clients.address.updated":
+      return "Dirección modificada";
+    case "clients.address.removed":
+      return "Dirección eliminada";
     default:
       return action;
   }
+}
+
+function addressTypeLabel(t: ApiClientAddressType): string {
+  switch (t) {
+    case "billing":
+      return "Fiscal";
+    case "delivery":
+      return "Entrega";
+    case "other":
+      return "Otra";
+  }
+}
+
+async function downloadCsv(
+  filters: {
+    search?: string;
+    tag?: string;
+    tagStartsWith?: string;
+    isActive?: boolean;
+    type?: ApiClientType;
+  },
+): Promise<void> {
+  const base = process.env.NEXT_PUBLIC_API_URL ?? "";
+  const search = new URLSearchParams();
+  for (const [k, v] of Object.entries(filters)) {
+    if (v === undefined || v === null) continue;
+    if (typeof v === "boolean") search.set(k, v ? "true" : "false");
+    else search.set(k, String(v));
+  }
+  const token = tokenStorage.read()?.accessToken;
+  const res = await fetch(
+    `${base}/clients/export.csv${search.toString() ? `?${search.toString()}` : ""}`,
+    { headers: token ? { Authorization: `Bearer ${token}` } : {} },
+  );
+  if (!res.ok) throw new Error(`Export falló: ${res.status}`);
+  const blob = await res.blob();
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "clientes.csv";
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
 }
 
 const SUGGESTED_TAGS = [
@@ -81,7 +141,14 @@ export default function ClientsPage() {
   const [selectedAudit, setSelectedAudit] = useState<ApiAuditEntry | null>(
     null,
   );
+  const [selectedHistory, setSelectedHistory] = useState<ApiAuditEntry[]>([]);
   const [users, setUsers] = useState<ApiUser[]>([]);
+  const [addressTarget, setAddressTarget] = useState<
+    { client: ApiClient; address: ApiClientAddress | null } | null
+  >(null);
+  const [removeAddressTarget, setRemoveAddressTarget] = useState<
+    { client: ApiClient; address: ApiClientAddress } | null
+  >(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
@@ -189,31 +256,34 @@ export default function ClientsPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [page, filter, debounced, typeFilter, orderBy]);
 
-  // Carga el detalle y la última entrada de auditoría del cliente seleccionado.
-  // Independiente de la lista paginada para que el panel sobreviva a cambios
-  // de filtro/orden donde el cliente deja de estar visible.
+  // Carga el detalle, la última entrada de auditoría y el histórico del
+  // cliente seleccionado. Independiente de la lista paginada para que el
+  // panel sobreviva a cambios de filtro/orden.
   useEffect(() => {
     if (!selectedId) {
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setSelectedDetail(null);
       setSelectedAudit(null);
+      setSelectedHistory([]);
       return;
     }
     let cancelled = false;
     void (async () => {
       try {
-        const [detail, audit] = await Promise.all([
+        const [detail, history] = await Promise.all([
           clientsApi.get(selectedId),
-          auditApi.list({ target: `client:${selectedId}`, take: 1 }),
+          auditApi.list({ target: `client:${selectedId}`, take: 10 }),
         ]);
         if (cancelled) return;
         setSelectedDetail(detail);
-        setSelectedAudit(audit.items[0] ?? null);
+        setSelectedAudit(history.items[0] ?? null);
+        setSelectedHistory(history.items);
       } catch {
         if (!cancelled) {
           // Si el cliente fue borrado, deselecciona.
           setSelectedDetail(null);
           setSelectedAudit(null);
+          setSelectedHistory([]);
         }
       }
     })();
@@ -231,12 +301,13 @@ export default function ClientsPage() {
       const fresh = await clientsApi.get(selected.id);
       setSelectedDetail(fresh);
       setClients((cs) => cs.map((c) => (c.id === fresh.id ? fresh : c)));
-      // Refrescar también la última modificación.
-      const audit = await auditApi.list({
+      // Refrescar también el histórico de auditoría.
+      const history = await auditApi.list({
         target: `client:${fresh.id}`,
-        take: 1,
+        take: 10,
       });
-      setSelectedAudit(audit.items[0] ?? null);
+      setSelectedAudit(history.items[0] ?? null);
+      setSelectedHistory(history.items);
     } catch {
       // ignore — el reload general lo arregla
     }
@@ -281,9 +352,32 @@ export default function ClientsPage() {
         title="Clientes"
         sub={`${total} clientes${filter !== "Todos" ? ` · filtrado: ${filter}` : ""}`}
         actions={
-          <button className="btn btn--accent" onClick={() => setShowNew(true)}>
-            <span>{I.plus}</span>Nuevo cliente
-          </button>
+          <>
+            <button
+              className="btn"
+              onClick={async () => {
+                setActionError(null);
+                try {
+                  await downloadCsv({
+                    search: debounced || undefined,
+                    type: typeFilter === "all" ? undefined : typeFilter,
+                    ...filterParams,
+                  });
+                } catch (err) {
+                  setActionError(
+                    err instanceof Error
+                      ? err.message
+                      : "No se pudo exportar el CSV.",
+                  );
+                }
+              }}
+            >
+              <span>{I.download}</span>Exportar CSV
+            </button>
+            <button className="btn btn--accent" onClick={() => setShowNew(true)}>
+              <span>{I.plus}</span>Nuevo cliente
+            </button>
+          </>
         }
       />
 
@@ -511,9 +605,19 @@ export default function ClientsPage() {
           <ClientDetailPanel
             client={selected}
             audit={selectedAudit}
+            history={selectedHistory}
             actorById={actorById}
             onEdit={() => setEditTarget(selected)}
             onDeactivate={() => setDeactivateTarget(selected)}
+            onAddAddress={() =>
+              setAddressTarget({ client: selected, address: null })
+            }
+            onEditAddress={(addr) =>
+              setAddressTarget({ client: selected, address: addr })
+            }
+            onRemoveAddress={(addr) =>
+              setRemoveAddressTarget({ client: selected, address: addr })
+            }
             onActivate={async () => {
               setActionError(null);
               try {
@@ -594,6 +698,53 @@ export default function ClientsPage() {
           }}
         />
       )}
+
+      {addressTarget && (
+        <AddressFormModal
+          clientId={addressTarget.client.id}
+          address={addressTarget.address}
+          onClose={() => setAddressTarget(null)}
+          onDone={async () => {
+            setAddressTarget(null);
+            await refreshSelected();
+          }}
+        />
+      )}
+
+      {removeAddressTarget && (
+        <ConfirmDialog
+          title="Eliminar dirección"
+          kind="danger"
+          confirmLabel="Eliminar"
+          message={
+            <>
+              ¿Eliminar la dirección{" "}
+              <span className="font-medium text-ink-2">
+                {removeAddressTarget.address.label ??
+                  removeAddressTarget.address.line1}
+              </span>
+              ? Esta acción no se puede deshacer.
+            </>
+          }
+          onClose={() => setRemoveAddressTarget(null)}
+          onConfirm={async () => {
+            try {
+              await clientsApi.removeAddress(
+                removeAddressTarget.client.id,
+                removeAddressTarget.address.id,
+              );
+              setRemoveAddressTarget(null);
+              await refreshSelected();
+            } catch (err) {
+              throw new Error(
+                err instanceof ApiError
+                  ? err.message
+                  : "No se pudo eliminar la dirección.",
+              );
+            }
+          }}
+        />
+      )}
     </>
   );
 }
@@ -601,17 +752,25 @@ export default function ClientsPage() {
 function ClientDetailPanel({
   client,
   audit,
+  history,
   actorById,
   onEdit,
   onDeactivate,
   onActivate,
+  onAddAddress,
+  onEditAddress,
+  onRemoveAddress,
 }: {
   client: ApiClient;
   audit: ApiAuditEntry | null;
+  history: ApiAuditEntry[];
   actorById: Map<string, ApiUser>;
   onEdit: () => void;
   onDeactivate: () => void;
   onActivate: () => void;
+  onAddAddress: () => void;
+  onEditAddress: (addr: ApiClientAddress) => void;
+  onRemoveAddress: (addr: ApiClientAddress) => void;
 }) {
   const actorLabel = (entry: ApiAuditEntry): string => {
     if (!entry.actorId) return "sistema";
@@ -687,7 +846,143 @@ function ClientDetailPanel({
         )}
       </div>
 
+      {(client.additionalPhones.length > 0 ||
+        client.additionalEmails.length > 0) && (
+        <>
+          <div className="divider m-0 mt-3" />
+          <div className="card__body py-3">
+            <div className="text-muted text-[11px] mb-2">
+              Contactos adicionales
+            </div>
+            {client.additionalPhones.length > 0 && (
+              <div className="text-[12px] mb-1">
+                <span className="text-muted-2 mr-1">Tel:</span>
+                {client.additionalPhones.map((p, i) => (
+                  <span key={i} className="tag mr-1">
+                    {p}
+                  </span>
+                ))}
+              </div>
+            )}
+            {client.additionalEmails.length > 0 && (
+              <div className="text-[12px]">
+                <span className="text-muted-2 mr-1">Mail:</span>
+                {client.additionalEmails.map((m, i) => (
+                  <span key={i} className="tag mr-1">
+                    {m}
+                  </span>
+                ))}
+              </div>
+            )}
+          </div>
+        </>
+      )}
+
       <div className="divider m-0 mt-3" />
+
+      <div
+        className="card__head"
+        style={{ borderTop: 0 }}
+      >
+        <div className="card__title">
+          Direcciones{" "}
+          <span className="text-muted text-xs font-normal">
+            ({client.addresses.length})
+          </span>
+        </div>
+        <div className="spacer" />
+        <button className="btn btn--sm" onClick={onAddAddress}>
+          {I.plus} Agregar
+        </button>
+      </div>
+      {client.addresses.length === 0 ? (
+        <div className="card__body text-muted text-sm py-2">
+          Sin direcciones registradas.
+        </div>
+      ) : (
+        <div>
+          {client.addresses.map((addr) => (
+            <div
+              key={addr.id}
+              className="flex items-start gap-2 px-4 py-2.5 text-[12px]"
+              style={{ borderTop: "1px solid var(--line)" }}
+            >
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-1.5">
+                  <span className="tag">{addressTypeLabel(addr.type)}</span>
+                  {addr.label && (
+                    <span className="font-medium">{addr.label}</span>
+                  )}
+                </div>
+                <div className="text-muted mt-0.5">{addr.line1}</div>
+                {addr.line2 && (
+                  <div className="text-muted">{addr.line2}</div>
+                )}
+                <div className="text-muted-2 text-[11px] mt-0.5">
+                  {[addr.city, addr.state, addr.postalCode, addr.country]
+                    .filter(Boolean)
+                    .join(", ")}
+                </div>
+              </div>
+              <MenuButton
+                trigger={I.more}
+                items={[
+                  {
+                    label: "Editar dirección",
+                    icon: I.edit,
+                    onClick: () => onEditAddress(addr),
+                  },
+                  {
+                    label: "Eliminar",
+                    icon: I.x,
+                    kind: "danger",
+                    onClick: () => onRemoveAddress(addr),
+                  },
+                ]}
+              />
+            </div>
+          ))}
+        </div>
+      )}
+
+      <div className="divider m-0" />
+
+      <div
+        className="card__head"
+        style={{ borderTop: 0 }}
+      >
+        <div className="card__title">Historial</div>
+        <div className="spacer" />
+        <span className="text-muted text-xs">
+          {history.length === 0 ? "—" : `últimos ${history.length}`}
+        </span>
+      </div>
+      {history.length === 0 ? (
+        <div className="card__body text-muted text-sm py-2">
+          Sin eventos registrados.
+        </div>
+      ) : (
+        <div className="px-4 pb-3">
+          {history.map((e) => (
+            <div
+              key={e.id}
+              className="text-[12px] py-1.5 flex items-baseline gap-2"
+              style={{ borderTop: "1px solid var(--line)" }}
+            >
+              <span className="text-muted-2 num text-[11px]">
+                {formatDateTime(e.createdAt)}
+              </span>
+              <span className="flex-1">
+                {auditActionLabel(e.action)}{" "}
+                <span className="text-muted">por</span>{" "}
+                <span className="font-medium">{actorLabel(e)}</span>
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <div className="divider m-0" />
 
       <div className="px-4 py-3 flex gap-2 flex-wrap">
         <button className="btn btn--sm" onClick={onEdit}>
@@ -751,6 +1046,14 @@ function ClientFormModal({
   const [tags, setTags] = useState<Set<string>>(
     () => new Set(client?.tags ?? []),
   );
+  const [additionalPhones, setAdditionalPhones] = useState<string[]>(
+    () => [...(client?.additionalPhones ?? [])],
+  );
+  const [additionalEmails, setAdditionalEmails] = useState<string[]>(
+    () => [...(client?.additionalEmails ?? [])],
+  );
+  const [newPhone, setNewPhone] = useState("");
+  const [newEmail, setNewEmail] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -761,6 +1064,19 @@ function ClientFormModal({
       else next.add(t);
       return next;
     });
+  };
+
+  const addPhone = () => {
+    const v = newPhone.trim();
+    if (v.length === 0 || additionalPhones.includes(v)) return;
+    setAdditionalPhones((p) => [...p, v]);
+    setNewPhone("");
+  };
+  const addEmail = () => {
+    const v = newEmail.trim();
+    if (v.length === 0 || additionalEmails.includes(v)) return;
+    setAdditionalEmails((p) => [...p, v]);
+    setNewEmail("");
   };
 
   const submit = async (e: FormEvent) => {
@@ -782,6 +1098,8 @@ function ClientFormModal({
       taxRegimen: taxRegimen.trim() || null,
       notes: notes.trim() || null,
       tags: [...tags],
+      additionalPhones,
+      additionalEmails,
     };
     setSubmitting(true);
     try {
@@ -943,6 +1261,283 @@ function ClientFormModal({
               );
             })}
           </div>
+        </div>
+        <div className="field col-span-full">
+          <span className="label">Teléfonos adicionales</span>
+          <div className="flex gap-1.5 flex-wrap mb-1.5">
+            {additionalPhones.length === 0 && (
+              <span className="text-muted text-xs">Ninguno.</span>
+            )}
+            {additionalPhones.map((p, i) => (
+              <span key={i} className="tag flex items-center gap-1">
+                {p}
+                <button
+                  type="button"
+                  className="icon-btn"
+                  aria-label="Quitar"
+                  onClick={() =>
+                    setAdditionalPhones((arr) => arr.filter((_, j) => j !== i))
+                  }
+                  style={{ width: 16, height: 16, padding: 0 }}
+                >
+                  {I.x}
+                </button>
+              </span>
+            ))}
+          </div>
+          <div className="flex gap-1.5">
+            <input
+              className="input"
+              placeholder="55 0000 0000"
+              value={newPhone}
+              onChange={(e) => setNewPhone(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  addPhone();
+                }
+              }}
+              maxLength={32}
+            />
+            <button
+              type="button"
+              className="btn btn--sm"
+              onClick={addPhone}
+              disabled={newPhone.trim().length === 0}
+            >
+              Agregar
+            </button>
+          </div>
+        </div>
+        <div className="field col-span-full">
+          <span className="label">Correos adicionales</span>
+          <div className="flex gap-1.5 flex-wrap mb-1.5">
+            {additionalEmails.length === 0 && (
+              <span className="text-muted text-xs">Ninguno.</span>
+            )}
+            {additionalEmails.map((m, i) => (
+              <span key={i} className="tag flex items-center gap-1">
+                {m}
+                <button
+                  type="button"
+                  className="icon-btn"
+                  aria-label="Quitar"
+                  onClick={() =>
+                    setAdditionalEmails((arr) => arr.filter((_, j) => j !== i))
+                  }
+                  style={{ width: 16, height: 16, padding: 0 }}
+                >
+                  {I.x}
+                </button>
+              </span>
+            ))}
+          </div>
+          <div className="flex gap-1.5">
+            <input
+              className="input"
+              type="email"
+              placeholder="secundario@cliente.mx"
+              value={newEmail}
+              onChange={(e) => setNewEmail(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  addEmail();
+                }
+              }}
+              maxLength={120}
+            />
+            <button
+              type="button"
+              className="btn btn--sm"
+              onClick={addEmail}
+              disabled={newEmail.trim().length === 0}
+            >
+              Agregar
+            </button>
+          </div>
+        </div>
+        {error && (
+          <div
+            className="col-span-full rounded-md text-xs"
+            style={{
+              padding: "10px 12px",
+              border: "1px solid var(--danger)",
+              color: "var(--danger)",
+              background: "var(--danger-soft)",
+            }}
+            role="alert"
+          >
+            {error}
+          </div>
+        )}
+      </form>
+    </Modal>
+  );
+}
+
+function AddressFormModal({
+  clientId,
+  address,
+  onClose,
+  onDone,
+}: {
+  clientId: string;
+  address: ApiClientAddress | null;
+  onClose: () => void;
+  onDone: () => void | Promise<void>;
+}) {
+  const mode = address ? "edit" : "create";
+  const [type, setType] = useState<ApiClientAddressType>(
+    address?.type ?? "billing",
+  );
+  const [label, setLabel] = useState(address?.label ?? "");
+  const [line1, setLine1] = useState(address?.line1 ?? "");
+  const [line2, setLine2] = useState(address?.line2 ?? "");
+  const [city, setCity] = useState(address?.city ?? "");
+  const [state, setState] = useState(address?.state ?? "");
+  const [postalCode, setPostalCode] = useState(address?.postalCode ?? "");
+  const [country, setCountry] = useState(address?.country ?? "MX");
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const submit = async (e: FormEvent) => {
+    e.preventDefault();
+    if (submitting) return;
+    setError(null);
+    if (line1.trim().length === 0) {
+      setError("La dirección principal (línea 1) es obligatoria.");
+      return;
+    }
+    const payload: ClientAddressInput = {
+      type,
+      label: label.trim() || null,
+      line1: line1.trim(),
+      line2: line2.trim() || null,
+      city: city.trim() || null,
+      state: state.trim() || null,
+      postalCode: postalCode.trim() || null,
+      country: country.trim() || null,
+    };
+    setSubmitting(true);
+    try {
+      if (mode === "create") {
+        await clientsApi.addAddress(clientId, payload);
+      } else if (address) {
+        await clientsApi.updateAddress(clientId, address.id, payload);
+      }
+      await onDone();
+    } catch (err) {
+      setError(
+        err instanceof ApiError
+          ? err.message
+          : "No se pudo guardar la dirección.",
+      );
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <Modal
+      title={mode === "create" ? "Agregar dirección" : "Editar dirección"}
+      onClose={onClose}
+      width={520}
+      footer={
+        <>
+          <button className="btn btn--ghost" type="button" onClick={onClose}>
+            Cancelar
+          </button>
+          <button
+            className="btn btn--accent"
+            type="submit"
+            form="address-form"
+            disabled={submitting}
+          >
+            {submitting ? "Guardando…" : "Guardar"}
+          </button>
+        </>
+      }
+    >
+      <form id="address-form" onSubmit={submit} className="grid grid-cols-2 gap-3">
+        <div className="field col-span-full">
+          <span className="label">Tipo</span>
+          <div className="flex gap-1.5">
+            {(["billing", "delivery", "other"] as const).map((t) => (
+              <button
+                key={t}
+                type="button"
+                className={`btn btn--sm ${type === t ? "btn--primary" : ""}`}
+                onClick={() => setType(t)}
+              >
+                {addressTypeLabel(t)}
+              </button>
+            ))}
+          </div>
+        </div>
+        <div className="field col-span-full">
+          <span className="label">Etiqueta (opcional)</span>
+          <input
+            className="input"
+            placeholder="Ej. Bodega Norte"
+            value={label}
+            onChange={(e) => setLabel(e.target.value)}
+            maxLength={60}
+          />
+        </div>
+        <div className="field col-span-full">
+          <span className="label">Calle y número</span>
+          <input
+            className="input"
+            value={line1}
+            onChange={(e) => setLine1(e.target.value)}
+            required
+            maxLength={200}
+          />
+        </div>
+        <div className="field col-span-full">
+          <span className="label">Colonia / referencias</span>
+          <input
+            className="input"
+            value={line2}
+            onChange={(e) => setLine2(e.target.value)}
+            maxLength={200}
+          />
+        </div>
+        <div className="field">
+          <span className="label">Ciudad</span>
+          <input
+            className="input"
+            value={city}
+            onChange={(e) => setCity(e.target.value)}
+            maxLength={100}
+          />
+        </div>
+        <div className="field">
+          <span className="label">Estado</span>
+          <input
+            className="input"
+            value={state}
+            onChange={(e) => setState(e.target.value)}
+            maxLength={100}
+          />
+        </div>
+        <div className="field">
+          <span className="label">CP</span>
+          <input
+            className="input"
+            value={postalCode}
+            onChange={(e) => setPostalCode(e.target.value)}
+            maxLength={10}
+          />
+        </div>
+        <div className="field">
+          <span className="label">País</span>
+          <input
+            className="input"
+            value={country}
+            onChange={(e) => setCountry(e.target.value.toUpperCase())}
+            maxLength={2}
+          />
         </div>
         {error && (
           <div
