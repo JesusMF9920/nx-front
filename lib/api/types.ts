@@ -83,3 +83,54 @@ export type ApiClient = {
   createdAt: string;
   updatedAt: string;
 };
+
+export type ApiProductSource = "internal" | "supplier";
+
+export type ApiProduct = {
+  id: string;
+  sku: string;
+  name: string;
+  category: string;
+  method: string | null;
+  source: ApiProductSource;
+  supplierName: string | null;
+  leadDays: number;
+  price: number;
+  cost: number;
+  stock: number;
+  unit: string;
+  needsApproval: boolean;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type ApiMaterial = {
+  id: string;
+  sku: string;
+  name: string;
+  category: string;
+  unit: string;
+  stock: number;
+  reorderPoint: number;
+  cost: number;
+  location: string | null;
+  supplierName: string | null;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type ApiStockMoveType = "entry" | "exit" | "adjust";
+
+export type ApiStockMove = {
+  id: string;
+  materialId: string;
+  type: ApiStockMoveType;
+  qty: number;
+  resultingStock: number;
+  ref: string | null;
+  note: string | null;
+  actorId: string | null;
+  createdAt: string;
+};
