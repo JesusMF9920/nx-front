@@ -46,3 +46,21 @@ export type ApiList<T> = {
   items: T[];
   total: number;
 };
+
+export type ApiClientType = "business" | "individual";
+
+export type ApiClient = {
+  id: string;
+  name: string;
+  type: ApiClientType;
+  contact: string | null;
+  phone: string | null;
+  email: string | null;
+  rfc: string | null;
+  taxRegimen: string | null;
+  notes: string | null;
+  tags: string[];
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+};
