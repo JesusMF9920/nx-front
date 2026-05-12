@@ -134,3 +134,19 @@ export type ApiStockMove = {
   actorId: string | null;
   createdAt: string;
 };
+
+export type ApiSupplier = {
+  id: string;
+  name: string;
+  service: string | null;
+  contact: string | null;
+  email: string | null;
+  phone: string | null;
+  rfc: string | null;
+  leadDays: number;
+  reliability: number;
+  notes: string | null;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+};
