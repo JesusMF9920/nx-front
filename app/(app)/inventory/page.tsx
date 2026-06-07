@@ -3,6 +3,10 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { I } from "@/components/icons";
+import { InventoryMaterialDetail } from "@/components/inventory-material-detail";
+import { InventoryNewMaterialModal } from "@/components/inventory-new-material-modal";
+import { InventoryStockAdjustModal } from "@/components/inventory-stock-adjust-modal";
+import { InventoryStockEntryModal } from "@/components/inventory-stock-entry-modal";
 import { MenuButton, type MenuItem } from "@/components/menu-button";
 import { Modal } from "@/components/modal";
 import { PageHeader } from "@/components/page-header";
@@ -25,27 +29,6 @@ const ORDER_OPTIONS: { key: OrderByKey; label: string }[] = [
   { key: "stock", label: "Stock (menor primero)" },
   { key: "createdAt", label: "Más recientes" },
 ];
-
-const dateTimeFmt = new Intl.DateTimeFormat("es-MX", {
-  dateStyle: "short",
-  timeStyle: "short",
-});
-function formatDateTime(iso: string): string {
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return iso;
-  return dateTimeFmt.format(d);
-}
-
-function moveLabel(t: ApiStockMoveType): string {
-  return t === "entry" ? "Entrada" : t === "exit" ? "Salida" : "Ajuste";
-}
-function moveTone(t: ApiStockMoveType): string {
-  return t === "entry"
-    ? "var(--ok)"
-    : t === "exit"
-      ? "var(--danger)"
-      : "var(--info)";
-}
 
 export default function InventoryPage() {
   const [materials, setMaterials] = useState<ApiMaterial[]>([]);
@@ -407,12 +390,15 @@ export default function InventoryPage() {
         </div>
 
         {selected ? (
-          <MaterialDetailPanel
+          <InventoryMaterialDetail
             material={selected}
             moves={selectedMoves}
             onEdit={() => setEditTarget(selected)}
             onMove={(type) => setMoveTarget({ material: selected, type })}
             onDeactivate={() => setDeactivateTarget(selected)}
+            onVariantsChanged={async () => {
+              await refreshSelected();
+            }}
             onActivate={async () => {
               setActionError(null);
               try {
@@ -438,8 +424,10 @@ export default function InventoryPage() {
       </div>
 
       {showNew && (
-        <MaterialFormModal
-          mode="create"
+        <InventoryNewMaterialModal
+          categories={Array.from(new Set(materials.map((m) => m.category))).sort(
+            (a, b) => a.localeCompare(b, "es"),
+          )}
           onClose={() => setShowNew(false)}
           onDone={async (id) => {
             setShowNew(false);
@@ -450,8 +438,7 @@ export default function InventoryPage() {
       )}
 
       {editTarget && (
-        <MaterialFormModal
-          mode="edit"
+        <MaterialEditModal
           material={editTarget}
           onClose={() => setEditTarget(null)}
           onDone={async () => {
@@ -462,10 +449,22 @@ export default function InventoryPage() {
         />
       )}
 
-      {moveTarget && (
-        <StockMoveModal
+      {moveTarget && moveTarget.type !== "adjust" && (
+        <InventoryStockEntryModal
           material={moveTarget.material}
           type={moveTarget.type}
+          onClose={() => setMoveTarget(null)}
+          onDone={async () => {
+            setMoveTarget(null);
+            await refreshSelected();
+            await reload(page);
+          }}
+        />
+      )}
+
+      {moveTarget && moveTarget.type === "adjust" && (
+        <InventoryStockAdjustModal
+          material={moveTarget.material}
           onClose={() => setMoveTarget(null)}
           onDone={async () => {
             setMoveTarget(null);
@@ -511,190 +510,25 @@ export default function InventoryPage() {
   );
 }
 
-function MaterialDetailPanel({
-  material,
-  moves,
-  onEdit,
-  onMove,
-  onDeactivate,
-  onActivate,
-}: {
-  material: ApiMaterial;
-  moves: ApiStockMove[];
-  onEdit: () => void;
-  onMove: (type: ApiStockMoveType) => void;
-  onDeactivate: () => void;
-  onActivate: () => void;
-}) {
-  const lowStock =
-    material.reorderPoint > 0 && material.stock <= material.reorderPoint;
-  return (
-    <div className="card self-start">
-      <div className="card__body pb-0">
-        <div className="text-lg font-semibold" style={{ letterSpacing: "-.01em" }}>
-          {material.name}
-        </div>
-        <div className="text-muted text-xs">
-          <span className="font-mono">{material.sku}</span> ·{" "}
-          <span className="tag">{material.category}</span>
-          {!material.isActive && (
-            <>
-              {" · "}
-              <span style={{ color: "var(--danger)" }}>Inactivo</span>
-            </>
-          )}
-        </div>
-
-        <div className="divider" style={{ margin: "12px 0" }} />
-
-        <div className="grid grid-cols-2 gap-3 text-[13px]">
-          <Kv
-            label="Stock"
-            v={
-              <span style={{ color: lowStock ? "var(--warn)" : "var(--ink)" }}>
-                {fmtInt(material.stock)} {material.unit}
-              </span>
-            }
-          />
-          <Kv
-            label="Reorden"
-            v={material.reorderPoint > 0 ? `${fmtInt(material.reorderPoint)} ${material.unit}` : "—"}
-          />
-          <Kv label="Costo" v={`${fmtMXN(material.cost)} / ${material.unit}`} />
-          <Kv
-            label="Valor"
-            v={fmtMXN(material.stock * material.cost)}
-          />
-          <Kv label="Ubicación" v={material.location ?? "—"} />
-          <Kv label="Proveedor" v={material.supplierName ?? "—"} />
-        </div>
-      </div>
-
-      <div className="divider m-0 mt-3" />
-
-      {material.isActive && (
-        <div className="px-4 py-3 flex gap-2 flex-wrap">
-          <button
-            className="btn btn--sm btn--accent"
-            onClick={() => onMove("entry")}
-          >
-            {I.plus} Entrada
-          </button>
-          <button
-            className="btn btn--sm"
-            onClick={() => onMove("exit")}
-          >
-            {I.x} Salida
-          </button>
-          <button
-            className="btn btn--sm"
-            onClick={() => onMove("adjust")}
-          >
-            {I.edit} Ajustar
-          </button>
-        </div>
-      )}
-
-      <div className="divider m-0" />
-
-      <div className="card__head" style={{ borderTop: 0 }}>
-        <div className="card__title">Movimientos recientes</div>
-        <div className="spacer" />
-        <span className="text-muted text-xs">
-          {moves.length === 0 ? "—" : `últimos ${moves.length}`}
-        </span>
-      </div>
-      {moves.length === 0 ? (
-        <div className="card__body text-muted text-sm py-2">
-          Sin movimientos.
-        </div>
-      ) : (
-        <div>
-          {moves.map((mv) => (
-            <div
-              key={mv.id}
-              className="px-4 py-2 text-[12px] flex items-baseline gap-2"
-              style={{ borderTop: "1px solid var(--line)" }}
-            >
-              <span className="text-muted-2 num text-[11px]" style={{ minWidth: 92 }}>
-                {formatDateTime(mv.createdAt)}
-              </span>
-              <span
-                className="tag"
-                style={{ color: moveTone(mv.type) }}
-              >
-                {moveLabel(mv.type)}
-              </span>
-              <span className="num font-medium" style={{ color: moveTone(mv.type) }}>
-                {mv.type === "exit" ? "-" : mv.type === "adjust" && mv.qty < 0 ? "" : "+"}
-                {fmtInt(Math.abs(mv.qty))}
-              </span>
-              <span className="text-muted text-[11px]">
-                → {fmtInt(mv.resultingStock)} {material.unit}
-              </span>
-              {mv.ref && (
-                <span className="text-muted-2 text-[11px] font-mono ml-auto">
-                  {mv.ref}
-                </span>
-              )}
-            </div>
-          ))}
-        </div>
-      )}
-
-      <div className="divider m-0" />
-
-      <div className="px-4 py-3 flex gap-2 flex-wrap">
-        <button className="btn btn--sm" onClick={onEdit}>
-          {I.edit} Editar
-        </button>
-        {material.isActive ? (
-          <button className="btn btn--sm btn--danger" onClick={onDeactivate}>
-            {I.x} Desactivar
-          </button>
-        ) : (
-          <button className="btn btn--sm btn--accent" onClick={onActivate}>
-            {I.check} Activar
-          </button>
-        )}
-      </div>
-    </div>
-  );
-}
-
-function Kv({ label, v }: { label: string; v: React.ReactNode }) {
-  return (
-    <div>
-      <div className="text-muted text-[11px]">{label}</div>
-      <div>{v}</div>
-    </div>
-  );
-}
-
-function MaterialFormModal({
-  mode,
+function MaterialEditModal({
   material,
   onClose,
   onDone,
 }: {
-  mode: "create" | "edit";
-  material?: ApiMaterial;
+  material: ApiMaterial;
   onClose: () => void;
-  onDone: (createdId?: string) => void | Promise<void>;
+  onDone: () => void | Promise<void>;
 }) {
-  const [sku, setSku] = useState(material?.sku ?? "");
-  const [name, setName] = useState(material?.name ?? "");
-  const [category, setCategory] = useState(material?.category ?? "");
-  const [unit, setUnit] = useState(material?.unit ?? "pieza");
-  const [initialStock, setInitialStock] = useState(
-    String(material?.stock ?? 0),
-  );
+  const [sku, setSku] = useState(material.sku);
+  const [name, setName] = useState(material.name);
+  const [category, setCategory] = useState(material.category);
+  const [unit, setUnit] = useState(material.unit);
   const [reorderPoint, setReorderPoint] = useState(
-    String(material?.reorderPoint ?? 0),
+    String(material.reorderPoint),
   );
-  const [cost, setCost] = useState(String(material?.cost ?? ""));
-  const [location, setLocation] = useState(material?.location ?? "");
-  const [supplierName, setSupplierName] = useState(material?.supplierName ?? "");
+  const [cost, setCost] = useState(String(material.cost));
+  const [location, setLocation] = useState(material.location ?? "");
+  const [supplierName, setSupplierName] = useState(material.supplierName ?? "");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -703,14 +537,9 @@ function MaterialFormModal({
     if (submitting) return;
     setError(null);
     const costNum = Number(cost);
-    const stockNum = Number(initialStock);
     const reorderNum = Number(reorderPoint);
     if (!Number.isFinite(costNum) || costNum < 0) {
       setError("El costo debe ser un número >= 0.");
-      return;
-    }
-    if (!Number.isInteger(stockNum) || stockNum < 0) {
-      setError("Stock inicial debe ser un entero >= 0.");
       return;
     }
     if (!Number.isInteger(reorderNum) || reorderNum < 0) {
@@ -719,32 +548,17 @@ function MaterialFormModal({
     }
     setSubmitting(true);
     try {
-      if (mode === "create") {
-        const { id } = await inventoryApi.create({
-          sku: sku.trim(),
-          name: name.trim(),
-          category: category.trim(),
-          unit: unit.trim() || "pieza",
-          initialStock: stockNum,
-          reorderPoint: reorderNum,
-          cost: costNum,
-          location: location.trim() || null,
-          supplierName: supplierName.trim() || null,
-        });
-        await onDone(id);
-      } else if (material) {
-        await inventoryApi.update(material.id, {
-          sku: sku.trim(),
-          name: name.trim(),
-          category: category.trim(),
-          unit: unit.trim() || "pieza",
-          reorderPoint: reorderNum,
-          cost: costNum,
-          location: location.trim() || null,
-          supplierName: supplierName.trim() || null,
-        });
-        await onDone();
-      }
+      await inventoryApi.update(material.id, {
+        sku: sku.trim(),
+        name: name.trim(),
+        category: category.trim(),
+        unit: unit.trim() || "pieza",
+        reorderPoint: reorderNum,
+        cost: costNum,
+        location: location.trim() || null,
+        supplierName: supplierName.trim() || null,
+      });
+      await onDone();
     } catch (err) {
       setError(
         err instanceof ApiError
@@ -759,7 +573,7 @@ function MaterialFormModal({
 
   return (
     <Modal
-      title={mode === "create" ? "Nuevo material" : "Editar material"}
+      title="Editar material"
       onClose={onClose}
       width={640}
       footer={
@@ -773,11 +587,7 @@ function MaterialFormModal({
             form="material-form"
             disabled={submitting}
           >
-            {submitting
-              ? "Guardando…"
-              : mode === "create"
-                ? "Crear material"
-                : "Guardar cambios"}
+            {submitting ? "Guardando…" : "Guardar cambios"}
           </button>
         </>
       }
@@ -835,19 +645,6 @@ function MaterialFormModal({
             required
           />
         </div>
-        {mode === "create" && (
-          <div className="field">
-            <span className="label">Stock inicial</span>
-            <input
-              className="input"
-              type="number"
-              min={0}
-              step={1}
-              value={initialStock}
-              onChange={(e) => setInitialStock(e.target.value)}
-            />
-          </div>
-        )}
         <div className="field">
           <span className="label">Punto de reorden</span>
           <input
@@ -881,156 +678,6 @@ function MaterialFormModal({
         {error && (
           <div
             className="col-span-full rounded-md text-xs"
-            style={{
-              padding: "10px 12px",
-              border: "1px solid var(--danger)",
-              color: "var(--danger)",
-              background: "var(--danger-soft)",
-            }}
-            role="alert"
-          >
-            {error}
-          </div>
-        )}
-      </form>
-    </Modal>
-  );
-}
-
-function StockMoveModal({
-  material,
-  type,
-  onClose,
-  onDone,
-}: {
-  material: ApiMaterial;
-  type: ApiStockMoveType;
-  onClose: () => void;
-  onDone: () => void | Promise<void>;
-}) {
-  const [qty, setQty] = useState("");
-  const [ref, setRef] = useState("");
-  const [note, setNote] = useState("");
-  const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  const title =
-    type === "entry"
-      ? "Registrar entrada"
-      : type === "exit"
-        ? "Registrar salida"
-        : "Ajustar stock";
-
-  const submit = async (e: FormEvent) => {
-    e.preventDefault();
-    if (submitting) return;
-    setError(null);
-    const qtyNum = Number(qty);
-    if (!Number.isInteger(qtyNum)) {
-      setError("La cantidad debe ser un entero.");
-      return;
-    }
-    if (type !== "adjust" && qtyNum <= 0) {
-      setError("Para entrada/salida la cantidad debe ser positiva.");
-      return;
-    }
-    if (type === "adjust" && qtyNum === 0) {
-      setError("Para ajuste la cantidad no puede ser cero.");
-      return;
-    }
-    setSubmitting(true);
-    try {
-      await inventoryApi.recordStockMove(material.id, {
-        type,
-        qty: qtyNum,
-        ref: ref.trim() || null,
-        note: note.trim() || null,
-      });
-      await onDone();
-    } catch (err) {
-      setError(
-        err instanceof ApiError
-          ? err.message
-          : "No se pudo registrar el movimiento.",
-      );
-      setSubmitting(false);
-    }
-  };
-
-  return (
-    <Modal
-      title={title}
-      onClose={onClose}
-      width={480}
-      footer={
-        <>
-          <button className="btn btn--ghost" type="button" onClick={onClose}>
-            Cancelar
-          </button>
-          <button
-            className="btn btn--accent"
-            type="submit"
-            form="stock-move-form"
-            disabled={submitting}
-          >
-            {submitting ? "Guardando…" : "Registrar"}
-          </button>
-        </>
-      }
-    >
-      <form id="stock-move-form" onSubmit={submit} className="grid" style={{ gap: 14 }}>
-        <div className="text-sm text-muted">
-          Material: <span className="font-medium text-ink-2">{material.name}</span>
-          <br />
-          Stock actual:{" "}
-          <span className="font-medium text-ink-2">
-            {fmtInt(material.stock)} {material.unit}
-          </span>
-        </div>
-        <div className="field">
-          <span className="label">
-            {type === "adjust"
-              ? "Delta (positivo o negativo)"
-              : "Cantidad"}
-          </span>
-          <input
-            className="input"
-            type="number"
-            step={1}
-            value={qty}
-            onChange={(e) => setQty(e.target.value)}
-            required
-            autoFocus
-          />
-          {type === "adjust" && (
-            <small className="help mt-1">
-              Usa positivo para aumentar, negativo para reducir.
-            </small>
-          )}
-        </div>
-        <div className="field">
-          <span className="label">Referencia (opcional)</span>
-          <input
-            className="input"
-            placeholder="PO-001, pedido 42, conteo…"
-            value={ref}
-            onChange={(e) => setRef(e.target.value)}
-            maxLength={80}
-          />
-        </div>
-        <div className="field">
-          <span className="label">Nota (opcional)</span>
-          <textarea
-            className="textarea"
-            rows={2}
-            value={note}
-            onChange={(e) => setNote(e.target.value)}
-            maxLength={500}
-          />
-        </div>
-        {error && (
-          <div
-            className="rounded-md text-xs"
             style={{
               padding: "10px 12px",
               border: "1px solid var(--danger)",

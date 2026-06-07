@@ -86,6 +86,36 @@ export type ApiClient = {
 
 export type ApiProductSource = "internal" | "supplier";
 
+export type ApiVariantType =
+  | "none"
+  | "size"
+  | "preset"
+  | "dimension"
+  | "sized_from_material";
+
+export type ApiProductVariant = {
+  code: string;
+  label: string;
+  priceMod: number;
+  stock: number;
+  sortOrder: number;
+};
+
+export type ApiDimensionConfig = {
+  unit: "cm" | "m" | "in";
+  min: number;
+  max: number;
+  step: number;
+  priceMode: "area" | "linear" | "flat";
+};
+
+export type ApiRecipeItem = {
+  materialId: string;
+  qty: number;
+  byVariant: boolean;
+  note: string | null;
+};
+
 export type ApiProduct = {
   id: string;
   sku: string;
@@ -101,8 +131,26 @@ export type ApiProduct = {
   unit: string;
   needsApproval: boolean;
   isActive: boolean;
+  variantType: ApiVariantType;
   createdAt: string;
   updatedAt: string;
+};
+
+/** Forma del GET /products/:id — la lista sólo trae ApiProduct. */
+export type ApiProductDetail = ApiProduct & {
+  variants: ApiProductVariant[];
+  dimensionConfig: ApiDimensionConfig | null;
+  sizeSurcharges: Record<string, number> | null;
+  sizedFromMaterialId: string | null;
+  recipeItems: ApiRecipeItem[];
+};
+
+export type ApiMaterialVariant = {
+  id: string;
+  code: string;
+  label: string;
+  stock: number;
+  sortOrder: number;
 };
 
 export type ApiMaterial = {
@@ -117,6 +165,7 @@ export type ApiMaterial = {
   location: string | null;
   supplierName: string | null;
   isActive: boolean;
+  variants: ApiMaterialVariant[];
   createdAt: string;
   updatedAt: string;
 };
@@ -126,6 +175,10 @@ export type ApiStockMoveType = "entry" | "exit" | "adjust";
 export type ApiStockMove = {
   id: string;
   materialId: string;
+  /** null = movimiento sobre el material completo (o variante eliminada). */
+  materialVariantId: string | null;
+  materialVariantCode: string | null;
+  materialVariantLabel: string | null;
   type: ApiStockMoveType;
   qty: number;
   resultingStock: number;
