@@ -215,6 +215,8 @@ export type ApiSizeBreakdownEntry = {
   qty: number;
   /** Sobreprecio resuelto server-side al vender (snapshot). */
   surcharge: number;
+  /** Etiqueta legible (p.ej. "Chica"), snapshot al vender; órdenes viejas no la traen. */
+  sizeLabel?: string;
 };
 
 export type ApiDimensionData = {

@@ -12,6 +12,7 @@ import { PageHeader } from "@/components/page-header";
 import { StatusPill } from "@/components/status-pill";
 import { SummaryRow } from "@/components/summary-row";
 import type { ApiAuditEntry } from "@/lib/api/audit";
+import { usePermission } from "@/lib/auth/auth-context";
 import { ApiError } from "@/lib/api/errors";
 import { ordersApi } from "@/lib/api/orders";
 import {
@@ -121,6 +122,11 @@ export default function OrderDetailPage() {
   const [deliverDraft, setDeliverDraft] = useState("");
   const [notesDraft, setNotesDraft] = useState("");
   const [savingMeta, setSavingMeta] = useState(false);
+
+  // Gating de UI (el backend revalida con sus guards).
+  const canManage = usePermission("sales.orders.manage");
+  const canRecordPayment = usePermission("sales.payments.record");
+  const canCancel = usePermission("sales.orders.cancel");
 
   const load = useCallback(async () => {
     try {
@@ -331,7 +337,7 @@ export default function OrderDetailPage() {
             <button className="btn">{I.printer} Reimprimir ticket</button>
             <button className="btn">{I.mail} Enviar comprobante</button>
             <button className="btn btn--accent">{I.send} Notificar al cliente</button>
-            {!isCancelled && detail.status !== "delivered" && (
+            {canCancel && !isCancelled && detail.status !== "delivered" && (
               <button
                 className="btn btn--danger"
                 type="button"
@@ -378,26 +384,28 @@ export default function OrderDetailPage() {
                 <div className="card__sub">Cada producto tiene su propio diseño y status.</div>
               </div>
               <div className="spacer" />
-              <label className="flex items-center gap-1.5 text-xs text-muted">
-                Mover pedido a
-                <select
-                  className="select"
-                  value={detail.status}
-                  disabled={transitioning || isCancelled}
-                  onChange={(e) => void changeOrderStatus(e.target.value as ApiOrderStatus)}
-                >
-                  {!MANUAL_ORDER_TRANSITIONS.includes(detail.status) && (
-                    <option value={detail.status} disabled>
-                      {ORDER_STATUS_ES[detail.status]}
-                    </option>
-                  )}
-                  {MANUAL_ORDER_TRANSITIONS.map((s) => (
-                    <option key={s} value={s}>
-                      {ORDER_STATUS_ES[s]}
-                    </option>
-                  ))}
-                </select>
-              </label>
+              {canManage && (
+                <label className="flex items-center gap-1.5 text-xs text-muted">
+                  Mover pedido a
+                  <select
+                    className="select"
+                    value={detail.status}
+                    disabled={transitioning || isCancelled}
+                    onChange={(e) => void changeOrderStatus(e.target.value as ApiOrderStatus)}
+                  >
+                    {!MANUAL_ORDER_TRANSITIONS.includes(detail.status) && (
+                      <option value={detail.status} disabled>
+                        {ORDER_STATUS_ES[detail.status]}
+                      </option>
+                    )}
+                    {MANUAL_ORDER_TRANSITIONS.map((s) => (
+                      <option key={s} value={s}>
+                        {ORDER_STATUS_ES[s]}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              )}
             </div>
             <table className="tbl">
               <thead>
@@ -426,7 +434,9 @@ export default function OrderDetailPage() {
                           <div className="text-muted text-[11px] font-mono">{j.sku}</div>
                           {j.sizeBreakdown && j.sizeBreakdown.length > 0 && (
                             <div className="text-muted text-[11px]">
-                              {j.sizeBreakdown.map((e) => `${e.sizeId}×${e.qty}`).join(" · ")}
+                              {j.sizeBreakdown
+                                .map((e) => `${e.sizeLabel ?? e.sizeId}×${e.qty}`)
+                                .join(" · ")}
                             </div>
                           )}
                           {j.dimensionData && (
@@ -451,6 +461,7 @@ export default function OrderDetailPage() {
                     <td>
                       <div className="grid gap-1 justify-items-start">
                         <StatusPill s={ORDER_STATUS_ES[j.status]} />
+                        {canManage && (
                         <select
                           className="select"
                           style={{ fontSize: 12, padding: "2px 6px" }}
@@ -472,6 +483,7 @@ export default function OrderDetailPage() {
                             </option>
                           ))}
                         </select>
+                        )}
                       </div>
                     </td>
                     <td className="num text-right">{fmtMXN(j.lineTotal)}</td>
@@ -577,7 +589,7 @@ export default function OrderDetailPage() {
                   ))}
                 </div>
               )}
-              {pending > 0 && !isCancelled && (
+              {canRecordPayment && pending > 0 && !isCancelled && (
                 <button
                   className="btn btn--accent w-full justify-center mt-2.5"
                   type="button"
@@ -601,7 +613,7 @@ export default function OrderDetailPage() {
                   type="date"
                   value={deliverDraft}
                   onChange={(e) => setDeliverDraft(e.target.value)}
-                  disabled={isCancelled || savingMeta}
+                  disabled={isCancelled || savingMeta || !canManage}
                 />
                 <span className="text-muted text-xs">
                   Actual: {detail.deliverAt ? fmtDateLong(detail.deliverAt) : "Sin fecha"}
@@ -615,18 +627,20 @@ export default function OrderDetailPage() {
                   maxLength={2000}
                   value={notesDraft}
                   onChange={(e) => setNotesDraft(e.target.value)}
-                  disabled={isCancelled || savingMeta}
+                  disabled={isCancelled || savingMeta || !canManage}
                   placeholder="Instrucciones de entrega, acuerdos con el cliente…"
                 />
               </div>
-              <button
-                className="btn btn--sm"
-                type="button"
-                onClick={() => void saveMeta()}
-                disabled={isCancelled || savingMeta || !metaDirty}
-              >
-                {savingMeta ? "Guardando…" : "Guardar cambios"}
-              </button>
+              {canManage && (
+                <button
+                  className="btn btn--sm"
+                  type="button"
+                  onClick={() => void saveMeta()}
+                  disabled={isCancelled || savingMeta || !metaDirty}
+                >
+                  {savingMeta ? "Guardando…" : "Guardar cambios"}
+                </button>
+              )}
             </div>
           </div>
 

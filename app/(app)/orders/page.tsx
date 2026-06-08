@@ -7,6 +7,7 @@ import { I } from "@/components/icons";
 import { PageHeader } from "@/components/page-header";
 import { PaymentPill } from "@/components/payment-pill";
 import { StatusPill } from "@/components/status-pill";
+import { usePermission } from "@/lib/auth/auth-context";
 import { ApiError } from "@/lib/api/errors";
 import { ordersApi } from "@/lib/api/orders";
 import { ORDER_STATUS_ES, paymentLabel } from "@/lib/api/sales-mappers";
@@ -47,6 +48,7 @@ const TAB_TO_STATUS: Record<Tab, ApiOrderStatus | null> = {
 
 export default function OrdersPage() {
   const router = useRouter();
+  const canSell = usePermission("sales.pos.sell");
   const [tab, setTab] = useState<Tab>("Todos");
   const [query, setQuery] = useState("");
   const [debounced, setDebounced] = useState("");
@@ -114,9 +116,11 @@ export default function OrdersPage() {
         actions={
           <>
             <button className="btn">{I.download} Exportar</button>
-            <Link className="btn btn--accent" href="/pos">
-              {I.plus} Nueva venta
-            </Link>
+            {canSell && (
+              <Link className="btn btn--accent" href="/pos">
+                {I.plus} Nueva venta
+              </Link>
+            )}
           </>
         }
       />

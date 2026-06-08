@@ -74,6 +74,11 @@ export const catalogApi = {
     return apiFetch<ApiList<ApiProduct>>(`/products${qs ? `?${qs}` : ""}`);
   },
 
+  /** Categorías distintas (productos activos), ordenadas — para poblar filtros. */
+  categories(): Promise<string[]> {
+    return apiFetch<string[]>(`/products/categories`);
+  },
+
   get(id: string): Promise<ApiProductDetail> {
     return apiFetch<ApiProductDetail>(`/products/${id}`);
   },

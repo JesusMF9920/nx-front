@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
+import { usePermission } from "@/lib/auth/auth-context";
 import { Avatar } from "@/components/avatar";
 import { I } from "@/components/icons";
 import { Modal } from "@/components/modal";
@@ -61,6 +62,11 @@ export default function POSPage() {
   const [search, setSearch] = useState("");
   const [debounced, setDebounced] = useState("");
   const [activeCategory, setActiveCategory] = useState("Todos");
+  const [categories, setCategories] = useState<string[]>(["Todos"]);
+  const [page, setPage] = useState(1);
+  const [productsTotal, setProductsTotal] = useState(0);
+  const canSell = usePermission("sales.pos.sell");
+  const PAGE_SIZE = 24;
   const [discount, setDiscount] = useState(0);
   const [discountDraft, setDiscountDraft] = useState("");
   const [showDiscount, setShowDiscount] = useState(false);
@@ -77,7 +83,10 @@ export default function POSPage() {
   );
 
   useEffect(() => {
-    const id = setTimeout(() => setDebounced(search.trim()), 250);
+    const id = setTimeout(() => {
+      setDebounced(search.trim());
+      setPage(1);
+    }, 250);
     return () => clearTimeout(id);
   }, [search]);
 
@@ -86,13 +95,18 @@ export default function POSPage() {
     setLoadError(null);
     try {
       const res = await catalogApi.list({
-        take: 100,
+        skip: (page - 1) * PAGE_SIZE,
+        take: PAGE_SIZE,
         search: debounced || undefined,
+        // Filtro de categoría SERVER-SIDE: con paginación, filtrar la página
+        // actual en cliente dejaría huecos (total y páginas serían erróneos).
+        category: activeCategory === "Todos" ? undefined : activeCategory,
         isActive: true,
         orderBy: "name",
         order: "asc",
       });
       setProducts(res.items);
+      setProductsTotal(res.total);
     } catch (err) {
       setLoadError(
         err instanceof ApiError
@@ -108,7 +122,23 @@ export default function POSPage() {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     void reload();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [debounced]);
+  }, [debounced, activeCategory, page]);
+
+  // Categorías estables (todo el catálogo activo), no derivadas de la página.
+  useEffect(() => {
+    let cancelled = false;
+    catalogApi
+      .categories()
+      .then((cats) => {
+        if (!cancelled) setCategories(["Todos", ...cats]);
+      })
+      .catch(() => {
+        // Si falla, el filtro queda solo con "Todos" — no bloquea la venta.
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   // Totales client-side SOLO orientativos — el total autoritativo lo da posApi.preview.
   const subtotal = cart.reduce((s, l) => s + lineSubtotal(l), 0);
@@ -116,14 +146,7 @@ export default function POSPage() {
   const tax = (subtotal - discountApplied) * 0.16;
   const total = subtotal - discountApplied + tax;
 
-  const categories = useMemo(
-    () => ["Todos", ...Array.from(new Set(products.map((p) => p.category)))],
-    [products],
-  );
-
-  const filteredProducts = products.filter(
-    (p) => activeCategory === "Todos" || p.category === activeCategory,
-  );
+  const totalPages = Math.max(1, Math.ceil(productsTotal / PAGE_SIZE));
 
   const ensureDetail = async (productId: string): Promise<ApiProductDetail> => {
     const cached = detailCache.get(productId);
@@ -312,7 +335,10 @@ export default function POSPage() {
               <button
                 key={c}
                 className={`btn btn--sm ${c === activeCategory ? "btn--primary" : "btn--ghost"}`}
-                onClick={() => setActiveCategory(c)}
+                onClick={() => {
+                  setActiveCategory(c);
+                  setPage(1);
+                }}
               >
                 {c}
               </button>
@@ -347,15 +373,15 @@ export default function POSPage() {
           )}
           {loading ? (
             <div className="empty">Cargando…</div>
-          ) : filteredProducts.length === 0 && !loadError ? (
+          ) : products.length === 0 && !loadError ? (
             <div className="empty">
-              {debounced
-                ? "Sin productos para la búsqueda."
+              {debounced || activeCategory !== "Todos"
+                ? "Sin productos para el filtro."
                 : "No hay productos activos en el catálogo."}
             </div>
           ) : (
             <div className="grid gap-3" style={{ gridTemplateColumns: "repeat(4, 1fr)" }}>
-              {filteredProducts.map((p) => (
+              {products.map((p) => (
                 <button
                   type="button"
                   key={p.id}
@@ -386,6 +412,37 @@ export default function POSPage() {
                   </div>
                 </button>
               ))}
+            </div>
+          )}
+          {!loading && !loadError && productsTotal > 0 && (
+            <div className="flex items-center gap-3 text-xs text-muted mt-4">
+              <span>
+                Mostrando {(page - 1) * PAGE_SIZE + 1}–
+                {Math.min(page * PAGE_SIZE, productsTotal)} de {productsTotal}
+                {activeCategory !== "Todos" ? ` · ${activeCategory}` : ""}
+              </span>
+              <div className="spacer" />
+              <span className="num text-[11px]">
+                Página {page} de {totalPages}
+              </span>
+              <button
+                className="btn btn--sm btn--ghost"
+                type="button"
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+                disabled={page <= 1}
+                aria-label="Página anterior"
+              >
+                {I.chevronLeft}
+              </button>
+              <button
+                className="btn btn--sm btn--ghost"
+                type="button"
+                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                disabled={page >= totalPages}
+                aria-label="Página siguiente"
+              >
+                {I.chevronRight}
+              </button>
             </div>
           )}
         </div>
@@ -563,7 +620,8 @@ export default function POSPage() {
           <button
             className="btn btn--accent btn--lg w-full justify-center mt-2"
             onClick={() => setShowPay(true)}
-            disabled={cart.length === 0 || !client}
+            disabled={cart.length === 0 || !client || !canSell}
+            title={!canSell ? "No tienes permiso para cobrar (sales.pos.sell)" : undefined}
           >
             {I.cash} Cobrar {fmtMXN(total)}
             <span
@@ -573,6 +631,11 @@ export default function POSPage() {
               F8
             </span>
           </button>
+          {!canSell && (
+            <div className="text-[11px] text-muted mt-1.5 text-center">
+              No tienes permiso para cobrar en el punto de venta.
+            </div>
+          )}
         </div>
       </div>
 
