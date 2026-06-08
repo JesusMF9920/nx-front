@@ -10,17 +10,39 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  deploy:
+  build-deploy:
     runs-on: ubuntu-latest
+    env:
+      # URL del API que queda embebida en el bundle (no es secreto).
+      NEXT_PUBLIC_API_URL: http://146.190.170.209/api
     steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
+
+      - name: Empaquetar build standalone
+        run: |
+          mkdir -p .next/standalone/.next
+          cp -r .next/static .next/standalone/.next/static
+          if [ -d public ]; then cp -r public .next/standalone/public; fi
+          tar -czf nxpos-front.tgz -C .next/standalone .
+          ls -lh nxpos-front.tgz
+
       - name: Configurar SSH
         run: |
           mkdir -p ~/.ssh
           printf '%s\n' "${{ secrets.DROPLET_SSH_KEY }}" > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
-          # Clave de host fijada (NO usar ssh-keyscan: abre ~5 conexiones por run
-          # que fail2ban en modo agresivo cuenta como fallos y banea al runner).
+          # Clave de host fijada (NO usar ssh-keyscan: dispara fail2ban y banea al runner).
           printf '%s\n' "146.190.170.209 ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIBOLXv4XJU9q58UCyPQObRFIWRhNyhYYm/iosKr85hN8" > ~/.ssh/known_hosts
 
-      - name: Desplegar frontend en el droplet
-        run: ssh -i ~/.ssh/deploy_key -o ServerAliveInterval=30 chuy@146.190.170.209 deploy-front
+      - name: Enviar bundle y desplegar (stdin -> forced command)
+        run: ssh -i ~/.ssh/deploy_key -o ServerAliveInterval=30 chuy@146.190.170.209 deploy-front < nxpos-front.tgz
