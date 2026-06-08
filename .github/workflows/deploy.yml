@@ -18,7 +18,9 @@ jobs:
           mkdir -p ~/.ssh
           printf '%s\n' "${{ secrets.DROPLET_SSH_KEY }}" > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
-          ssh-keyscan -H 146.190.170.209 >> ~/.ssh/known_hosts
+          # Clave de host fijada (NO usar ssh-keyscan: abre ~5 conexiones por run
+          # que fail2ban en modo agresivo cuenta como fallos y banea al runner).
+          printf '%s\n' "146.190.170.209 ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIBOLXv4XJU9q58UCyPQObRFIWRhNyhYYm/iosKr85hN8" > ~/.ssh/known_hosts
 
       - name: Desplegar frontend en el droplet
         run: ssh -i ~/.ssh/deploy_key -o ServerAliveInterval=30 chuy@146.190.170.209 deploy-front
