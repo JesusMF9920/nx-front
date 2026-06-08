@@ -188,6 +188,115 @@ export type ApiStockMove = {
   createdAt: string;
 };
 
+export type ApiOrderStatus =
+  | "pending"
+  | "in_design"
+  | "client_approval"
+  | "production"
+  | "with_supplier"
+  | "ready_for_delivery"
+  | "delivered"
+  | "cancelled";
+
+export type ApiPaymentMethod = "cash" | "terminal";
+
+export type ApiPayment = {
+  id: string;
+  method: ApiPaymentMethod;
+  amount: number;
+  reference: string | null;
+  receivedById: string;
+  createdAt: string;
+};
+
+export type ApiSizeBreakdownEntry = {
+  sizeId: string;
+  /** Piezas de esa talla. */
+  qty: number;
+  /** Sobreprecio resuelto server-side al vender (snapshot). */
+  surcharge: number;
+};
+
+export type ApiDimensionData = {
+  width: number;
+  height: number;
+  unit: "cm" | "m" | "in";
+  priceMode: "area" | "linear" | "flat";
+  /** Unidades calculadas (m², m lineales o 1 para tarifa fija). */
+  computedQty: number;
+};
+
+export type ApiOrderItem = {
+  id: string;
+  productId: string;
+  productName: string;
+  sku: string;
+  qty: number;
+  unitPrice: number;
+  variantCode: string | null;
+  variantLabel: string | null;
+  sizeBreakdown: ApiSizeBreakdownEntry[] | null;
+  dimensionData: ApiDimensionData | null;
+  source: ApiProductSource;
+  supplierName: string | null;
+  needsApproval: boolean;
+  status: ApiOrderStatus;
+  designVersion: number;
+  lineTotal: number;
+};
+
+/** Forma del GET /orders (lista). */
+export type ApiOrder = {
+  id: string;
+  folio: string;
+  clientId: string;
+  clientName: string;
+  status: ApiOrderStatus;
+  total: number;
+  /** Σ payments — siempre derivado por el backend. */
+  paid: number;
+  paymentMethods: ApiPaymentMethod[];
+  deliverAt: string | null;
+  itemsCount: number;
+  createdAt: string;
+};
+
+/** Forma del GET /orders/:idOrFolio (detalle). */
+export type ApiOrderDetail = Omit<ApiOrder, "itemsCount"> & {
+  subtotal: number;
+  discount: number;
+  tax: number;
+  notes: string | null;
+  quoteId: string | null;
+  cancelledAt: string | null;
+  items: ApiOrderItem[];
+  payments: ApiPayment[];
+  updatedAt: string;
+};
+
+export type ApiStockShortage = {
+  materialId: string;
+  materialName: string;
+  unit: string;
+  materialVariantCode: string | null;
+  required: number;
+  available: number;
+  /** true si el material/talla no existe (línea de receta rota). */
+  missing: boolean;
+};
+
+export type ApiConsumptionLine = {
+  materialId: string;
+  materialName: string;
+  unit: string;
+  materialVariantId: string | null;
+  materialVariantCode: string | null;
+  qty: number;
+  stockBefore: number;
+  stockAfter: number;
+  reorderPoint: number;
+};
+
 export type ApiSupplier = {
   id: string;
   name: string;

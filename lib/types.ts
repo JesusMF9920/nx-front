@@ -252,7 +252,11 @@ export type CartLine = {
   needsApproval: boolean;
   qty: number;
   price: number;
+  /** Code de la variante (preset/size) — lo que CheckoutLineInput exige; el label es solo display. */
+  variantCode?: string;
   variantLabel?: string;
+  /** Medidas crudas para variantType dimension — el backend deriva qty/precio. */
+  dimension?: { width: number; height: number };
   sizeBreakdown?: SizeBreakdownEntry[];
   sizedFromMaterial?: string;
 };
