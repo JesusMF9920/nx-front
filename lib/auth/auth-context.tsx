@@ -123,3 +123,13 @@ export function useAuth(): AuthContextValue {
   }
   return ctx;
 }
+
+/**
+ * ¿El usuario tiene este permiso? Gating de UI solamente — el backend siempre
+ * revalida con sus guards; esto es UX (ocultar/deshabilitar lo que no podría
+ * usar). super-admin trae todos los permisos en el arreglo.
+ */
+export function usePermission(permission: string): boolean {
+  const { permissions } = useAuth();
+  return permissions.includes(permission);
+}

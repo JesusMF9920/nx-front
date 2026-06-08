@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState, type FormEvent } from "react";
+import Link from "next/link";
 import { Avatar } from "@/components/avatar";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { I } from "@/components/icons";
@@ -13,16 +14,19 @@ import {
   type ClientAddressInput,
 } from "@/lib/api/clients";
 import { ApiError } from "@/lib/api/errors";
+import { ordersApi } from "@/lib/api/orders";
+import { ORDER_STATUS_ES, paymentLabel } from "@/lib/api/sales-mappers";
 import type {
   ApiClient,
   ApiClientAddress,
   ApiClientAddressType,
   ApiClientType,
+  ApiOrder,
   ApiUser,
 } from "@/lib/api/types";
 import { tokenStorage } from "@/lib/auth/tokens";
 import { usersApi } from "@/lib/api/users";
-import { fmtDate } from "@/lib/format";
+import { fmtDate, fmtMXN } from "@/lib/format";
 
 type FilterKey = "Todos" | "Frecuentes" | "Con crédito" | "Inactivos";
 type TypeFilter = "all" | ApiClientType;
@@ -772,6 +776,43 @@ function ClientDetailPanel({
   onEditAddress: (addr: ApiClientAddress) => void;
   onRemoveAddress: (addr: ApiClientAddress) => void;
 }) {
+  const [orders, setOrders] = useState<ApiOrder[]>([]);
+  const [ordersTotal, setOrdersTotal] = useState(0);
+  const [ordersLoading, setOrdersLoading] = useState(true);
+  const [ordersError, setOrdersError] = useState<string | null>(null);
+
+  // Últimas órdenes del cliente seleccionado. El panel no se desmonta al
+  // cambiar de cliente, así que el effect resetea loading/error él mismo.
+  useEffect(() => {
+    let cancelled = false;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setOrdersLoading(true);
+    setOrdersError(null);
+    void (async () => {
+      try {
+        const res = await ordersApi.list({ clientId: client.id, take: 10 });
+        if (cancelled) return;
+        setOrders(res.items);
+        setOrdersTotal(res.total);
+      } catch (err) {
+        if (!cancelled) {
+          setOrders([]);
+          setOrdersTotal(0);
+          setOrdersError(
+            err instanceof ApiError
+              ? err.message
+              : "No se pudieron cargar las órdenes del cliente.",
+          );
+        }
+      } finally {
+        if (!cancelled) setOrdersLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [client.id]);
+
   const actorLabel = (entry: ApiAuditEntry): string => {
     if (!entry.actorId) return "sistema";
     const u = actorById.get(entry.actorId);
@@ -984,6 +1025,68 @@ function ClientDetailPanel({
 
       <div className="divider m-0" />
 
+      <div className="card__head" style={{ borderTop: 0 }}>
+        <div className="card__title">Órdenes</div>
+        <div className="spacer" />
+        {ordersTotal > 10 ? (
+          <Link className="btn btn--ghost btn--sm" href="/orders">
+            Ver todas {I.chevronRight}
+          </Link>
+        ) : (
+          <span className="text-muted text-xs">
+            {orders.length === 0 ? "—" : `últimas ${orders.length}`}
+          </span>
+        )}
+      </div>
+      {ordersLoading ? (
+        <div className="card__body text-muted text-sm py-2">Cargando…</div>
+      ) : ordersError ? (
+        <div className="card__body py-2">
+          <div
+            className="rounded-md text-xs"
+            style={{
+              padding: "10px 12px",
+              border: "1px solid var(--danger)",
+              color: "var(--danger)",
+              background: "var(--danger-soft)",
+            }}
+            role="alert"
+          >
+            {ordersError}
+          </div>
+        </div>
+      ) : orders.length === 0 ? (
+        <div className="card__body text-muted text-sm py-2">
+          Sin órdenes todavía.
+        </div>
+      ) : (
+        <div className="px-4 pb-3">
+          {orders.map((o) => (
+            <div
+              key={o.id}
+              className="text-[12px] py-1.5 flex items-baseline gap-2"
+              style={{ borderTop: "1px solid var(--line)" }}
+            >
+              <Link
+                href={`/orders/${o.folio}`}
+                className="num font-medium hover:underline"
+              >
+                {o.folio}
+              </Link>
+              <span className="text-muted-2 num text-[11px]">
+                {fmtDate(o.createdAt)}
+              </span>
+              <span className="flex-1 text-muted">
+                {ORDER_STATUS_ES[o.status]} · {paymentLabel(o)}
+              </span>
+              <span className="num">{fmtMXN(o.total)}</span>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <div className="divider m-0" />
+
       <div className="px-4 py-3 flex gap-2 flex-wrap">
         <button className="btn btn--sm" onClick={onEdit}>
           {I.edit} Editar
@@ -998,8 +1101,6 @@ function ClientDetailPanel({
           </button>
         )}
       </div>
-
-      {/* TODO: cuando exista el módulo de pedidos, listar aquí los pedidos del cliente */}
     </div>
   );
 }

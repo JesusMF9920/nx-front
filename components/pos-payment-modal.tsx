@@ -1,27 +1,30 @@
 "use client";
 
-import { useMemo, useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { I } from "@/components/icons";
 import { Modal } from "@/components/modal";
 import { SummaryRow } from "@/components/summary-row";
 import { fmtMXN } from "@/lib/format";
-import { NEXUM_MATERIALS, NEXUM_RECIPES } from "@/lib/mock-materials";
-import type { CartLine, Material, MaterialVariant, PaymentMethod } from "@/lib/types";
+import { ApiError } from "@/lib/api/errors";
+import {
+  posApi,
+  type CheckoutLineInput,
+  type CheckoutPaymentInput,
+  type CheckoutPreview,
+  type CheckoutResult,
+} from "@/lib/api/orders";
+import type { ApiStockShortage } from "@/lib/api/types";
+import type { PaymentMethod } from "@/lib/types";
 
 type Props = {
-  total: number;
-  cart: CartLine[];
+  clientId: string;
+  lines: CheckoutLineInput[];
+  discount: number;
+  deliverAt?: string;
+  notes?: string;
   customerEmail?: string;
   onClose: () => void;
-  onPaid: () => void;
-};
-
-type Consumption = {
-  materialId: string;
-  variantId?: string;
-  qty: number;
-  mat: Material;
-  variant?: MaterialVariant;
+  onPaid: (result: CheckoutResult) => void;
 };
 
 const METHOD_OPTIONS: { id: PaymentMethod; icon: ReactNode; sub: string }[] = [
@@ -31,48 +34,162 @@ const METHOD_OPTIONS: { id: PaymentMethod; icon: ReactNode; sub: string }[] = [
   { id: "Crédito",  icon: I.clock,  sub: "30 días" },
 ];
 
-export function PosPaymentModal({ total, cart, customerEmail, onClose, onPaid }: Props) {
+function round2(n: number): number {
+  return Math.round(n * 100) / 100;
+}
+
+export function PosPaymentModal({
+  clientId,
+  lines,
+  discount,
+  deliverAt,
+  notes,
+  customerEmail,
+  onClose,
+  onPaid,
+}: Props) {
   const [method, setMethod] = useState<PaymentMethod>("Efectivo");
-  const [cash, setCash] = useState(total);
+  const [cash, setCash] = useState(0);
+  const [reference, setReference] = useState("");
+  const [mixedCash, setMixedCash] = useState("");
+  const [mixedTerminal, setMixedTerminal] = useState("");
   const [printTicket, setPrintTicket] = useState(true);
   const [emailTicket, setEmailTicket] = useState(true);
 
+  const [preview, setPreview] = useState<CheckoutPreview | null>(null);
+  const [previewLoading, setPreviewLoading] = useState(true);
+  const [previewError, setPreviewError] = useState<string | null>(null);
+  const [shortages, setShortages] = useState<ApiStockShortage[]>([]);
+  const [stockBlocked, setStockBlocked] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
+
+  const loadPreview = async () => {
+    setPreviewLoading(true);
+    setPreviewError(null);
+    try {
+      const res = await posApi.preview({
+        clientId,
+        lines,
+        discount: discount > 0 ? discount : undefined,
+      });
+      setPreview(res);
+      setShortages(res.shortages);
+      setStockBlocked(!res.available);
+      setCash(res.total);
+    } catch (err) {
+      setPreviewError(
+        err instanceof ApiError
+          ? err.message
+          : "No se pudo calcular el total de la venta.",
+      );
+    } finally {
+      setPreviewLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    void loadPreview();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const total = preview?.total ?? 0;
   const change = Math.max(0, cash - total);
 
-  const consumption = useMemo<Consumption[]>(() => {
-    const map: Record<string, { qty: number; materialId: string; variantId?: string }> = {};
-    cart.forEach((line) => {
-      if (line.source !== "Interno") return;
-      const recipe = NEXUM_RECIPES[line.id];
-      if (!recipe) return;
-      const totalQty = line.sizeBreakdown
-        ? line.sizeBreakdown.reduce((s, b) => s + b.qty, 0)
-        : line.qty;
-      recipe.forEach((r) => {
-        if (r.byVariant && line.sizeBreakdown) {
-          line.sizeBreakdown.forEach((b) => {
-            if (b.qty <= 0) return;
-            const key = `${r.materialId}::${b.sizeId}`;
-            if (!map[key]) map[key] = { qty: 0, materialId: r.materialId, variantId: b.sizeId };
-            map[key].qty += r.qty * b.qty;
-          });
-        } else {
-          const key = r.materialId;
-          if (!map[key]) map[key] = { qty: 0, materialId: key };
-          map[key].qty += r.qty * totalQty;
-        }
-      });
-    });
+  const mixedCashNum = parseFloat(mixedCash || "0") || 0;
+  const mixedTerminalNum = parseFloat(mixedTerminal || "0") || 0;
+  const mixedSum = round2(mixedCashNum + mixedTerminalNum);
+  const mixedRemaining = round2(total - mixedSum);
+  const mixedOk =
+    mixedCashNum >= 0 &&
+    mixedTerminalNum >= 0 &&
+    mixedSum > 0 &&
+    Math.abs(mixedSum - total) <= 0.01;
 
-    return Object.values(map).flatMap<Consumption>((c) => {
-      const mat = NEXUM_MATERIALS.find((m) => m.id === c.materialId);
-      if (!mat) return [];
-      const variant = c.variantId ? mat.variants?.find((v) => v.id === c.variantId) : undefined;
-      return [{ qty: c.qty, materialId: c.materialId, variantId: c.variantId, mat, variant }];
-    });
-  }, [cart]);
+  const buildPayments = (): CheckoutPaymentInput[] => {
+    switch (method) {
+      case "Efectivo":
+        return [{ method: "cash", amount: total }];
+      case "Terminal": {
+        const ref = reference.trim();
+        return [
+          { method: "terminal", amount: total, ...(ref ? { reference: ref } : {}) },
+        ];
+      }
+      case "Mixto": {
+        const out: CheckoutPaymentInput[] = [];
+        if (mixedCashNum > 0) out.push({ method: "cash", amount: round2(mixedCashNum) });
+        if (mixedTerminalNum > 0) {
+          const ref = reference.trim();
+          out.push({
+            method: "terminal",
+            amount: round2(mixedTerminalNum),
+            ...(ref ? { reference: ref } : {}),
+          });
+        }
+        return out;
+      }
+      case "Crédito":
+        return [];
+    }
+  };
+
+  const canConfirm =
+    !!preview &&
+    !previewLoading &&
+    !stockBlocked &&
+    !submitting &&
+    (method !== "Efectivo" || cash >= total - 0.005) &&
+    (method !== "Mixto" || mixedOk);
+
+  const confirm = async () => {
+    if (!preview || !canConfirm) return;
+    setSubmitting(true);
+    setSubmitError(null);
+    try {
+      const res = await posApi.checkout({
+        clientId,
+        lines,
+        ...(discount > 0 ? { discount } : {}),
+        payments: buildPayments(),
+        expectedTotal: preview.total,
+        // El input date da "YYYY-MM-DD"; lo anclamos a mediodía LOCAL antes de
+        // serializar a ISO para que el backend no lo interprete como medianoche
+        // UTC y la fecha no retroceda un día al renderizar en zonas al oeste de
+        // UTC (mismo patrón que el editor de fecha en orders/[id]).
+        ...(deliverAt
+          ? { deliverAt: new Date(`${deliverAt}T12:00:00`).toISOString() }
+          : {}),
+        ...(notes ? { notes } : {}),
+      });
+      onPaid(res);
+    } catch (err) {
+      if (err instanceof ApiError && err.status === 409) {
+        if (err.body?.error === "InsufficientStockForSaleError") {
+          setShortages(err.body.shortages ?? []);
+          setStockBlocked(true);
+          setSubmitError("Inventario insuficiente para completar la venta.");
+        } else if (err.body?.error === "TotalsMismatchError") {
+          setSubmitError("Los precios cambiaron, revisa el total.");
+          void loadPreview();
+        } else if (err.body?.error === "PaymentExceedsTotalError") {
+          setSubmitError("El monto de los pagos excede el total de la venta.");
+        } else {
+          setSubmitError(err.message);
+        }
+      } else {
+        setSubmitError(
+          err instanceof ApiError ? err.message : "No se pudo completar el cobro.",
+        );
+      }
+      setSubmitting(false);
+    }
+  };
 
   const quickCash = [total, Math.ceil(total / 100) * 100, Math.ceil(total / 500) * 500, Math.ceil(total / 1000) * 1000];
+
+  const consumption = preview?.consumption ?? [];
 
   return (
     <Modal
@@ -81,13 +198,44 @@ export function PosPaymentModal({ total, cart, customerEmail, onClose, onPaid }:
       width={640}
       footer={
         <>
-          <button className="btn btn--ghost" onClick={onClose}>Cancelar</button>
-          <button className="btn btn--accent btn--lg" onClick={onPaid}>
-            {I.check} Confirmar pago
+          <button className="btn btn--ghost" onClick={onClose} disabled={submitting}>
+            Cancelar
+          </button>
+          <button
+            className="btn btn--accent btn--lg"
+            onClick={() => void confirm()}
+            disabled={!canConfirm}
+          >
+            {I.check} {submitting ? "Procesando…" : "Confirmar pago"}
           </button>
         </>
       }
     >
+      {(previewError || submitError) && (
+        <div
+          className="flex items-start gap-2 rounded-md mb-3"
+          style={{
+            padding: 12,
+            border: "1px solid var(--danger)",
+            color: "var(--danger)",
+            background: "var(--danger-soft)",
+          }}
+          role="alert"
+        >
+          <span className="flex-1">{previewError ?? submitError}</span>
+          {submitError && !previewError && (
+            <button
+              className="icon-btn"
+              type="button"
+              onClick={() => setSubmitError(null)}
+              aria-label="Cerrar"
+            >
+              {I.x}
+            </button>
+          )}
+        </div>
+      )}
+
       <div className="grid grid-cols-2 gap-[18px]">
         <div>
           <div className="label mb-2">Método de pago</div>
@@ -141,9 +289,66 @@ export function PosPaymentModal({ total, cart, customerEmail, onClose, onPaid }:
               <div className="text-xs text-muted mb-2.5">
                 Conectada · Point Mini W · estado <span className="pill pill--ok">Listo</span>
               </div>
-              <button className="btn btn--primary w-full justify-center">
+              <label className="field mb-2.5">
+                <span className="label">Referencia (opcional)</span>
+                <input
+                  className="input"
+                  placeholder="Núm. de operación"
+                  value={reference}
+                  onChange={(e) => setReference(e.target.value)}
+                />
+              </label>
+              <button className="btn btn--primary w-full justify-center" type="button">
                 {I.send} Enviar {fmtMXN(total)} a la terminal
               </button>
+            </div>
+          )}
+
+          {method === "Mixto" && (
+            <div className="mt-3.5 flex flex-col gap-2.5">
+              <label className="field">
+                <span className="label">Efectivo</span>
+                <input
+                  className="input num"
+                  type="number"
+                  min={0}
+                  step="0.01"
+                  value={mixedCash}
+                  onChange={(e) => setMixedCash(e.target.value)}
+                />
+              </label>
+              <label className="field">
+                <span className="label">Terminal</span>
+                <input
+                  className="input num"
+                  type="number"
+                  min={0}
+                  step="0.01"
+                  value={mixedTerminal}
+                  onChange={(e) => setMixedTerminal(e.target.value)}
+                />
+              </label>
+              <label className="field">
+                <span className="label">Referencia terminal (opcional)</span>
+                <input
+                  className="input"
+                  placeholder="Núm. de operación"
+                  value={reference}
+                  onChange={(e) => setReference(e.target.value)}
+                />
+              </label>
+              <div className="text-[11px]" style={{ color: mixedOk ? "var(--muted)" : "var(--danger)" }}>
+                {mixedOk
+                  ? "Los montos cubren el total."
+                  : `Los montos deben sumar ${fmtMXN(total)} (restan ${fmtMXN(mixedRemaining)}).`}
+              </div>
+            </div>
+          )}
+
+          {method === "Crédito" && (
+            <div className="mt-3.5 p-3.5 border border-line rounded-md bg-surface-2 text-xs text-muted">
+              {I.clock} La orden se registra <strong className="text-ink">sin pagos</strong> y queda
+              pendiente de cobro. Los abonos se capturan después desde el pedido.
             </div>
           )}
         </div>
@@ -151,11 +356,28 @@ export function PosPaymentModal({ total, cart, customerEmail, onClose, onPaid }:
         <div>
           <div className="label mb-2">Resumen</div>
           <div className="bg-surface-2 border border-line rounded-md p-3.5">
-            <SummaryRow label="Total a cobrar" value={fmtMXN(total)} big />
+            {preview && (
+              <>
+                <SummaryRow label="Subtotal" value={fmtMXN(preview.subtotal)} />
+                <SummaryRow label="Descuento" value={fmtMXN(preview.discount)} muted />
+                <SummaryRow label="IVA 16%" value={fmtMXN(preview.tax)} />
+              </>
+            )}
+            <SummaryRow
+              label="Total a cobrar"
+              value={previewLoading ? "Calculando…" : fmtMXN(total)}
+              big
+            />
             {method === "Efectivo" && (
               <>
                 <SummaryRow label="Recibido" value={fmtMXN(cash)} />
                 <SummaryRow label="Cambio" value={fmtMXN(change)} />
+              </>
+            )}
+            {method === "Mixto" && (
+              <>
+                <SummaryRow label="Efectivo" value={fmtMXN(mixedCashNum)} />
+                <SummaryRow label="Terminal" value={fmtMXN(mixedTerminalNum)} />
               </>
             )}
           </div>
@@ -191,6 +413,48 @@ export function PosPaymentModal({ total, cart, customerEmail, onClose, onPaid }:
             </label>
           </div>
 
+          {shortages.length > 0 && (
+            <>
+              <div className="divider" />
+              <div className="label mb-2 flex items-center gap-1.5" style={{ color: "var(--danger)" }}>
+                {I.alert} Inventario insuficiente
+              </div>
+              <div
+                className="rounded-md p-2.5"
+                style={{
+                  border: "1px solid var(--danger)",
+                  background: "var(--danger-soft)",
+                }}
+                role="alert"
+              >
+                {shortages.map((s) => (
+                  <div
+                    key={s.materialId + (s.materialVariantCode ?? "")}
+                    className="flex items-center gap-2 text-xs py-1"
+                  >
+                    <div className="flex-1 min-w-0">
+                      <div className="font-medium">
+                        {s.materialName}
+                        {s.materialVariantCode ? ` · ${s.materialVariantCode}` : ""}
+                      </div>
+                      <div className="text-muted text-[10px]">
+                        {s.missing
+                          ? "Material o talla inexistente (receta rota)"
+                          : `Se requieren ${s.required} ${s.unit}, hay ${s.available}`}
+                      </div>
+                    </div>
+                    <span className="num font-semibold" style={{ color: "var(--danger)" }}>
+                      −{(s.required - s.available).toFixed(2)}
+                    </span>
+                  </div>
+                ))}
+              </div>
+              <div className="text-[10px] text-muted mt-1.5">
+                No se puede cobrar hasta resolver el faltante de inventario.
+              </div>
+            </>
+          )}
+
           {consumption.length > 0 && (
             <>
               <div className="divider" />
@@ -199,22 +463,20 @@ export function PosPaymentModal({ total, cart, customerEmail, onClose, onPaid }:
               </div>
               <div className="bg-surface-2 border border-line rounded-md p-2.5">
                 {consumption.map((c) => {
-                  const stockNow = c.variant ? c.variant.stock : c.mat.stock;
-                  const after = stockNow - c.qty;
-                  const willCritical = after <= c.mat.reorder * 0.5;
-                  const willLow = after <= c.mat.reorder;
+                  const willCritical = c.stockAfter <= c.reorderPoint * 0.5;
+                  const willLow = c.stockAfter <= c.reorderPoint;
                   return (
                     <div
-                      key={c.materialId + (c.variantId ?? "")}
+                      key={c.materialId + (c.materialVariantCode ?? "")}
                       className="flex items-center gap-2 text-xs py-1"
                     >
                       <div className="flex-1 min-w-0">
                         <div className="font-medium">
-                          {c.mat.name}
-                          {c.variant ? ` · ${c.variant.label}` : ""}
+                          {c.materialName}
+                          {c.materialVariantCode ? ` · ${c.materialVariantCode}` : ""}
                         </div>
                         <div className="text-muted text-[10px]">
-                          {stockNow} →{" "}
+                          {c.stockBefore} →{" "}
                           <strong
                             style={{
                               color: willCritical
@@ -224,9 +486,9 @@ export function PosPaymentModal({ total, cart, customerEmail, onClose, onPaid }:
                                   : "var(--ink)",
                             }}
                           >
-                            {after.toFixed(2)}
+                            {c.stockAfter.toFixed(2)}
                           </strong>{" "}
-                          {c.mat.unit}
+                          {c.unit}
                         </div>
                       </div>
                       <span className="num font-semibold text-danger">
@@ -252,4 +514,3 @@ export function PosPaymentModal({ total, cart, customerEmail, onClose, onPaid }:
     </Modal>
   );
 }
-

@@ -86,6 +86,36 @@ export type ApiClient = {
 
 export type ApiProductSource = "internal" | "supplier";
 
+export type ApiVariantType =
+  | "none"
+  | "size"
+  | "preset"
+  | "dimension"
+  | "sized_from_material";
+
+export type ApiProductVariant = {
+  code: string;
+  label: string;
+  priceMod: number;
+  stock: number;
+  sortOrder: number;
+};
+
+export type ApiDimensionConfig = {
+  unit: "cm" | "m" | "in";
+  min: number;
+  max: number;
+  step: number;
+  priceMode: "area" | "linear" | "flat";
+};
+
+export type ApiRecipeItem = {
+  materialId: string;
+  qty: number;
+  byVariant: boolean;
+  note: string | null;
+};
+
 export type ApiProduct = {
   id: string;
   sku: string;
@@ -101,8 +131,26 @@ export type ApiProduct = {
   unit: string;
   needsApproval: boolean;
   isActive: boolean;
+  variantType: ApiVariantType;
   createdAt: string;
   updatedAt: string;
+};
+
+/** Forma del GET /products/:id — la lista sólo trae ApiProduct. */
+export type ApiProductDetail = ApiProduct & {
+  variants: ApiProductVariant[];
+  dimensionConfig: ApiDimensionConfig | null;
+  sizeSurcharges: Record<string, number> | null;
+  sizedFromMaterialId: string | null;
+  recipeItems: ApiRecipeItem[];
+};
+
+export type ApiMaterialVariant = {
+  id: string;
+  code: string;
+  label: string;
+  stock: number;
+  sortOrder: number;
 };
 
 export type ApiMaterial = {
@@ -117,6 +165,7 @@ export type ApiMaterial = {
   location: string | null;
   supplierName: string | null;
   isActive: boolean;
+  variants: ApiMaterialVariant[];
   createdAt: string;
   updatedAt: string;
 };
@@ -126,6 +175,10 @@ export type ApiStockMoveType = "entry" | "exit" | "adjust";
 export type ApiStockMove = {
   id: string;
   materialId: string;
+  /** null = movimiento sobre el material completo (o variante eliminada). */
+  materialVariantId: string | null;
+  materialVariantCode: string | null;
+  materialVariantLabel: string | null;
   type: ApiStockMoveType;
   qty: number;
   resultingStock: number;
@@ -133,6 +186,117 @@ export type ApiStockMove = {
   note: string | null;
   actorId: string | null;
   createdAt: string;
+};
+
+export type ApiOrderStatus =
+  | "pending"
+  | "in_design"
+  | "client_approval"
+  | "production"
+  | "with_supplier"
+  | "ready_for_delivery"
+  | "delivered"
+  | "cancelled";
+
+export type ApiPaymentMethod = "cash" | "terminal";
+
+export type ApiPayment = {
+  id: string;
+  method: ApiPaymentMethod;
+  amount: number;
+  reference: string | null;
+  receivedById: string;
+  createdAt: string;
+};
+
+export type ApiSizeBreakdownEntry = {
+  sizeId: string;
+  /** Piezas de esa talla. */
+  qty: number;
+  /** Sobreprecio resuelto server-side al vender (snapshot). */
+  surcharge: number;
+  /** Etiqueta legible (p.ej. "Chica"), snapshot al vender; órdenes viejas no la traen. */
+  sizeLabel?: string;
+};
+
+export type ApiDimensionData = {
+  width: number;
+  height: number;
+  unit: "cm" | "m" | "in";
+  priceMode: "area" | "linear" | "flat";
+  /** Unidades calculadas (m², m lineales o 1 para tarifa fija). */
+  computedQty: number;
+};
+
+export type ApiOrderItem = {
+  id: string;
+  productId: string;
+  productName: string;
+  sku: string;
+  qty: number;
+  unitPrice: number;
+  variantCode: string | null;
+  variantLabel: string | null;
+  sizeBreakdown: ApiSizeBreakdownEntry[] | null;
+  dimensionData: ApiDimensionData | null;
+  source: ApiProductSource;
+  supplierName: string | null;
+  needsApproval: boolean;
+  status: ApiOrderStatus;
+  designVersion: number;
+  lineTotal: number;
+};
+
+/** Forma del GET /orders (lista). */
+export type ApiOrder = {
+  id: string;
+  folio: string;
+  clientId: string;
+  clientName: string;
+  status: ApiOrderStatus;
+  total: number;
+  /** Σ payments — siempre derivado por el backend. */
+  paid: number;
+  paymentMethods: ApiPaymentMethod[];
+  deliverAt: string | null;
+  itemsCount: number;
+  createdAt: string;
+};
+
+/** Forma del GET /orders/:idOrFolio (detalle). */
+export type ApiOrderDetail = Omit<ApiOrder, "itemsCount"> & {
+  subtotal: number;
+  discount: number;
+  tax: number;
+  notes: string | null;
+  quoteId: string | null;
+  cancelledAt: string | null;
+  items: ApiOrderItem[];
+  payments: ApiPayment[];
+  updatedAt: string;
+};
+
+export type ApiStockShortage = {
+  materialId: string;
+  materialName: string;
+  unit: string;
+  materialVariantCode: string | null;
+  required: number;
+  available: number;
+  /** true si el material/talla no existe (línea de receta rota). */
+  missing: boolean;
+};
+
+export type ApiConsumptionLine = {
+  materialId: string;
+  materialName: string;
+  unit: string;
+  materialVariantId: string | null;
+  materialVariantCode: string | null;
+  qty: number;
+  stockBefore: number;
+  stockAfter: number;
+  reorderPoint: number;
 };
 
 export type ApiSupplier = {

@@ -5,10 +5,16 @@ import { ConfirmDialog } from "@/components/confirm-dialog";
 import { I } from "@/components/icons";
 import { MenuButton, type MenuItem } from "@/components/menu-button";
 import { Modal } from "@/components/modal";
+import { NewProductForm } from "@/components/new-product-form";
 import { PageHeader } from "@/components/page-header";
+import { ProductDetail } from "@/components/product-detail";
 import { catalogApi } from "@/lib/api/catalog";
 import { ApiError } from "@/lib/api/errors";
-import type { ApiProduct, ApiProductSource } from "@/lib/api/types";
+import type {
+  ApiProduct,
+  ApiProductDetail,
+  ApiProductSource,
+} from "@/lib/api/types";
 import { fmtInt, fmtMXN } from "@/lib/format";
 
 type SourceFilter = "all" | ApiProductSource;
@@ -50,7 +56,8 @@ export default function ProductsPage() {
   const [query, setQuery] = useState("");
   const [debounced, setDebounced] = useState("");
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [selectedDetail, setSelectedDetail] = useState<ApiProduct | null>(null);
+  const [selectedDetail, setSelectedDetail] =
+    useState<ApiProductDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
@@ -401,8 +408,10 @@ export default function ProductsPage() {
         </div>
 
         {selected ? (
-          <ProductDetailPanel
+          <ProductDetail
             product={selected}
+            compact
+            onChanged={refreshSelected}
             onEdit={() => setEditTarget(selected)}
             onDeactivate={() => setDeactivateTarget(selected)}
             onActivate={async () => {
@@ -430,12 +439,11 @@ export default function ProductsPage() {
       </div>
 
       {showNew && (
-        <ProductFormModal
-          mode="create"
+        <NewProductForm
           onClose={() => setShowNew(false)}
           onDone={async (id) => {
             setShowNew(false);
-            if (id) setSelectedId(id);
+            setSelectedId(id);
             await reload(page);
           }}
         />
@@ -487,92 +495,6 @@ export default function ProductsPage() {
         />
       )}
     </>
-  );
-}
-
-function ProductDetailPanel({
-  product,
-  onEdit,
-  onDeactivate,
-  onActivate,
-}: {
-  product: ApiProduct;
-  onEdit: () => void;
-  onDeactivate: () => void;
-  onActivate: () => void;
-}) {
-  const margin =
-    product.cost > 0 ? ((product.price - product.cost) / product.price) * 100 : 0;
-  return (
-    <div className="card self-start">
-      <div className="card__body pb-0">
-        <div className="text-lg font-semibold" style={{ letterSpacing: "-.01em" }}>
-          {product.name}
-        </div>
-        <div className="text-muted text-xs">
-          <span className="font-mono">{product.sku}</span> ·{" "}
-          <span className="tag">{product.category}</span>
-          {!product.isActive && (
-            <>
-              {" · "}
-              <span style={{ color: "var(--danger)" }}>Inactivo</span>
-            </>
-          )}
-        </div>
-
-        <div className="divider" style={{ margin: "12px 0" }} />
-
-        <div className="grid grid-cols-2 gap-3 text-[13px]">
-          <Kv label="Origen" v={sourceLabel(product.source)} />
-          <Kv label="Proveedor" v={product.supplierName ?? "—"} />
-          <Kv label="Método" v={product.method ?? "—"} />
-          <Kv label="Lead" v={`${product.leadDays} días`} />
-          <Kv label="Precio" v={`${fmtMXN(product.price)} / ${product.unit}`} />
-          <Kv label="Costo" v={`${fmtMXN(product.cost)} / ${product.unit}`} />
-          <Kv label="Margen" v={`${margin.toFixed(1)}%`} />
-          <Kv
-            label="Stock"
-            v={
-              product.source === "supplier"
-                ? "—"
-                : `${fmtInt(product.stock)} ${product.unit}`
-            }
-          />
-          <Kv
-            label="Requiere aprobación"
-            v={product.needsApproval ? "Sí" : "No"}
-          />
-        </div>
-      </div>
-
-      <div className="divider m-0 mt-3" />
-
-      <div className="px-4 py-3 flex gap-2 flex-wrap">
-        <button className="btn btn--sm" onClick={onEdit}>
-          {I.edit} Editar
-        </button>
-        {product.isActive ? (
-          <button className="btn btn--sm btn--danger" onClick={onDeactivate}>
-            {I.x} Desactivar
-          </button>
-        ) : (
-          <button className="btn btn--sm btn--accent" onClick={onActivate}>
-            {I.check} Activar
-          </button>
-        )}
-      </div>
-
-      {/* TODO: variantes (Tier 2), recetas/BOM (Tier 3), dimensiones (Tier 4) */}
-    </div>
-  );
-}
-
-function Kv({ label, v }: { label: string; v: React.ReactNode }) {
-  return (
-    <div>
-      <div className="text-muted text-[11px]">{label}</div>
-      <div>{v}</div>
-    </div>
   );
 }
 

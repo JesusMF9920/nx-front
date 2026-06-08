@@ -1,10 +1,13 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { usePermission } from "@/lib/auth/auth-context";
 import { Avatar } from "@/components/avatar";
 import { I } from "@/components/icons";
+import { Modal } from "@/components/modal";
 import { SummaryRow } from "@/components/summary-row";
+import { PosClientPicker } from "@/components/pos-client-picker";
 import { PosPaymentModal } from "@/components/pos-payment-modal";
 import {
   PosSizeBreakdownPicker,
@@ -14,60 +17,31 @@ import {
   PosVariantPicker,
   type VariantLineData,
 } from "@/components/pos-variant-picker";
+import { catalogApi } from "@/lib/api/catalog";
+import { ApiError } from "@/lib/api/errors";
+import { inventoryApi } from "@/lib/api/inventory";
+import type { CheckoutLineInput } from "@/lib/api/orders";
+import type {
+  ApiClient,
+  ApiMaterial,
+  ApiProduct,
+  ApiProductDetail,
+  ApiProductSource,
+} from "@/lib/api/types";
 import { fmtMXN } from "@/lib/format";
-import { NEXUM_CLIENTS } from "@/lib/mock-clients";
-import { NEXUM_PRODUCTS } from "@/lib/mock-products";
-import type { CartLine, Product, SizeBreakdownEntry } from "@/lib/types";
+import type { CartLine, ProductSource, SizeBreakdownEntry } from "@/lib/types";
 
-type EditableProduct = Product & {
-  _editLineId?: string;
-  _editBreakdown?: SizeBreakdownEntry[];
+type PickerState = {
+  detail: ApiProductDetail;
+  /** Solo para sized_from_material: material origen de tallas. */
+  material?: ApiMaterial;
+  editLineId?: string;
+  editBreakdown?: SizeBreakdownEntry[];
 };
 
-const CATEGORIES = ["Todos", "Textil", "Promocional", "Papelería", "Gran formato"];
-
-const INITIAL_CART: CartLine[] = [
-  {
-    lineId: "L1",
-    id: "p01",
-    qty: 40,
-    price: 150,
-    name: "Playera blanca DTF",
-    sku: "PLY-DTF-001",
-    source: "Interno",
-    needsApproval: true,
-    sizedFromMaterial: "m01",
-    sizeBreakdown: [
-      { sizeId: "CH",  qty: 5,  surcharge: 0 },
-      { sizeId: "M",   qty: 12, surcharge: 0 },
-      { sizeId: "G",   qty: 15, surcharge: 0 },
-      { sizeId: "EG",  qty: 6,  surcharge: 15 },
-      { sizeId: "EEG", qty: 2,  surcharge: 25 },
-    ],
-  },
-  {
-    lineId: "L3",
-    id: "p03",
-    qty: 40,
-    price: 85,
-    name: "Vaso cerámico sublimado 11oz",
-    sku: "VAS-SUB-003",
-    source: "Interno",
-    needsApproval: true,
-  },
-  {
-    lineId: "L4",
-    id: "p05",
-    qty: 8,
-    price: 95,
-    name: "Lona 13oz frontlit",
-    sku: "LON-13O-005",
-    source: "Proveedor",
-    supplier: "Lonas del Bajío",
-    needsApproval: true,
-    variantLabel: "4.0 × 2.0 m (8 m²)",
-  },
-];
+function sourceLabel(s: ApiProductSource): ProductSource {
+  return s === "internal" ? "Interno" : "Proveedor";
+}
 
 function lineSubtotal(line: CartLine): number {
   if (line.sizeBreakdown) {
@@ -78,27 +52,153 @@ function lineSubtotal(line: CartLine): number {
 
 export default function POSPage() {
   const router = useRouter();
-  const [cart, setCart] = useState<CartLine[]>(INITIAL_CART);
-  const [client] = useState(NEXUM_CLIENTS[0]);
+  const [products, setProducts] = useState<ApiProduct[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
+  const [cart, setCart] = useState<CartLine[]>([]);
+  const [client, setClient] = useState<ApiClient | null>(null);
+  const [showClientPicker, setShowClientPicker] = useState(false);
   const [search, setSearch] = useState("");
+  const [debounced, setDebounced] = useState("");
   const [activeCategory, setActiveCategory] = useState("Todos");
+  const [categories, setCategories] = useState<string[]>(["Todos"]);
+  const [page, setPage] = useState(1);
+  const [productsTotal, setProductsTotal] = useState(0);
+  const canSell = usePermission("sales.pos.sell");
+  const PAGE_SIZE = 24;
+  const [discount, setDiscount] = useState(0);
+  const [discountDraft, setDiscountDraft] = useState("");
+  const [showDiscount, setShowDiscount] = useState(false);
+  const [deliverAt, setDeliverAt] = useState("");
+  const [deliverDraft, setDeliverDraft] = useState("");
+  const [showDeliver, setShowDeliver] = useState(false);
   const [showPay, setShowPay] = useState(false);
-  const [variantPicker, setVariantPicker] = useState<EditableProduct | null>(null);
+  const [variantPicker, setVariantPicker] = useState<PickerState | null>(null);
+  const [detailCache, setDetailCache] = useState<Map<string, ApiProductDetail>>(
+    () => new Map(),
+  );
+  const [materialCache, setMaterialCache] = useState<Map<string, ApiMaterial>>(
+    () => new Map(),
+  );
 
+  useEffect(() => {
+    const id = setTimeout(() => {
+      setDebounced(search.trim());
+      setPage(1);
+    }, 250);
+    return () => clearTimeout(id);
+  }, [search]);
+
+  const reload = async () => {
+    setLoading(true);
+    setLoadError(null);
+    try {
+      const res = await catalogApi.list({
+        skip: (page - 1) * PAGE_SIZE,
+        take: PAGE_SIZE,
+        search: debounced || undefined,
+        // Filtro de categoría SERVER-SIDE: con paginación, filtrar la página
+        // actual en cliente dejaría huecos (total y páginas serían erróneos).
+        category: activeCategory === "Todos" ? undefined : activeCategory,
+        isActive: true,
+        orderBy: "name",
+        order: "asc",
+      });
+      setProducts(res.items);
+      setProductsTotal(res.total);
+    } catch (err) {
+      setLoadError(
+        err instanceof ApiError
+          ? err.message
+          : "No se pudieron cargar los productos.",
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    void reload();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [debounced, activeCategory, page]);
+
+  // Categorías estables (todo el catálogo activo), no derivadas de la página.
+  useEffect(() => {
+    let cancelled = false;
+    catalogApi
+      .categories()
+      .then((cats) => {
+        if (!cancelled) setCategories(["Todos", ...cats]);
+      })
+      .catch(() => {
+        // Si falla, el filtro queda solo con "Todos" — no bloquea la venta.
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  // Totales client-side SOLO orientativos — el total autoritativo lo da posApi.preview.
   const subtotal = cart.reduce((s, l) => s + lineSubtotal(l), 0);
-  const discount = 0;
-  const tax = (subtotal - discount) * 0.16;
-  const total = subtotal - discount + tax;
+  const discountApplied = Math.min(discount, subtotal);
+  const tax = (subtotal - discountApplied) * 0.16;
+  const total = subtotal - discountApplied + tax;
 
-  const filteredProducts = NEXUM_PRODUCTS.filter((p) => {
-    if (activeCategory !== "Todos" && p.category !== activeCategory) return false;
-    if (!search) return true;
-    return `${p.name} ${p.sku}`.toLowerCase().includes(search.toLowerCase());
-  });
+  const totalPages = Math.max(1, Math.ceil(productsTotal / PAGE_SIZE));
 
-  const addToCart = (p: Product) => {
+  const ensureDetail = async (productId: string): Promise<ApiProductDetail> => {
+    const cached = detailCache.get(productId);
+    if (cached) return cached;
+    const detail = await catalogApi.get(productId);
+    setDetailCache((prev) => new Map(prev).set(productId, detail));
+    return detail;
+  };
+
+  const ensureMaterial = async (materialId: string): Promise<ApiMaterial> => {
+    const cached = materialCache.get(materialId);
+    if (cached) return cached;
+    const material = await inventoryApi.get(materialId);
+    setMaterialCache((prev) => new Map(prev).set(materialId, material));
+    return material;
+  };
+
+  const openPicker = async (
+    productId: string,
+    edit?: { lineId: string; breakdown: SizeBreakdownEntry[] },
+  ) => {
+    setActionError(null);
+    try {
+      const detail = await ensureDetail(productId);
+      let material: ApiMaterial | undefined;
+      if (detail.variantType === "sized_from_material") {
+        if (!detail.sizedFromMaterialId) {
+          setActionError(
+            "El producto no tiene configurado el material de tallas.",
+          );
+          return;
+        }
+        material = await ensureMaterial(detail.sizedFromMaterialId);
+      }
+      setVariantPicker({
+        detail,
+        material,
+        editLineId: edit?.lineId,
+        editBreakdown: edit?.breakdown,
+      });
+    } catch (err) {
+      setActionError(
+        err instanceof ApiError
+          ? err.message
+          : "No se pudo cargar el detalle del producto.",
+      );
+    }
+  };
+
+  const addToCart = (p: ApiProduct) => {
     if (p.variantType !== "none") {
-      setVariantPicker(p);
+      void openPicker(p.id);
       return;
     }
     setCart((cs) => [
@@ -108,8 +208,8 @@ export default function POSPage() {
         id: p.id,
         name: p.name,
         sku: p.sku,
-        source: p.source,
-        supplier: p.supplier,
+        source: sourceLabel(p.source),
+        supplier: p.supplierName ?? undefined,
         needsApproval: p.needsApproval,
         qty: 1,
         price: p.price,
@@ -117,7 +217,7 @@ export default function POSPage() {
     ]);
   };
 
-  const addVariant = (p: Product, line: VariantLineData) => {
+  const addVariant = (p: ApiProductDetail, line: VariantLineData) => {
     setCart((cs) => [
       ...cs,
       {
@@ -125,8 +225,8 @@ export default function POSPage() {
         id: p.id,
         name: p.name,
         sku: p.sku,
-        source: p.source,
-        supplier: p.supplier,
+        source: sourceLabel(p.source),
+        supplier: p.supplierName ?? undefined,
         needsApproval: p.needsApproval,
         ...line,
       },
@@ -135,7 +235,7 @@ export default function POSPage() {
   };
 
   const addOrUpdateBreakdown = (
-    p: Product,
+    p: ApiProductDetail,
     line: SizeBreakdownLineData,
     editLineId?: string,
   ) => {
@@ -148,10 +248,10 @@ export default function POSPage() {
           id: p.id,
           name: p.name,
           sku: p.sku,
-          source: p.source,
-          supplier: p.supplier,
+          source: sourceLabel(p.source),
+          supplier: p.supplierName ?? undefined,
           needsApproval: p.needsApproval,
-          sizedFromMaterial: p.sizedFromMaterial,
+          sizedFromMaterial: p.sizedFromMaterialId ?? undefined,
           ...line,
         },
       ];
@@ -166,14 +266,41 @@ export default function POSPage() {
   };
 
   const editBreakdown = (line: CartLine) => {
-    const product = NEXUM_PRODUCTS.find((p) => p.id === line.id);
-    if (!product) return;
-    setVariantPicker({
-      ...product,
-      _editLineId: line.lineId,
-      _editBreakdown: line.sizeBreakdown,
+    void openPicker(line.id, {
+      lineId: line.lineId,
+      breakdown: line.sizeBreakdown ?? [],
     });
   };
+
+  /** Shape EXACTO de CheckoutLineInput según variantType (forbidNonWhitelisted en el backend). */
+  const checkoutLines = useMemo<CheckoutLineInput[]>(
+    () =>
+      cart.flatMap<CheckoutLineInput>((line) => {
+        if (line.sizeBreakdown) {
+          return [
+            {
+              productId: line.id,
+              sizeBreakdown: line.sizeBreakdown
+                .filter((b) => b.qty > 0)
+                .map((b) => ({ sizeId: b.sizeId, qty: b.qty })),
+            },
+          ];
+        }
+        if (line.dimension) {
+          // El backend cotiza UNA pieza por línea dimension (qty derivada del área):
+          // se expande la cantidad del carrito en N líneas idénticas.
+          return Array.from({ length: Math.max(1, line.qty) }, () => ({
+            productId: line.id,
+            dimension: { ...line.dimension! },
+          }));
+        }
+        if (line.variantCode) {
+          return [{ productId: line.id, qty: line.qty, variantCode: line.variantCode }];
+        }
+        return [{ productId: line.id, qty: line.qty }];
+      }),
+    [cart],
+  );
 
   return (
     <div
@@ -204,11 +331,14 @@ export default function POSPage() {
             <span className="kbd">F3</span>
           </div>
           <div className="row gap-1">
-            {CATEGORIES.map((c) => (
+            {categories.map((c) => (
               <button
                 key={c}
                 className={`btn btn--sm ${c === activeCategory ? "btn--primary" : "btn--ghost"}`}
-                onClick={() => setActiveCategory(c)}
+                onClick={() => {
+                  setActiveCategory(c);
+                  setPage(1);
+                }}
               >
                 {c}
               </button>
@@ -217,39 +347,104 @@ export default function POSPage() {
         </div>
 
         <div className="flex-1 overflow-y-auto p-5">
-          <div className="grid gap-3" style={{ gridTemplateColumns: "repeat(4, 1fr)" }}>
-            {filteredProducts.map((p) => (
-              <button
-                type="button"
-                key={p.id}
-                onClick={() => addToCart(p)}
-                className="text-left border border-line bg-surface p-0 cursor-pointer overflow-hidden flex flex-col rounded-[10px]"
-              >
-                <div className="skeleton-img text-[10px]" style={{ height: 90, borderRadius: 0 }}>
-                  {p.method}
-                </div>
-                <div className="p-2.5 flex-1">
-                  <div className="text-xs font-medium" style={{ lineHeight: 1.3 }}>{p.name}</div>
-                  <div className="text-muted text-[10px] font-mono">{p.sku}</div>
-                </div>
-                <div
-                  className="px-2.5 py-2 flex items-center gap-1.5"
-                  style={{ borderTop: "1px solid var(--line)" }}
+          {(loadError || actionError) && (
+            <div
+              className="flex items-start gap-2 rounded-md mb-3"
+              style={{
+                padding: 12,
+                border: "1px solid var(--danger)",
+                color: "var(--danger)",
+                background: "var(--danger-soft)",
+              }}
+              role="alert"
+            >
+              <span className="flex-1">{loadError ?? actionError}</span>
+              {actionError && !loadError && (
+                <button
+                  className="icon-btn"
+                  type="button"
+                  onClick={() => setActionError(null)}
+                  aria-label="Cerrar"
                 >
-                  <span className="num font-semibold text-[13px]">{fmtMXN(p.price)}</span>
-                  <div className="spacer" />
-                  {p.variantType !== "none" && (
-                    <span className="tag" title="Requiere variante">{I.layers}</span>
-                  )}
-                  {p.source === "Proveedor" ? (
-                    <span className="tag text-supplier">Prov.</span>
-                  ) : (
-                    <span className="tag">{p.leadDays}d</span>
-                  )}
-                </div>
+                  {I.x}
+                </button>
+              )}
+            </div>
+          )}
+          {loading ? (
+            <div className="empty">Cargando…</div>
+          ) : products.length === 0 && !loadError ? (
+            <div className="empty">
+              {debounced || activeCategory !== "Todos"
+                ? "Sin productos para el filtro."
+                : "No hay productos activos en el catálogo."}
+            </div>
+          ) : (
+            <div className="grid gap-3" style={{ gridTemplateColumns: "repeat(4, 1fr)" }}>
+              {products.map((p) => (
+                <button
+                  type="button"
+                  key={p.id}
+                  onClick={() => addToCart(p)}
+                  className="text-left border border-line bg-surface p-0 cursor-pointer overflow-hidden flex flex-col rounded-[10px]"
+                >
+                  <div className="skeleton-img text-[10px]" style={{ height: 90, borderRadius: 0 }}>
+                    {p.method ?? p.category}
+                  </div>
+                  <div className="p-2.5 flex-1">
+                    <div className="text-xs font-medium" style={{ lineHeight: 1.3 }}>{p.name}</div>
+                    <div className="text-muted text-[10px] font-mono">{p.sku}</div>
+                  </div>
+                  <div
+                    className="px-2.5 py-2 flex items-center gap-1.5"
+                    style={{ borderTop: "1px solid var(--line)" }}
+                  >
+                    <span className="num font-semibold text-[13px]">{fmtMXN(p.price)}</span>
+                    <div className="spacer" />
+                    {p.variantType !== "none" && (
+                      <span className="tag" title="Requiere variante">{I.layers}</span>
+                    )}
+                    {p.source === "supplier" ? (
+                      <span className="tag text-supplier">Prov.</span>
+                    ) : (
+                      <span className="tag">{p.leadDays}d</span>
+                    )}
+                  </div>
+                </button>
+              ))}
+            </div>
+          )}
+          {!loading && !loadError && productsTotal > 0 && (
+            <div className="flex items-center gap-3 text-xs text-muted mt-4">
+              <span>
+                Mostrando {(page - 1) * PAGE_SIZE + 1}–
+                {Math.min(page * PAGE_SIZE, productsTotal)} de {productsTotal}
+                {activeCategory !== "Todos" ? ` · ${activeCategory}` : ""}
+              </span>
+              <div className="spacer" />
+              <span className="num text-[11px]">
+                Página {page} de {totalPages}
+              </span>
+              <button
+                className="btn btn--sm btn--ghost"
+                type="button"
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+                disabled={page <= 1}
+                aria-label="Página anterior"
+              >
+                {I.chevronLeft}
               </button>
-            ))}
-          </div>
+              <button
+                className="btn btn--sm btn--ghost"
+                type="button"
+                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                disabled={page >= totalPages}
+                aria-label="Página siguiente"
+              >
+                {I.chevronRight}
+              </button>
+            </div>
+          )}
         </div>
       </div>
 
@@ -267,14 +462,29 @@ export default function POSPage() {
           >
             Cliente
           </div>
-          <div className="flex items-center gap-2.5">
-            <Avatar name={client.name} size={32} />
-            <div className="flex-1 min-w-0">
-              <div className="font-medium text-[13px]">{client.name}</div>
-              <div className="text-muted text-[11px]">{client.phone} · {client.rfc}</div>
+          {client ? (
+            <div className="flex items-center gap-2.5">
+              <Avatar name={client.name} size={32} />
+              <div className="flex-1 min-w-0">
+                <div className="font-medium text-[13px]">{client.name}</div>
+                <div className="text-muted text-[11px]">
+                  {[client.phone, client.rfc].filter(Boolean).join(" · ") || "Sin datos de contacto"}
+                </div>
+              </div>
+              <button className="btn btn--sm" onClick={() => setShowClientPicker(true)}>
+                Cambiar
+              </button>
             </div>
-            <button className="btn btn--sm">Cambiar</button>
-          </div>
+          ) : (
+            <div className="flex items-center gap-2.5">
+              <div className="flex-1 min-w-0 text-muted text-[12px]">
+                Sin cliente seleccionado — requerido para cobrar.
+              </div>
+              <button className="btn btn--sm" onClick={() => setShowClientPicker(true)}>
+                Seleccionar
+              </button>
+            </div>
+          )}
         </div>
 
         <div className="flex-1 overflow-y-auto">
@@ -382,19 +592,36 @@ export default function POSPage() {
           style={{ borderTop: "1px solid var(--line)" }}
         >
           <SummaryRow label="Subtotal" value={fmtMXN(subtotal)} />
-          <SummaryRow label="Descuento" value={fmtMXN(discount)} muted />
+          <SummaryRow label="Descuento" value={fmtMXN(discountApplied)} muted />
           <SummaryRow label="IVA 16%" value={fmtMXN(tax)} />
           <div className="bg-line my-2.5" style={{ height: 1 }} />
           <SummaryRow label="Total" value={fmtMXN(total)} big />
 
           <div className="grid grid-cols-2 gap-2 mt-3">
-            <button className="btn">{I.tag} Descuento</button>
-            <button className="btn">{I.calendar} Fecha entrega</button>
+            <button
+              className="btn"
+              onClick={() => {
+                setDiscountDraft(discount > 0 ? String(discount) : "");
+                setShowDiscount(true);
+              }}
+            >
+              {I.tag} {discount > 0 ? `Descuento · ${fmtMXN(discount)}` : "Descuento"}
+            </button>
+            <button
+              className="btn"
+              onClick={() => {
+                setDeliverDraft(deliverAt);
+                setShowDeliver(true);
+              }}
+            >
+              {I.calendar} {deliverAt || "Fecha entrega"}
+            </button>
           </div>
           <button
             className="btn btn--accent btn--lg w-full justify-center mt-2"
             onClick={() => setShowPay(true)}
-            disabled={cart.length === 0}
+            disabled={cart.length === 0 || !client || !canSell}
+            title={!canSell ? "No tienes permiso para cobrar (sales.pos.sell)" : undefined}
           >
             {I.cash} Cobrar {fmtMXN(total)}
             <span
@@ -404,34 +631,134 @@ export default function POSPage() {
               F8
             </span>
           </button>
+          {!canSell && (
+            <div className="text-[11px] text-muted mt-1.5 text-center">
+              No tienes permiso para cobrar en el punto de venta.
+            </div>
+          )}
         </div>
       </div>
 
-      {showPay && (
+      {showClientPicker && (
+        <PosClientPicker
+          onClose={() => setShowClientPicker(false)}
+          onSelect={(c) => {
+            setClient(c);
+            setShowClientPicker(false);
+          }}
+        />
+      )}
+
+      {showDiscount && (
+        <Modal
+          title="Descuento"
+          onClose={() => setShowDiscount(false)}
+          width={360}
+          footer={
+            <>
+              <button className="btn btn--ghost" onClick={() => setShowDiscount(false)}>
+                Cancelar
+              </button>
+              <button
+                className="btn btn--primary"
+                onClick={() => {
+                  const v = parseFloat(discountDraft);
+                  setDiscount(Number.isFinite(v) && v > 0 ? Math.round(v * 100) / 100 : 0);
+                  setShowDiscount(false);
+                }}
+              >
+                Aplicar
+              </button>
+            </>
+          }
+        >
+          <label className="field">
+            <span className="label">Monto (MXN)</span>
+            <input
+              className="input num"
+              type="number"
+              min={0}
+              step="0.01"
+              value={discountDraft}
+              onChange={(e) => setDiscountDraft(e.target.value)}
+              autoFocus
+            />
+          </label>
+          <div className="text-[11px] text-muted mt-2">
+            Descuento en pesos sobre el subtotal. Déjalo vacío o en 0 para quitarlo.
+          </div>
+        </Modal>
+      )}
+
+      {showDeliver && (
+        <Modal
+          title="Fecha de entrega"
+          onClose={() => setShowDeliver(false)}
+          width={360}
+          footer={
+            <>
+              <button className="btn btn--ghost" onClick={() => setShowDeliver(false)}>
+                Cancelar
+              </button>
+              <button
+                className="btn btn--primary"
+                onClick={() => {
+                  setDeliverAt(deliverDraft);
+                  setShowDeliver(false);
+                }}
+              >
+                Aplicar
+              </button>
+            </>
+          }
+        >
+          <label className="field">
+            <span className="label">Fecha</span>
+            <input
+              className="input"
+              type="date"
+              value={deliverDraft}
+              onChange={(e) => setDeliverDraft(e.target.value)}
+              autoFocus
+            />
+          </label>
+          <div className="text-[11px] text-muted mt-2">
+            Fecha comprometida de entrega del pedido. Déjala vacía para omitirla.
+          </div>
+        </Modal>
+      )}
+
+      {showPay && client && (
         <PosPaymentModal
-          total={total}
-          cart={cart}
-          customerEmail={client.email}
+          clientId={client.id}
+          lines={checkoutLines}
+          discount={discount}
+          deliverAt={deliverAt || undefined}
+          customerEmail={client.email ?? undefined}
           onClose={() => setShowPay(false)}
-          onPaid={() => {
+          onPaid={(res) => {
             setShowPay(false);
-            router.push("/orders/ORD-1842");
+            setCart([]);
+            setDiscount(0);
+            setDeliverAt("");
+            router.push(`/orders/${res.folio}`);
           }}
         />
       )}
 
       {variantPicker &&
-        (variantPicker.variantType === "sizedFromMaterial" ? (
+        (variantPicker.detail.variantType === "sized_from_material" && variantPicker.material ? (
           <PosSizeBreakdownPicker
-            product={variantPicker}
-            editLineId={variantPicker._editLineId}
-            editBreakdown={variantPicker._editBreakdown}
+            product={variantPicker.detail}
+            material={variantPicker.material}
+            editLineId={variantPicker.editLineId}
+            editBreakdown={variantPicker.editBreakdown}
             onClose={() => setVariantPicker(null)}
             onAdd={addOrUpdateBreakdown}
           />
         ) : (
           <PosVariantPicker
-            product={variantPicker}
+            product={variantPicker.detail}
             onClose={() => setVariantPicker(null)}
             onAdd={addVariant}
           />
@@ -439,4 +766,3 @@ export default function POSPage() {
     </div>
   );
 }
-

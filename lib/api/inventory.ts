@@ -41,9 +41,18 @@ export type ListMaterialsParams = {
 
 export type RecordStockMoveInput = {
   type: ApiStockMoveType;
+  /** Decimal con hasta 3 decimales. */
   qty: number;
+  /** Obligatorio si el material tiene variantes; prohibido si no. */
+  materialVariantId?: string | null;
   ref?: string | null;
   note?: string | null;
+};
+
+export type MaterialVariantInput = {
+  code: string;
+  label: string;
+  sortOrder?: number;
 };
 
 export const inventoryApi = {
@@ -86,6 +95,20 @@ export const inventoryApi = {
 
   activate(id: string): Promise<void> {
     return apiFetch<void>(`/materials/${id}/activate`, { method: "POST" });
+  },
+
+  /**
+   * Replace-all con upsert por code. El backend exige stock 0 para la primera
+   * transición a variantes y rechaza (409) quitar una variante con stock ≠ 0.
+   */
+  setVariants(
+    materialId: string,
+    variants: MaterialVariantInput[],
+  ): Promise<void> {
+    return apiFetch<void>(`/materials/${materialId}/variants`, {
+      method: "PUT",
+      body: JSON.stringify({ variants }),
+    });
   },
 
   recordStockMove(

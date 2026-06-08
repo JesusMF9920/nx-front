@@ -4,52 +4,55 @@ import { useState } from "react";
 import { I } from "@/components/icons";
 import { Modal } from "@/components/modal";
 import { fmtMXN } from "@/lib/format";
-import { NEXUM_MATERIALS } from "@/lib/mock-materials";
-import type { Product, SizeBreakdownEntry } from "@/lib/types";
+import type { ApiMaterial, ApiProductDetail } from "@/lib/api/types";
+import type { SizeBreakdownEntry } from "@/lib/types";
 
 export type SizeBreakdownLineData = {
   qty: number;
+  /** Orientativo — el precio autoritativo lo calcula el backend en preview/checkout. */
   price: number;
   sizeBreakdown: SizeBreakdownEntry[];
 };
 
 type Props = {
-  product: Product;
+  product: ApiProductDetail;
+  /** Material origen de las tallas (variants reales con code/label/stock). */
+  material: ApiMaterial;
   editLineId?: string;
   editBreakdown?: SizeBreakdownEntry[];
   onClose: () => void;
-  onAdd: (product: Product, line: SizeBreakdownLineData, editLineId?: string) => void;
+  onAdd: (product: ApiProductDetail, line: SizeBreakdownLineData, editLineId?: string) => void;
 };
 
 const COLS = "80px 1fr 110px 110px 130px";
 
-export function PosSizeBreakdownPicker({ product, editLineId, editBreakdown, onClose, onAdd }: Props) {
-  const material = NEXUM_MATERIALS.find((m) => m.id === product.sizedFromMaterial);
-  const sizes = material?.variants ?? [];
+export function PosSizeBreakdownPicker({ product, material, editLineId, editBreakdown, onClose, onAdd }: Props) {
+  // El sizeId del breakdown es el CODE de la variante del material (no su UUID).
+  const sizes = [...material.variants].sort((a, b) => a.sortOrder - b.sortOrder);
   const surcharges = product.sizeSurcharges ?? {};
 
   const initial: Record<string, number> = editBreakdown
     ? Object.fromEntries(editBreakdown.map((b) => [b.sizeId, b.qty]))
-    : Object.fromEntries(sizes.map((s) => [s.id, 0]));
+    : Object.fromEntries(sizes.map((s) => [s.code, 0]));
 
   const [qtys, setQtys] = useState<Record<string, number>>(initial);
 
   const totalQty = Object.values(qtys).reduce((a, b) => a + (b || 0), 0);
   const lineSubtotal = sizes.reduce((s, sz) => {
-    const q = qtys[sz.id] ?? 0;
-    return s + q * (product.price + (surcharges[sz.id] ?? 0));
+    const q = qtys[sz.code] ?? 0;
+    return s + q * (product.price + (surcharges[sz.code] ?? 0));
   }, 0);
 
-  const setQty = (id: string, q: number) =>
-    setQtys((prev) => ({ ...prev, [id]: Math.max(0, q) }));
+  const setQty = (code: string, q: number) =>
+    setQtys((prev) => ({ ...prev, [code]: Math.max(0, q) }));
 
   const submit = () => {
     if (totalQty === 0) return;
     const breakdown: SizeBreakdownEntry[] = sizes
       .map((sz) => ({
-        sizeId: sz.id,
-        qty: qtys[sz.id] ?? 0,
-        surcharge: surcharges[sz.id] ?? 0,
+        sizeId: sz.code,
+        qty: qtys[sz.code] ?? 0,
+        surcharge: surcharges[sz.code] ?? 0,
       }))
       .filter((b) => b.qty > 0);
     onAdd(product, { qty: totalQty, price: product.price, sizeBreakdown: breakdown }, editLineId);
@@ -61,7 +64,7 @@ export function PosSizeBreakdownPicker({ product, editLineId, editBreakdown, onC
         <div className="flex items-center gap-2.5 text-xs text-muted">
           <span className="text-accent">{I.layers}</span>
           <div>
-            Las tallas vienen del insumo <strong className="text-ink">{material?.name}</strong>.
+            Las tallas vienen del insumo <strong className="text-ink">{material.name}</strong>.
             Stock se descuenta por talla.
           </div>
         </div>
@@ -78,21 +81,21 @@ export function PosSizeBreakdownPicker({ product, editLineId, editBreakdown, onC
             <span className="text-right">Subtotal</span>
           </div>
           {sizes.map((sz) => {
-            const q = qtys[sz.id] ?? 0;
-            const surcharge = surcharges[sz.id] ?? 0;
+            const q = qtys[sz.code] ?? 0;
+            const surcharge = surcharges[sz.code] ?? 0;
             const unit = product.price + surcharge;
             const remaining = sz.stock - q;
             const lowStock = remaining < 5;
             return (
               <div
-                key={sz.id}
+                key={sz.code}
                 className="grid px-3.5 py-2.5 items-center"
                 style={{
                   gridTemplateColumns: COLS,
                   borderTop: "1px solid var(--line)",
                 }}
               >
-                <div className="font-semibold font-mono">{sz.id}</div>
+                <div className="font-semibold font-mono">{sz.code}</div>
                 <div className="text-[11px] text-muted">
                   Stock:{" "}
                   <span style={{ color: lowStock ? "var(--warn)" : "var(--ink)" }}>{remaining}</span>{" "}
@@ -110,21 +113,21 @@ export function PosSizeBreakdownPicker({ product, editLineId, editBreakdown, onC
                       type="button"
                       className="btn btn--ghost btn--sm"
                       style={{ borderRadius: 0 }}
-                      onClick={() => setQty(sz.id, q - 1)}
+                      onClick={() => setQty(sz.code, q - 1)}
                     >
                       −
                     </button>
                     <input
                       className="num text-center bg-transparent"
                       value={q}
-                      onChange={(e) => setQty(sz.id, parseInt(e.target.value || "0", 10))}
+                      onChange={(e) => setQty(sz.code, parseInt(e.target.value || "0", 10))}
                       style={{ width: 44, border: 0, outline: "none", height: 26 }}
                     />
                     <button
                       type="button"
                       className="btn btn--ghost btn--sm"
                       style={{ borderRadius: 0 }}
-                      onClick={() => setQty(sz.id, q + 1)}
+                      onClick={() => setQty(sz.code, q + 1)}
                     >
                       +
                     </button>

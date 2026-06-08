@@ -1,5 +1,13 @@
 import { apiFetch } from "./client";
-import type { ApiList, ApiProduct, ApiProductSource } from "./types";
+import type {
+  ApiDimensionConfig,
+  ApiList,
+  ApiProduct,
+  ApiProductDetail,
+  ApiProductSource,
+  ApiRecipeItem,
+  ApiVariantType,
+} from "./types";
 
 export type CreateProductInput = {
   sku: string;
@@ -14,9 +22,29 @@ export type CreateProductInput = {
   stock?: number;
   unit?: string;
   needsApproval?: boolean;
+  variantType?: ApiVariantType;
+  dimensionConfig?: ApiDimensionConfig | null;
+  sizeSurcharges?: Record<string, number> | null;
+  sizedFromMaterialId?: string | null;
 };
 
 export type UpdateProductInput = Partial<CreateProductInput>;
+
+export type ProductVariantInput = {
+  code: string;
+  label: string;
+  /** Omitir en una variante existente preserva su valor actual. */
+  priceMod?: number;
+  stock?: number;
+  sortOrder?: number;
+};
+
+export type RecipeItemInput = {
+  materialId: string;
+  qty: number;
+  byVariant?: boolean;
+  note?: string | null;
+};
 
 export type ListProductsParams = {
   skip?: number;
@@ -46,8 +74,31 @@ export const catalogApi = {
     return apiFetch<ApiList<ApiProduct>>(`/products${qs ? `?${qs}` : ""}`);
   },
 
-  get(id: string): Promise<ApiProduct> {
-    return apiFetch<ApiProduct>(`/products/${id}`);
+  /** Categorías distintas (productos activos), ordenadas — para poblar filtros. */
+  categories(): Promise<string[]> {
+    return apiFetch<string[]>(`/products/categories`);
+  },
+
+  get(id: string): Promise<ApiProductDetail> {
+    return apiFetch<ApiProductDetail>(`/products/${id}`);
+  },
+
+  setVariants(id: string, variants: ProductVariantInput[]): Promise<void> {
+    return apiFetch<void>(`/products/${id}/variants`, {
+      method: "PUT",
+      body: JSON.stringify({ variants }),
+    });
+  },
+
+  getRecipe(id: string): Promise<{ items: ApiRecipeItem[] }> {
+    return apiFetch<{ items: ApiRecipeItem[] }>(`/products/${id}/recipe`);
+  },
+
+  setRecipe(id: string, items: RecipeItemInput[]): Promise<void> {
+    return apiFetch<void>(`/products/${id}/recipe`, {
+      method: "PUT",
+      body: JSON.stringify({ items }),
+    });
   },
 
   create(input: CreateProductInput): Promise<{ id: string }> {

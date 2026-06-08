@@ -1,6 +1,12 @@
 import type { OrderStatus } from "@/lib/types";
 
-const STATUS_CLASS: Record<OrderStatus, string> = {
+/**
+ * Etiquetas ES de estatus de pedido: el union mock + "Cancelada" (que solo
+ * existe en la API — ORDER_STATUS_ES de lib/api/sales-mappers).
+ */
+export type OrderStatusLabel = OrderStatus | "Cancelada";
+
+const STATUS_CLASS: Record<OrderStatusLabel, string> = {
   "En diseño":          "pill--info",
   "Aprobación cliente": "pill--warn",
   "Producción":         "pill--accent",
@@ -8,10 +14,11 @@ const STATUS_CLASS: Record<OrderStatus, string> = {
   "Entregado":          "pill--neutral",
   "Con proveedor":      "pill--supplier",
   "Pendiente":          "pill--danger",
+  "Cancelada":          "pill--danger",
 };
 
-export function StatusPill({ s, supplier }: { s: OrderStatus; supplier?: boolean }) {
-  const cls = STATUS_CLASS[s] ?? "pill--neutral";
+export function StatusPill({ s, supplier }: { s: string; supplier?: boolean }) {
+  const cls = STATUS_CLASS[s as OrderStatusLabel] ?? "pill--neutral";
   return (
     <span className={`pill ${cls}`} style={{ display: "inline-flex" }}>
       {s}

@@ -1,8 +1,17 @@
+import type { ApiStockShortage } from "./types";
+
 export type ApiErrorBody = {
   message?: string | string[];
+  /**
+   * Nombre de la clase de error del backend — es el discriminador real de los
+   * 409 de sales (p.ej. "InsufficientStockForSaleError", "TotalsMismatchError",
+   * "PaymentExceedsTotalError"); el filtro NO emite `code`.
+   */
   error?: string;
   statusCode?: number;
   code?: string;
+  /** Solo presente cuando error === "InsufficientStockForSaleError". */
+  shortages?: ApiStockShortage[];
 };
 
 export class ApiError extends Error {

@@ -4,43 +4,66 @@ import { useState } from "react";
 import { I } from "@/components/icons";
 import { Modal } from "@/components/modal";
 import { fmtMXN } from "@/lib/format";
-import type { Product, Variant } from "@/lib/types";
+import type { ApiProductDetail, ApiProductVariant } from "@/lib/api/types";
 
 export type VariantLineData = {
   qty: number;
+  /** Orientativo — el precio autoritativo lo calcula el backend en preview/checkout. */
   price: number;
   variantLabel: string;
+  /** Code real de la variante (preset/size) — requerido por el checkout. */
+  variantCode?: string;
+  /** Medidas crudas (dimension) — el backend deriva qty/precio. */
+  dimension?: { width: number; height: number };
 };
 
 type Props = {
-  product: Product;
+  product: ApiProductDetail;
   onClose: () => void;
-  onAdd: (product: Product, line: VariantLineData) => void;
+  onAdd: (product: ApiProductDetail, line: VariantLineData) => void;
 };
 
+function round2(n: number): number {
+  return Math.round(n * 100) / 100;
+}
+
 export function PosVariantPicker({ product, onClose, onAdd }: Props) {
-  const [selected, setSelected] = useState<Variant | null>(null);
+  const [selected, setSelected] = useState<ApiProductVariant | null>(null);
   const [qty, setQty] = useState(1);
   const [w, setW] = useState(2);
   const [h, setH] = useState(1);
 
   const isDim = product.variantType === "dimension";
   const cfg = product.dimensionConfig;
+  const variants = [...product.variants].sort((a, b) => a.sortOrder - b.sortOrder);
 
   let lineData: VariantLineData | null = null;
   if (isDim && cfg) {
-    const area = w * h * (cfg.unit === "cm" ? 0.0001 : 1);
-    const price = Math.max(product.price, product.price * area);
-    lineData = {
-      qty,
-      price: Math.round(price),
-      variantLabel: `${w} × ${h} ${cfg.unit} (${area.toFixed(2)} m²)`,
-    };
+    const dimValid =
+      w >= cfg.min && w <= cfg.max && h >= cfg.min && h <= cfg.max;
+    if (dimValid) {
+      // Espeja el cálculo del backend (orientativo): area = w*h en la unidad cruda.
+      const computedQty =
+        cfg.priceMode === "area"
+          ? round2(w * h)
+          : cfg.priceMode === "linear"
+            ? round2(Math.max(w, h))
+            : 1;
+      let label = `${w} × ${h} ${cfg.unit}`;
+      if (cfg.priceMode === "area") label += ` (${computedQty} ${cfg.unit}²)`;
+      lineData = {
+        qty,
+        price: round2(computedQty * product.price),
+        variantLabel: label,
+        dimension: { width: w, height: h },
+      };
+    }
   } else if (selected) {
     lineData = {
       qty,
-      price: product.price + (selected.priceMod || 0),
+      price: round2(product.price + (selected.priceMod || 0)),
       variantLabel: selected.label,
+      variantCode: selected.code,
     };
   }
 
@@ -72,16 +95,16 @@ export function PosVariantPicker({ product, onClose, onAdd }: Props) {
               className="grid gap-1.5"
               style={{ gridTemplateColumns: "repeat(auto-fill, minmax(96px, 1fr))" }}
             >
-              {(product.variants ?? []).map((v) => (
+              {variants.map((v) => (
                 <button
                   type="button"
-                  key={v.id}
+                  key={v.code}
                   onClick={() => setSelected(v)}
                   className="py-2.5 px-2 rounded-md cursor-pointer flex flex-col gap-0.5 text-left"
                   style={{
-                    border: selected?.id === v.id ? "1.5px solid var(--accent)" : "1px solid var(--line)",
-                    background: selected?.id === v.id ? "var(--accent-soft)" : "var(--surface)",
-                    color: selected?.id === v.id ? "var(--accent-ink)" : "var(--ink)",
+                    border: selected?.code === v.code ? "1.5px solid var(--accent)" : "1px solid var(--line)",
+                    background: selected?.code === v.code ? "var(--accent-soft)" : "var(--surface)",
+                    color: selected?.code === v.code ? "var(--accent-ink)" : "var(--ink)",
                   }}
                 >
                   <div className="font-medium text-[13px]">{v.label}</div>
@@ -131,8 +154,13 @@ export function PosVariantPicker({ product, onClose, onAdd }: Props) {
               </label>
             </div>
             <div className="mt-2 text-[11px] text-muted">
-              Precio por m²: <span className="num">{fmtMXN(product.price)}</span> · Mínimo {cfg.min}{" "}
-              {cfg.unit}, máximo {cfg.max} {cfg.unit}.
+              {cfg.priceMode === "area"
+                ? `Precio por ${cfg.unit}²`
+                : cfg.priceMode === "linear"
+                  ? `Precio por ${cfg.unit} lineal`
+                  : "Tarifa fija"}
+              : <span className="num">{fmtMXN(product.price)}</span> · Mínimo {cfg.min}{" "}
+              {cfg.unit}, máximo {cfg.max} {cfg.unit}. El precio final lo confirma el sistema al cobrar.
             </div>
           </div>
         )}

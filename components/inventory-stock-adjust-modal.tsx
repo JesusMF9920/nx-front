@@ -1,89 +1,204 @@
 "use client";
 
-import { useState } from "react";
-import { I } from "@/components/icons";
+import { useState, type FormEvent } from "react";
 import { Modal } from "@/components/modal";
-import { NEXUM_MATERIALS } from "@/lib/mock-materials";
+import { ApiError } from "@/lib/api/errors";
+import { inventoryApi } from "@/lib/api/inventory";
+import type { ApiMaterial } from "@/lib/api/types";
+import { fmtInt } from "@/lib/format";
 
-const REASONS = [
-  "Merma / desperdicio",
-  "Conteo físico",
-  "Producto dañado",
-  "Devolución a proveedor",
-  "Otro",
-];
+/** Delta con signo y hasta 3 decimales (el backend rechaza más). */
+const DELTA_RE = /^-?\d+(\.\d{1,3})?$/;
 
-export function InventoryStockAdjustModal({ onClose }: { onClose: () => void }) {
-  const [materialId, setMaterialId] = useState(NEXUM_MATERIALS[0].id);
-  const [delta, setDelta] = useState(-1);
-  const [reason, setReason] = useState(REASONS[0]);
-  const m = NEXUM_MATERIALS.find((x) => x.id === materialId)!;
+export function InventoryStockAdjustModal({
+  material,
+  onClose,
+  onDone,
+}: {
+  material: ApiMaterial;
+  onClose: () => void;
+  onDone: () => void | Promise<void>;
+}) {
+  const hasVariants = material.variants.length > 0;
+  const [variantId, setVariantId] = useState("");
+  const [delta, setDelta] = useState("");
+  const [ref, setRef] = useState("");
+  const [note, setNote] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const variant = hasVariants
+    ? material.variants.find((v) => v.id === variantId)
+    : undefined;
+  const baseStock = hasVariants ? (variant?.stock ?? null) : material.stock;
+  const deltaNum = DELTA_RE.test(delta.trim()) ? Number(delta.trim()) : null;
+  const resulting =
+    baseStock !== null && deltaNum !== null
+      ? Math.round((baseStock + deltaNum) * 1000) / 1000
+      : null;
+
+  const submit = async (e: FormEvent) => {
+    e.preventDefault();
+    if (submitting) return;
+    setError(null);
+    if (hasVariants && !variantId) {
+      setError("Selecciona la talla del ajuste.");
+      return;
+    }
+    const raw = delta.trim();
+    if (!DELTA_RE.test(raw)) {
+      setError("El delta debe ser un número con hasta 3 decimales.");
+      return;
+    }
+    const qtyNum = Number(raw);
+    if (qtyNum === 0) {
+      setError("Para ajuste la cantidad no puede ser cero.");
+      return;
+    }
+    setSubmitting(true);
+    try {
+      await inventoryApi.recordStockMove(material.id, {
+        type: "adjust",
+        qty: qtyNum,
+        ...(hasVariants ? { materialVariantId: variantId } : {}),
+        ref: ref.trim() || null,
+        note: note.trim() || null,
+      });
+      await onDone();
+    } catch (err) {
+      setError(
+        err instanceof ApiError
+          ? err.message
+          : "No se pudo registrar el ajuste.",
+      );
+      setSubmitting(false);
+    }
+  };
 
   return (
     <Modal
-      title="Ajuste de inventario"
+      title="Ajustar stock"
       onClose={onClose}
-      width={520}
+      width={480}
       footer={
         <>
-          <button className="btn btn--ghost" onClick={onClose}>Cancelar</button>
-          <button className="btn btn--accent" onClick={onClose}>
-            {I.check} Aplicar ajuste
+          <button className="btn btn--ghost" type="button" onClick={onClose}>
+            Cancelar
+          </button>
+          <button
+            className="btn btn--accent"
+            type="submit"
+            form="stock-adjust-form"
+            disabled={submitting}
+          >
+            {submitting ? "Guardando…" : "Registrar"}
           </button>
         </>
       }
     >
-      <label className="field">
-        <span className="label">Insumo</span>
-        <select className="input" value={materialId} onChange={(e) => setMaterialId(e.target.value)}>
-          {NEXUM_MATERIALS.map((x) => (
-            <option key={x.id} value={x.id}>
-              {x.name}
-            </option>
-          ))}
-        </select>
-      </label>
+      <form
+        id="stock-adjust-form"
+        onSubmit={submit}
+        className="grid"
+        style={{ gap: 14 }}
+      >
+        <div className="text-sm text-muted">
+          Material:{" "}
+          <span className="font-medium text-ink-2">{material.name}</span>
+        </div>
+        {hasVariants && (
+          <div className="field">
+            <span className="label">Talla</span>
+            <select
+              className="input"
+              value={variantId}
+              onChange={(e) => setVariantId(e.target.value)}
+              required
+            >
+              <option value="">Selecciona talla…</option>
+              {material.variants.map((v) => (
+                <option key={v.id} value={v.id}>
+                  {v.label} ({v.code}) · {fmtInt(v.stock)} {material.unit}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
 
-      <div className="grid grid-cols-2 gap-3.5 mt-3">
-        <div className="bg-surface-2 border border-line rounded-md p-3">
-          <div className="label">Stock actual</div>
-          <div className="num font-semibold" style={{ fontSize: 24 }}>
-            {m.stock}{" "}
-            <span className="text-xs text-muted font-normal">{m.unit}</span>
+        <div className="grid grid-cols-2 gap-3.5">
+          <div className="bg-surface-2 border border-line rounded-md p-3">
+            <div className="label">Stock actual</div>
+            <div className="num font-semibold" style={{ fontSize: 24 }}>
+              {baseStock === null ? "—" : fmtInt(baseStock)}{" "}
+              <span className="text-xs text-muted font-normal">
+                {material.unit}
+              </span>
+            </div>
+          </div>
+          <div className="bg-accent-soft border border-line rounded-md p-3">
+            <div className="label">Stock resultante</div>
+            <div
+              className="num font-semibold text-accent-ink"
+              style={{ fontSize: 24 }}
+            >
+              {resulting === null ? "—" : fmtInt(resulting)}{" "}
+              <span className="text-xs text-muted font-normal">
+                {material.unit}
+              </span>
+            </div>
           </div>
         </div>
-        <div className="bg-accent-soft border border-line rounded-md p-3">
-          <div className="label">Stock resultante</div>
-          <div className="num font-semibold text-accent-ink" style={{ fontSize: 24 }}>
-            {m.stock + delta}{" "}
-            <span className="text-xs text-muted font-normal">{m.unit}</span>
-          </div>
+
+        <div className="field">
+          <span className="label">Delta (positivo o negativo)</span>
+          <input
+            className="input"
+            type="number"
+            step={0.001}
+            value={delta}
+            onChange={(e) => setDelta(e.target.value)}
+            required
+            autoFocus
+          />
+          <small className="help mt-1">
+            Usa positivo para aumentar, negativo para reducir. Hasta 3 decimales.
+          </small>
         </div>
-      </div>
-
-      <label className="field mt-3">
-        <span className="label">Diferencia (+/−)</span>
-        <input
-          type="number"
-          className="input num"
-          value={delta}
-          onChange={(e) => setDelta(parseFloat(e.target.value || "0"))}
-        />
-      </label>
-
-      <label className="field mt-3">
-        <span className="label">Motivo</span>
-        <select className="input" value={reason} onChange={(e) => setReason(e.target.value)}>
-          {REASONS.map((r) => (
-            <option key={r}>{r}</option>
-          ))}
-        </select>
-      </label>
-
-      <label className="field mt-3">
-        <span className="label">Nota</span>
-        <input className="input" placeholder="Detalles del ajuste" />
-      </label>
+        <div className="field">
+          <span className="label">Referencia (opcional)</span>
+          <input
+            className="input"
+            placeholder="Conteo físico, merma…"
+            value={ref}
+            onChange={(e) => setRef(e.target.value)}
+            maxLength={80}
+          />
+        </div>
+        <div className="field">
+          <span className="label">Nota (opcional)</span>
+          <textarea
+            className="textarea"
+            rows={2}
+            value={note}
+            onChange={(e) => setNote(e.target.value)}
+            maxLength={500}
+          />
+        </div>
+        {error && (
+          <div
+            className="rounded-md text-xs"
+            style={{
+              padding: "10px 12px",
+              border: "1px solid var(--danger)",
+              color: "var(--danger)",
+              background: "var(--danger-soft)",
+            }}
+            role="alert"
+          >
+            {error}
+          </div>
+        )}
+      </form>
     </Modal>
   );
 }

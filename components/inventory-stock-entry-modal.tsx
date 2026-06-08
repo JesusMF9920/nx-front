@@ -1,136 +1,186 @@
 "use client";
 
-import { useState } from "react";
-import { I } from "@/components/icons";
+import { useState, type FormEvent } from "react";
 import { Modal } from "@/components/modal";
-import { fmtMXN } from "@/lib/format";
-import { NEXUM_MATERIALS } from "@/lib/mock-materials";
-import { NEXUM_SUPPLIERS } from "@/lib/mock-suppliers";
+import { ApiError } from "@/lib/api/errors";
+import { inventoryApi } from "@/lib/api/inventory";
+import type { ApiMaterial } from "@/lib/api/types";
+import { fmtInt } from "@/lib/format";
 
-type Line = {
-  materialId: string;
-  qty: number;
-  cost: number;
-};
+/** Hasta 3 decimales (el backend rechaza más). */
+const QTY_RE = /^\d+(\.\d{1,3})?$/;
 
-export function InventoryStockEntryModal({ onClose }: { onClose: () => void }) {
-  const [supplier, setSupplier] = useState(NEXUM_SUPPLIERS[1]?.name ?? "Insumos GR");
-  const [lines, setLines] = useState<Line[]>([{ materialId: "m02", qty: 50, cost: 95 }]);
+export function InventoryStockEntryModal({
+  material,
+  type = "entry",
+  onClose,
+  onDone,
+}: {
+  material: ApiMaterial;
+  type?: "entry" | "exit";
+  onClose: () => void;
+  onDone: () => void | Promise<void>;
+}) {
+  const hasVariants = material.variants.length > 0;
+  const [variantId, setVariantId] = useState("");
+  const [qty, setQty] = useState("");
+  const [ref, setRef] = useState("");
+  const [note, setNote] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const total = lines.reduce((s, l) => s + l.qty * l.cost, 0);
+  const title = type === "entry" ? "Registrar entrada" : "Registrar salida";
+  const variant = hasVariants
+    ? material.variants.find((v) => v.id === variantId)
+    : undefined;
 
-  const updateLine = (i: number, patch: Partial<Line>) =>
-    setLines((ls) => ls.map((l, j) => (i === j ? { ...l, ...patch } : l)));
-
-  const addLine = () =>
-    setLines((ls) => [
-      ...ls,
-      { materialId: NEXUM_MATERIALS[0].id, qty: 1, cost: NEXUM_MATERIALS[0].cost },
-    ]);
-
-  const removeLine = (i: number) => setLines((ls) => ls.filter((_, j) => j !== i));
+  const submit = async (e: FormEvent) => {
+    e.preventDefault();
+    if (submitting) return;
+    setError(null);
+    if (hasVariants && !variantId) {
+      setError("Selecciona la talla del movimiento.");
+      return;
+    }
+    const raw = qty.trim();
+    if (!QTY_RE.test(raw)) {
+      setError("La cantidad debe ser un número positivo con hasta 3 decimales.");
+      return;
+    }
+    const qtyNum = Number(raw);
+    if (!(qtyNum > 0)) {
+      setError("La cantidad debe ser mayor que cero.");
+      return;
+    }
+    setSubmitting(true);
+    try {
+      await inventoryApi.recordStockMove(material.id, {
+        type,
+        qty: qtyNum,
+        ...(hasVariants ? { materialVariantId: variantId } : {}),
+        ref: ref.trim() || null,
+        note: note.trim() || null,
+      });
+      await onDone();
+    } catch (err) {
+      setError(
+        err instanceof ApiError
+          ? err.message
+          : "No se pudo registrar el movimiento.",
+      );
+      setSubmitting(false);
+    }
+  };
 
   return (
     <Modal
-      title="Entrada de mercancía"
+      title={title}
       onClose={onClose}
-      width={760}
+      width={480}
       footer={
         <>
-          <button className="btn btn--ghost" onClick={onClose}>Cancelar</button>
-          <button className="btn btn--accent" onClick={onClose}>
-            {I.check} Confirmar entrada
+          <button className="btn btn--ghost" type="button" onClick={onClose}>
+            Cancelar
+          </button>
+          <button
+            className="btn btn--accent"
+            type="submit"
+            form="stock-entry-form"
+            disabled={submitting}
+          >
+            {submitting ? "Guardando…" : "Registrar"}
           </button>
         </>
       }
     >
-      <div className="grid grid-cols-2 gap-3.5 mb-3.5">
-        <label className="field">
-          <span className="label">Proveedor</span>
-          <select className="input" value={supplier} onChange={(e) => setSupplier(e.target.value)}>
-            {NEXUM_SUPPLIERS.map((s) => (
-              <option key={s.id}>{s.name}</option>
-            ))}
-          </select>
-        </label>
-        <label className="field">
-          <span className="label">Folio / Orden de compra</span>
-          <input className="input" defaultValue="OC-0422" />
-        </label>
-      </div>
-
-      <div className="card border border-line" style={{ boxShadow: "none" }}>
-        <table className="tbl">
-          <thead>
-            <tr>
-              <th>Insumo</th>
-              <th className="text-right" style={{ width: 100 }}>Cantidad</th>
-              <th className="text-right" style={{ width: 120 }}>Costo unit.</th>
-              <th className="text-right" style={{ width: 120 }}>Subtotal</th>
-              <th style={{ width: 40 }} />
-            </tr>
-          </thead>
-          <tbody>
-            {lines.map((l, i) => (
-              <tr key={i}>
-                <td>
-                  <select
-                    className="input w-full"
-                    value={l.materialId}
-                    onChange={(e) => {
-                      const next = NEXUM_MATERIALS.find((x) => x.id === e.target.value);
-                      updateLine(i, { materialId: e.target.value, cost: next?.cost ?? 0 });
-                    }}
-                  >
-                    {NEXUM_MATERIALS.map((m) => (
-                      <option key={m.id} value={m.id}>
-                        {m.name} ({m.unit})
-                      </option>
-                    ))}
-                  </select>
-                </td>
-                <td>
-                  <input
-                    type="number"
-                    className="input num text-right"
-                    value={l.qty}
-                    onChange={(e) => updateLine(i, { qty: parseFloat(e.target.value || "0") })}
-                  />
-                </td>
-                <td>
-                  <input
-                    type="number"
-                    className="input num text-right"
-                    value={l.cost}
-                    onChange={(e) => updateLine(i, { cost: parseFloat(e.target.value || "0") })}
-                  />
-                </td>
-                <td className="num text-right font-semibold">{fmtMXN(l.qty * l.cost)}</td>
-                <td>
-                  <button
-                    className="icon-btn"
-                    onClick={() => removeLine(i)}
-                    aria-label="Quitar línea"
-                  >
-                    {I.x}
-                  </button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-
-      <button className="btn btn--ghost btn--sm mt-2.5" onClick={addLine}>
-        {I.plus} Agregar línea
-      </button>
-
-      <div className="divider" />
-
-      <div className="flex justify-end items-baseline gap-3.5">
-        <span className="text-muted">Total entrada:</span>
-        <span className="num font-semibold" style={{ fontSize: 22 }}>{fmtMXN(total)}</span>
-      </div>
+      <form id="stock-entry-form" onSubmit={submit} className="grid" style={{ gap: 14 }}>
+        <div className="text-sm text-muted">
+          Material:{" "}
+          <span className="font-medium text-ink-2">{material.name}</span>
+          <br />
+          {variant ? (
+            <>
+              Stock de {variant.label}:{" "}
+              <span className="font-medium text-ink-2">
+                {fmtInt(variant.stock)} {material.unit}
+              </span>
+            </>
+          ) : (
+            <>
+              Stock actual:{" "}
+              <span className="font-medium text-ink-2">
+                {fmtInt(material.stock)} {material.unit}
+              </span>
+            </>
+          )}
+        </div>
+        {hasVariants && (
+          <div className="field">
+            <span className="label">Talla</span>
+            <select
+              className="input"
+              value={variantId}
+              onChange={(e) => setVariantId(e.target.value)}
+              required
+            >
+              <option value="">Selecciona talla…</option>
+              {material.variants.map((v) => (
+                <option key={v.id} value={v.id}>
+                  {v.label} ({v.code}) · {fmtInt(v.stock)} {material.unit}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
+        <div className="field">
+          <span className="label">Cantidad</span>
+          <input
+            className="input"
+            type="number"
+            step={0.001}
+            min={0}
+            value={qty}
+            onChange={(e) => setQty(e.target.value)}
+            required
+            autoFocus
+          />
+          <small className="help mt-1">Acepta hasta 3 decimales.</small>
+        </div>
+        <div className="field">
+          <span className="label">Referencia (opcional)</span>
+          <input
+            className="input"
+            placeholder="PO-001, pedido 42, conteo…"
+            value={ref}
+            onChange={(e) => setRef(e.target.value)}
+            maxLength={80}
+          />
+        </div>
+        <div className="field">
+          <span className="label">Nota (opcional)</span>
+          <textarea
+            className="textarea"
+            rows={2}
+            value={note}
+            onChange={(e) => setNote(e.target.value)}
+            maxLength={500}
+          />
+        </div>
+        {error && (
+          <div
+            className="rounded-md text-xs"
+            style={{
+              padding: "10px 12px",
+              border: "1px solid var(--danger)",
+              color: "var(--danger)",
+              background: "var(--danger-soft)",
+            }}
+            role="alert"
+          >
+            {error}
+          </div>
+        )}
+      </form>
     </Modal>
   );
 }
