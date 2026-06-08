@@ -276,6 +276,96 @@ export type ApiOrderDetail = Omit<ApiOrder, "itemsCount"> & {
   updatedAt: string;
 };
 
+// ── Cotizaciones (Fase C) ─────────────────────────────────────────────────
+
+export type ApiQuoteStatus =
+  | "draft"
+  | "sent"
+  | "approved"
+  | "rejected"
+  | "converted";
+
+export type ApiQuoteChannel = "whatsapp" | "email" | "link" | "in_person";
+
+export type ApiQuoteItem = {
+  id: string;
+  productId: string;
+  productName: string;
+  sku: string;
+  qty: number;
+  unitPrice: number;
+  /** true ⇒ el precio unitario fue negociado a mano. */
+  priceOverridden: boolean;
+  variantCode: string | null;
+  variantLabel: string | null;
+  sizeBreakdown: ApiSizeBreakdownEntry[] | null;
+  dimensionData: ApiDimensionData | null;
+  source: ApiProductSource;
+  supplierName: string | null;
+  needsApproval: boolean;
+  lineTotal: number;
+};
+
+/** Forma del GET /quotes (lista). */
+export type ApiQuote = {
+  id: string;
+  folio: string;
+  clientId: string;
+  clientName: string;
+  createdByName: string;
+  status: ApiQuoteStatus;
+  total: number;
+  validUntil: string | null;
+  /** Derivado en el backend: vigencia vencida y status sent/approved. */
+  isExpired: boolean;
+  itemsCount: number;
+  /** Orden generada al convertir (null si aún no se convierte). */
+  convertedOrderId: string | null;
+  createdAt: string;
+};
+
+/** Forma del GET /quotes/:idOrFolio (detalle). */
+export type ApiQuoteDetail = Omit<ApiQuote, "itemsCount"> & {
+  createdById: string;
+  subtotal: number;
+  discount: number;
+  tax: number;
+  notes: string | null;
+  channel: ApiQuoteChannel | null;
+  rejectionReason: string | null;
+  sentAt: string | null;
+  approvedAt: string | null;
+  rejectedAt: string | null;
+  convertedAt: string | null;
+  items: ApiQuoteItem[];
+  updatedAt: string;
+};
+
+export type ApiQuotePreviewLine = {
+  productId: string;
+  productName: string;
+  qty: number;
+  unitPrice: number;
+  lineTotal: number;
+  priceOverridden: boolean;
+};
+
+export type ApiQuotePreview = {
+  subtotal: number;
+  discount: number;
+  tax: number;
+  total: number;
+  lines: ApiQuotePreviewLine[];
+};
+
+/** Resultado de convertir una cotización en orden. */
+export type ApiConvertResult = {
+  orderId: string;
+  folio: string;
+  total: number;
+  paid: number;
+};
+
 export type ApiStockShortage = {
   materialId: string;
   materialName: string;
