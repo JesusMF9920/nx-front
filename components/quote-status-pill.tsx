@@ -1,15 +1,26 @@
-import type { QuoteStatus } from "@/lib/types";
+import { QUOTE_STATUS_ES } from "@/lib/api/sales-mappers";
+import type { ApiQuoteStatus } from "@/lib/api/types";
 
-const MAP: Record<QuoteStatus, { cls: string; label?: string }> = {
-  Aprobada:   { cls: "pill--ok" },
-  Enviada:    { cls: "pill--info" },
-  Convertida: { cls: "pill--accent", label: "→ Pedido" },
-  Rechazada:  { cls: "pill--danger" },
-  Vencida:    { cls: "pill--warn" },
-  Borrador:   { cls: "pill--neutral" },
+const CLS: Record<ApiQuoteStatus, string> = {
+  draft: "pill--neutral",
+  sent: "pill--info",
+  approved: "pill--ok",
+  rejected: "pill--danger",
+  converted: "pill--accent",
 };
 
-export function QuoteStatusPill({ s }: { s: QuoteStatus }) {
-  const { cls, label } = MAP[s];
-  return <span className={`pill ${cls}`}>{label ?? s}</span>;
+/**
+ * "Vencida" es derivada (isExpired) y nunca se almacena: tiene prioridad
+ * visual sobre el status real (que sería "Enviada"/"Aprobada").
+ */
+export function QuoteStatusPill({
+  status,
+  isExpired,
+}: {
+  status: ApiQuoteStatus;
+  isExpired?: boolean;
+}) {
+  if (isExpired) return <span className="pill pill--warn">Vencida</span>;
+  const label = status === "converted" ? "→ Pedido" : QUOTE_STATUS_ES[status];
+  return <span className={`pill ${CLS[status]}`}>{label}</span>;
 }

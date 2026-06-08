@@ -1,87 +1,173 @@
 "use client";
 
-import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
 import { I } from "@/components/icons";
 import { PageHeader } from "@/components/page-header";
 import { QuoteNewModal } from "@/components/quote-new-modal";
 import { QuoteStatusPill } from "@/components/quote-status-pill";
-import { fmtMXN } from "@/lib/format";
-import { NEXUM_QUOTES } from "@/lib/mock-quotes";
-import type { Quote, QuoteStatus } from "@/lib/types";
+import { ApiError } from "@/lib/api/errors";
+import { quotesApi } from "@/lib/api/quotes";
+import { usePermission } from "@/lib/auth/auth-context";
+import type { ApiQuote, ApiQuoteStatus } from "@/lib/api/types";
+import { fmtDate, fmtInt, fmtMXN } from "@/lib/format";
 
-type Tab = "Todas" | "Borradores" | "Enviadas" | "Aprobadas" | "Convertidas" | "Vencidas";
+const PAGE_SIZE = 25;
 
-const TABS: Tab[] = ["Todas", "Borradores", "Enviadas", "Aprobadas", "Convertidas", "Vencidas"];
+type Tab =
+  | "Todas"
+  | "Borradores"
+  | "Enviadas"
+  | "Aprobadas"
+  | "Convertidas"
+  | "Rechazadas";
 
-const TAB_STATUS: Record<Tab, QuoteStatus | null> = {
+const TABS: Tab[] = [
+  "Todas",
+  "Borradores",
+  "Enviadas",
+  "Aprobadas",
+  "Convertidas",
+  "Rechazadas",
+];
+
+const TAB_TO_STATUS: Record<Tab, ApiQuoteStatus | null> = {
   Todas: null,
-  Borradores: "Borrador",
-  Enviadas: "Enviada",
-  Aprobadas: "Aprobada",
-  Convertidas: "Convertida",
-  Vencidas: "Vencida",
+  Borradores: "draft",
+  Enviadas: "sent",
+  Aprobadas: "approved",
+  Convertidas: "converted",
+  Rechazadas: "rejected",
 };
 
-const TODAY = new Date("2026-05-10");
-
 export default function QuotesPage() {
+  const router = useRouter();
+  const canCreate = usePermission("sales.quotes.create");
   const [tab, setTab] = useState<Tab>("Todas");
-  const [search, setSearch] = useState("");
+  const [query, setQuery] = useState("");
+  const [debounced, setDebounced] = useState("");
+  const [page, setPage] = useState(1);
+  const [quotes, setQuotes] = useState<ApiQuote[]>([]);
+  const [total, setTotal] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [showNew, setShowNew] = useState(false);
 
-  const filtered = useMemo(() => {
-    const status = TAB_STATUS[tab];
-    return NEXUM_QUOTES.filter((q) => {
-      if (status && q.status !== status) return false;
-      if (search && !`${q.id} ${q.client}`.toLowerCase().includes(search.toLowerCase())) return false;
-      return true;
-    });
-  }, [tab, search]);
+  useEffect(() => {
+    const id = setTimeout(() => {
+      setDebounced(query.trim());
+      setPage(1);
+    }, 250);
+    return () => clearTimeout(id);
+  }, [query]);
 
-  const totalPipeline = NEXUM_QUOTES
-    .filter((q) => q.status === "Enviada" || q.status === "Aprobada")
-    .reduce((s, q) => s + q.total, 0);
+  const reload = async (targetPage = page, isStale?: () => boolean) => {
+    setLoading(true);
+    setLoadError(null);
+    try {
+      const res = await quotesApi.list({
+        skip: (targetPage - 1) * PAGE_SIZE,
+        take: PAGE_SIZE,
+        search: debounced || undefined,
+        status: TAB_TO_STATUS[tab] ?? undefined,
+      });
+      if (isStale?.()) return; // descarta respuestas de un filtro/página ya cambiados
+      setQuotes(res.items);
+      setTotal(res.total);
+    } catch (err) {
+      if (isStale?.()) return;
+      setLoadError(
+        err instanceof ApiError
+          ? err.message
+          : "No se pudieron cargar las cotizaciones.",
+      );
+    } finally {
+      if (!isStale?.()) setLoading(false);
+    }
+  };
 
-  const conversion = Math.round(
-    (100 * NEXUM_QUOTES.filter((q) => q.status === "Convertida").length) / NEXUM_QUOTES.length,
-  );
+  useEffect(() => {
+    let cancelled = false;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    void reload(page, () => cancelled);
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [page, tab, debounced]);
+
+  const changeTab = (t: Tab) => {
+    setTab(t);
+    setPage(1);
+  };
+
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
   return (
     <>
       <PageHeader
         title="Cotizaciones"
-        sub={`${NEXUM_QUOTES.length} cotizaciones · ${fmtMXN(totalPipeline)} en pipeline · ${conversion}% conversión`}
+        sub={
+          tab === "Todas"
+            ? `${fmtInt(total)} cotizaciones`
+            : `${fmtInt(total)} cotizaciones · ${tab}`
+        }
         actions={
           <>
             <button className="btn">{I.download} Exportar</button>
-            <button className="btn btn--accent" onClick={() => setShowNew(true)}>
-              {I.plus} Nueva cotización
-            </button>
+            {canCreate && (
+              <button
+                className="btn btn--accent"
+                onClick={() => setShowNew(true)}
+              >
+                {I.plus} Nueva cotización
+              </button>
+            )}
           </>
         }
       />
 
+      {loadError && (
+        <div
+          className="card mb-3 flex items-center gap-2"
+          style={{
+            padding: 12,
+            border: "1px solid var(--danger)",
+            color: "var(--danger)",
+            background: "var(--danger-soft)",
+          }}
+          role="alert"
+        >
+          <span className="flex-1">{loadError}</span>
+          <button
+            className="btn btn--sm"
+            type="button"
+            onClick={() => void reload()}
+          >
+            Reintentar
+          </button>
+        </div>
+      )}
+
       <div className="card">
-        <div className="card__head gap-2">
-          <div className="topbar__search m-0" style={{ width: 260 }}>
+        <div className="card__head" style={{ gap: 4 }}>
+          {TABS.map((t) => (
+            <button
+              key={t}
+              className={`btn btn--sm ${tab === t ? "btn--primary" : "btn--ghost"}`}
+              onClick={() => changeTab(t)}
+            >
+              {t}
+            </button>
+          ))}
+          <div className="spacer" />
+          <div className="topbar__search" style={{ margin: 0, width: 240 }}>
             {I.search}
             <input
               placeholder="Buscar folio o cliente"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
             />
-          </div>
-          <div className="row gap-1">
-            {TABS.map((t) => (
-              <button
-                key={t}
-                className={`btn btn--sm ${tab === t ? "btn--primary" : "btn--ghost"}`}
-                onClick={() => setTab(t)}
-              >
-                {t}
-              </button>
-            ))}
           </div>
         </div>
         <table className="tbl">
@@ -89,76 +175,103 @@ export default function QuotesPage() {
             <tr>
               <th>Folio</th>
               <th>Cliente</th>
-              <th>Fecha</th>
               <th>Vendedor</th>
-              <th>Canal</th>
-              <th className="text-right">Items</th>
-              <th className="text-right">Total</th>
               <th>Vigencia</th>
+              <th style={{ textAlign: "right" }}>Items</th>
+              <th style={{ textAlign: "right" }}>Total</th>
               <th>Estado</th>
-              <th></th>
             </tr>
           </thead>
           <tbody>
-            {filtered.map((q) => (
-              <QuoteRow key={q.id} q={q} />
-            ))}
+            {loading ? (
+              <tr>
+                <td colSpan={7} className="text-muted">
+                  Cargando cotizaciones…
+                </td>
+              </tr>
+            ) : quotes.length === 0 ? (
+              <tr>
+                <td colSpan={7} className="text-muted">
+                  {debounced
+                    ? `Sin cotizaciones para “${debounced}”.`
+                    : "Sin cotizaciones."}
+                </td>
+              </tr>
+            ) : (
+              quotes.map((q) => (
+                <tr
+                  key={q.id}
+                  onClick={() => router.push(`/quotes/${q.folio}`)}
+                >
+                  <td className="num">{q.folio}</td>
+                  <td>{q.clientName}</td>
+                  <td className="text-xs">{q.createdByName}</td>
+                  <td
+                    className="num text-xs"
+                    style={{ color: q.isExpired ? "var(--danger)" : undefined }}
+                  >
+                    {q.validUntil ? fmtDate(q.validUntil) : "—"}
+                  </td>
+                  <td className="num" style={{ textAlign: "right" }}>
+                    {q.itemsCount}
+                  </td>
+                  <td className="num" style={{ textAlign: "right" }}>
+                    {fmtMXN(q.total)}
+                  </td>
+                  <td>
+                    <QuoteStatusPill status={q.status} isExpired={q.isExpired} />
+                  </td>
+                </tr>
+              ))
+            )}
           </tbody>
         </table>
+        <div
+          className="flex items-center gap-3 text-xs text-muted"
+          style={{ padding: "10px 14px", borderTop: "1px solid var(--line)" }}
+        >
+          <span>
+            {total === 0
+              ? "Sin cotizaciones"
+              : `Mostrando ${(page - 1) * PAGE_SIZE + 1}–${Math.min(
+                  page * PAGE_SIZE,
+                  total,
+                )} de ${total}`}
+          </span>
+          <div className="spacer" />
+          <span className="num">
+            Página {page} de {totalPages}
+          </span>
+          <button
+            className="btn btn--sm btn--ghost"
+            type="button"
+            onClick={() => setPage((p) => Math.max(1, p - 1))}
+            disabled={loading || page <= 1}
+            aria-label="Página anterior"
+          >
+            {I.chevronLeft}
+          </button>
+          <button
+            className="btn btn--sm btn--ghost"
+            type="button"
+            onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+            disabled={loading || page >= totalPages}
+            aria-label="Página siguiente"
+          >
+            {I.chevronRight}
+          </button>
+        </div>
       </div>
 
-      {showNew && <QuoteNewModal onClose={() => setShowNew(false)} />}
+      {showNew && (
+        <QuoteNewModal
+          onClose={() => setShowNew(false)}
+          onSaved={(res) => {
+            setShowNew(false);
+            router.push(`/quotes/${res.folio}`);
+          }}
+        />
+      )}
     </>
-  );
-}
-
-function QuoteRow({ q }: { q: Quote }) {
-  const due = new Date(q.validUntil);
-  const daysLeft = Math.round((due.getTime() - TODAY.getTime()) / 86_400_000);
-  const showCountdown = q.status !== "Convertida" && q.status !== "Rechazada";
-  const orderRef = q.notes.startsWith("→") ? q.notes.replace("→ ", "").trim() : null;
-
-  return (
-    <tr>
-      <td className="num font-medium">{q.id}</td>
-      <td>{q.client}</td>
-      <td className="num text-xs text-muted">{q.date}</td>
-      <td className="text-xs">{q.seller}</td>
-      <td><span className="tag text-[10px]">{q.channel}</span></td>
-      <td className="num text-right">{q.items}</td>
-      <td className="num text-right font-semibold">{fmtMXN(q.total)}</td>
-      <td
-        className="text-[11px]"
-        style={{
-          color: daysLeft < 0 ? "var(--danger)" : daysLeft < 3 ? "var(--warn)" : "var(--muted)",
-        }}
-      >
-        {q.validUntil}
-        {showCountdown && (
-          <div className="text-[10px]">
-            {daysLeft < 0 ? `Vencida hace ${-daysLeft}d` : `${daysLeft}d restantes`}
-          </div>
-        )}
-      </td>
-      <td><QuoteStatusPill s={q.status} /></td>
-      <td className="text-right whitespace-nowrap">
-        {q.status === "Aprobada" && (
-          <Link href="/pos" className="btn btn--sm btn--primary">
-            → Convertir
-          </Link>
-        )}
-        {q.status === "Convertida" && orderRef && (
-          <Link
-            href={`/orders/${orderRef}`}
-            className="num text-[11px] text-accent-ink"
-          >
-            {orderRef}
-          </Link>
-        )}
-        {(q.status === "Enviada" || q.status === "Borrador") && (
-          <button className="btn btn--sm" aria-label="Enviar por WhatsApp">{I.whatsapp}</button>
-        )}
-      </td>
-    </tr>
   );
 }

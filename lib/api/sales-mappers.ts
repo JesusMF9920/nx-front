@@ -1,4 +1,9 @@
-import type { ApiOrderStatus, ApiPaymentMethod } from "./types";
+import type {
+  ApiOrderStatus,
+  ApiPaymentMethod,
+  ApiQuoteChannel,
+  ApiQuoteStatus,
+} from "./types";
 
 /**
  * Mapeo EN (API) → ES (UI). `Record` exhaustivo a propósito: si el backend
@@ -54,4 +59,39 @@ export const SALES_AUDIT_ACTION_ES: Record<string, string> = {
   "sales.order.item_status_changed": "Estatus de producto actualizado",
   "sales.order.cancelled": "Pedido cancelado",
   "sales.order.deliver_date_changed": "Fecha de entrega actualizada",
+  "sales.quote.created": "Cotización creada",
+  "sales.quote.sent": "Cotización enviada",
+  "sales.quote.approved": "Cotización aprobada",
+  "sales.quote.rejected": "Cotización rechazada",
+  "sales.quote.converted": "Convertida a pedido",
 };
+
+// ── Cotizaciones ──────────────────────────────────────────────────────────
+
+/** Mapeo EN (API) → ES (UI). Exhaustivo: el build truena si falta un status. */
+export const QUOTE_STATUS_ES: Record<ApiQuoteStatus, string> = {
+  draft: "Borrador",
+  sent: "Enviada",
+  approved: "Aprobada",
+  rejected: "Rechazada",
+  converted: "Convertida",
+};
+
+export const QUOTE_CHANNEL_ES: Record<ApiQuoteChannel, string> = {
+  whatsapp: "WhatsApp",
+  email: "Correo",
+  link: "Link",
+  in_person: "Presencial",
+};
+
+/**
+ * Etiqueta de estatus para mostrar: "Vencida" es derivada (isExpired) y nunca
+ * se almacena; en cualquier otro caso, la etiqueta del status real.
+ */
+export function quoteDisplayStatus(quote: {
+  status: ApiQuoteStatus;
+  isExpired: boolean;
+}): string {
+  if (quote.isExpired) return "Vencida";
+  return QUOTE_STATUS_ES[quote.status];
+}
