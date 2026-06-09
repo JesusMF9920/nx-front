@@ -28,6 +28,23 @@ export type ApiLoginUser = {
   mustChangePassword: boolean;
 };
 
+// Storage — presigned URLs para subir/leer en DigitalOcean Spaces.
+export type ApiPresignUpload = {
+  /** Object key generado por el backend (no lo controla el cliente). */
+  key: string;
+  /** URL firmada para el PUT directo a Spaces. */
+  uploadUrl: string;
+  /** Vigencia de `uploadUrl` en segundos. */
+  expiresIn: number;
+};
+
+export type ApiPresignDownload = {
+  /** URL firmada temporal para ver/descargar el objeto privado. */
+  downloadUrl: string;
+  /** Vigencia de `downloadUrl` en segundos. */
+  expiresIn: number;
+};
+
 export type ApiLoginResponse = {
   accessToken: string;
   refreshToken: string;
