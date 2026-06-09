@@ -1,6 +1,6 @@
 import { I } from "@/components/icons";
-import { fmtMXN } from "@/lib/format";
-import { NEXUM_AGING } from "@/lib/mock-reports";
+import { fmtDate, fmtMXN } from "@/lib/format";
+import type { ApiAgingRow } from "@/lib/api/types";
 
 type Tone = "ok" | "warn" | "warn-strong" | "danger";
 
@@ -11,8 +11,8 @@ const TONE_COLOR: Record<Tone, string> = {
   danger: "var(--danger)",
 };
 
-export function ReportsAging() {
-  const tot = NEXUM_AGING.reduce(
+export function ReportsAging({ items }: { items: ApiAgingRow[] }) {
+  const tot = items.reduce(
     (s, a) => ({
       b030: s.b030 + a.b030,
       b3160: s.b3160 + a.b3160,
@@ -26,10 +26,10 @@ export function ReportsAging() {
   return (
     <div>
       <div className="kpi-grid mb-[18px]">
-        <AgingBucket label="Corriente · 0-30 días"  value={tot.b030}  total={grand} tone="ok" />
-        <AgingBucket label="Atrasado · 31-60 días"  value={tot.b3160} total={grand} tone="warn" />
-        <AgingBucket label="Atrasado · 61-90 días"  value={tot.b6190} total={grand} tone="warn-strong" />
-        <AgingBucket label="Crítico · 90+ días"     value={tot.b90}   total={grand} tone="danger" />
+        <AgingBucket label="Corriente · 0-30 días" value={tot.b030} total={grand} tone="ok" />
+        <AgingBucket label="Atrasado · 31-60 días" value={tot.b3160} total={grand} tone="warn" />
+        <AgingBucket label="Atrasado · 61-90 días" value={tot.b6190} total={grand} tone="warn-strong" />
+        <AgingBucket label="Crítico · 90+ días" value={tot.b90} total={grand} tone="danger" />
       </div>
 
       <div className="card">
@@ -38,57 +38,63 @@ export function ReportsAging() {
           <div className="spacer" />
           <button className="btn btn--sm">{I.whatsapp} Enviar recordatorios</button>
         </div>
-        <table className="tbl">
-          <thead>
-            <tr>
-              <th>Cliente</th>
-              <th>Factura</th>
-              <th>Emisión</th>
-              <th className="text-right">0-30</th>
-              <th className="text-right">31-60</th>
-              <th className="text-right">61-90</th>
-              <th className="text-right">90+</th>
-              <th className="text-right">Total</th>
-            </tr>
-          </thead>
-          <tbody>
-            {NEXUM_AGING.map((a) => (
-              <tr key={a.invoice}>
-                <td className="font-medium">{a.client}</td>
-                <td className="num">{a.invoice}</td>
-                <td className="num text-xs text-muted">{a.date}</td>
-                <td className="num text-right">{a.b030 ? fmtMXN(a.b030) : "—"}</td>
-                <td
-                  className="num text-right"
-                  style={{ color: a.b3160 ? "var(--warn)" : "var(--muted-2)" }}
-                >
-                  {a.b3160 ? fmtMXN(a.b3160) : "—"}
-                </td>
-                <td
-                  className="num text-right"
-                  style={{ color: a.b6190 ? "var(--warn)" : "var(--muted-2)" }}
-                >
-                  {a.b6190 ? fmtMXN(a.b6190) : "—"}
-                </td>
-                <td
-                  className="num text-right"
-                  style={{ color: a.b90 ? "var(--danger)" : "var(--muted-2)" }}
-                >
-                  {a.b90 ? fmtMXN(a.b90) : "—"}
-                </td>
-                <td className="num text-right font-semibold">{fmtMXN(a.total)}</td>
+        {items.length === 0 ? (
+          <div className="empty m-3.5">Sin cuentas por cobrar abiertas.</div>
+        ) : (
+          <table className="tbl">
+            <thead>
+              <tr>
+                <th>Cliente</th>
+                <th>Pedido</th>
+                <th>Venta</th>
+                <th className="text-right">0-30</th>
+                <th className="text-right">31-60</th>
+                <th className="text-right">61-90</th>
+                <th className="text-right">90+</th>
+                <th className="text-right">Total</th>
               </tr>
-            ))}
-            <tr className="bg-surface-2 font-semibold">
-              <td colSpan={3}>Totales</td>
-              <td className="num text-right">{fmtMXN(tot.b030)}</td>
-              <td className="num text-right text-warn">{fmtMXN(tot.b3160)}</td>
-              <td className="num text-right text-warn">{fmtMXN(tot.b6190)}</td>
-              <td className="num text-right text-danger">{fmtMXN(tot.b90)}</td>
-              <td className="num text-right">{fmtMXN(grand)}</td>
-            </tr>
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {items.map((a) => (
+                <tr key={a.orderId}>
+                  <td className="font-medium">{a.clientName}</td>
+                  <td className="num">{a.folio}</td>
+                  <td className="num text-xs text-muted">
+                    {fmtDate(a.date + "T00:00:00")}
+                  </td>
+                  <td className="num text-right">{a.b030 ? fmtMXN(a.b030) : "—"}</td>
+                  <td
+                    className="num text-right"
+                    style={{ color: a.b3160 ? "var(--warn)" : "var(--muted-2)" }}
+                  >
+                    {a.b3160 ? fmtMXN(a.b3160) : "—"}
+                  </td>
+                  <td
+                    className="num text-right"
+                    style={{ color: a.b6190 ? "var(--warn)" : "var(--muted-2)" }}
+                  >
+                    {a.b6190 ? fmtMXN(a.b6190) : "—"}
+                  </td>
+                  <td
+                    className="num text-right"
+                    style={{ color: a.b90 ? "var(--danger)" : "var(--muted-2)" }}
+                  >
+                    {a.b90 ? fmtMXN(a.b90) : "—"}
+                  </td>
+                  <td className="num text-right font-semibold">{fmtMXN(a.total)}</td>
+                </tr>
+              ))}
+              <tr className="bg-surface-2 font-semibold">
+                <td colSpan={3}>Totales</td>
+                <td className="num text-right">{fmtMXN(tot.b030)}</td>
+                <td className="num text-right text-warn">{fmtMXN(tot.b3160)}</td>
+                <td className="num text-right text-warn">{fmtMXN(tot.b6190)}</td>
+                <td className="num text-right text-danger">{fmtMXN(tot.b90)}</td>
+                <td className="num text-right">{fmtMXN(grand)}</td>
+              </tr>
+            </tbody>
+          </table>
+        )}
       </div>
     </div>
   );
@@ -113,15 +119,10 @@ function AgingBucket({
       <div className="kpi__value num" style={{ color }}>
         {fmtMXN(value)}
       </div>
-      <div
-        className="bg-surface-3 mt-2 overflow-hidden"
-        style={{ height: 4, borderRadius: 2 }}
-      >
+      <div className="bg-surface-3 mt-2 overflow-hidden" style={{ height: 4, borderRadius: 2 }}>
         <div className="h-full" style={{ width: `${pct}%`, background: color }} />
       </div>
-      <div className="text-[11px] text-muted mt-1">
-        {pct.toFixed(0)}% del saldo
-      </div>
+      <div className="text-[11px] text-muted mt-1">{pct.toFixed(0)}% del saldo</div>
     </div>
   );
 }

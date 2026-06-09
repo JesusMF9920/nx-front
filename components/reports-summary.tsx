@@ -2,46 +2,60 @@
 
 import { useState } from "react";
 import { fmtMXN } from "@/lib/format";
-import { NEXUM_REPORT_DAILY } from "@/lib/mock-reports";
-import type { ReportDay } from "@/lib/types";
+import type {
+  ApiCategoryMixEntry,
+  ApiPaymentMixEntry,
+  ApiReportDaily,
+} from "@/lib/api/types";
 
 const W = 880;
 const H = 260;
 const P = { l: 50, r: 16, t: 16, b: 28 };
 
-type Hover = ReportDay & { i: number };
+type Hover = ApiReportDaily & { i: number };
 
-const PAYMENT_MIX = [
-  { label: "Efectivo",     pct: 38, color: "var(--ok)" },
-  { label: "Terminal",     pct: 41, color: "var(--accent)" },
-  { label: "Transferencia", pct: 16, color: "var(--info)" },
-  { label: "Crédito",       pct:  5, color: "var(--warn)" },
+const PAYMENT_META: Record<string, { label: string; color: string }> = {
+  cash: { label: "Efectivo", color: "var(--ok)" },
+  terminal: { label: "Terminal", color: "var(--accent)" },
+  credit: { label: "Crédito", color: "var(--warn)" },
+};
+
+const CATEGORY_COLORS = [
+  "var(--accent)",
+  "var(--info)",
+  "var(--ok)",
+  "var(--warn)",
+  "var(--supplier)",
+  "var(--danger)",
 ];
 
-const CATEGORY_MIX = [
-  { label: "Textil",       pct: 42, color: "var(--accent)" },
-  { label: "Promocional",  pct: 22, color: "var(--info)" },
-  { label: "Papelería",    pct: 18, color: "var(--ok)" },
-  { label: "Gran formato", pct: 12, color: "var(--warn)" },
-  { label: "Bordado",      pct:  6, color: "var(--supplier)" },
-];
-
-export function ReportsSummary() {
-  const data = NEXUM_REPORT_DAILY;
+export function ReportsSummary({
+  daily,
+  paymentMix,
+  categoryMix,
+}: {
+  daily: ApiReportDaily[];
+  paymentMix: ApiPaymentMixEntry[];
+  categoryMix: ApiCategoryMixEntry[];
+}) {
+  const data = daily;
   const [hover, setHover] = useState<Hover | null>(null);
 
-  const totSales = data.reduce((s, d) => s + d.sales, 0);
-  const maxSales = Math.max(...data.map((d) => d.sales)) * 1.1;
+  const maxSales = Math.max(...data.map((d) => d.sales), 1) * 1.1;
   const innerW = W - P.l - P.r;
   const innerH = H - P.t - P.b;
-  const xStep = innerW / (data.length - 1);
+  const denom = data.length > 1 ? data.length - 1 : 1;
+  const xStep = innerW / denom;
   const yFor = (v: number) => P.t + innerH - (v / maxSales) * innerH;
   const xFor = (i: number) => P.l + i * xStep;
 
   const linePath = data
     .map((d, i) => `${i === 0 ? "M" : "L"} ${xFor(i).toFixed(1)} ${yFor(d.sales).toFixed(1)}`)
     .join(" ");
-  const areaPath = `${linePath} L ${xFor(data.length - 1).toFixed(1)} ${P.t + innerH} L ${P.l} ${P.t + innerH} Z`;
+  const areaPath =
+    data.length > 0
+      ? `${linePath} L ${xFor(data.length - 1).toFixed(1)} ${P.t + innerH} L ${P.l} ${P.t + innerH} Z`
+      : "";
   const marginPath = data
     .map((d, i) => `${i === 0 ? "M" : "L"} ${xFor(i).toFixed(1)} ${yFor(d.margin).toFixed(1)}`)
     .join(" ");
@@ -61,13 +75,7 @@ export function ReportsSummary() {
               Ventas
             </span>
             <span className="flex items-center gap-1">
-              <span
-                style={{
-                  width: 10,
-                  height: 0,
-                  borderTop: "2px dashed var(--ok)",
-                }}
-              />
+              <span style={{ width: 10, height: 0, borderTop: "2px dashed var(--ok)" }} />
               Margen
             </span>
           </div>
@@ -112,7 +120,7 @@ export function ReportsSummary() {
                   textAnchor="middle"
                   fontFamily="var(--font-mono)"
                 >
-                  {d.date.slice(5)}
+                  {d.day.slice(5)}
                 </text>
               ) : null,
             )}
@@ -123,7 +131,7 @@ export function ReportsSummary() {
                 <stop offset="100%" stopColor="var(--accent)" stopOpacity={0} />
               </linearGradient>
             </defs>
-            <path d={areaPath} fill="url(#nexum-rep-grad)" />
+            {areaPath && <path d={areaPath} fill="url(#nexum-rep-grad)" />}
             <path d={linePath} fill="none" stroke="var(--accent)" strokeWidth={2} />
             <path
               d={marginPath}
@@ -177,15 +185,9 @@ export function ReportsSummary() {
           {hover && (
             <div
               className="absolute bg-surface border border-line rounded-sm text-[11px]"
-              style={{
-                top: 16,
-                right: 24,
-                padding: "8px 10px",
-                boxShadow: "var(--sh-sm)",
-                minWidth: 160,
-              }}
+              style={{ top: 16, right: 24, padding: "8px 10px", boxShadow: "var(--sh-sm)", minWidth: 160 }}
             >
-              <div className="font-mono font-medium mb-1">{hover.date}</div>
+              <div className="font-mono font-medium mb-1">{hover.day}</div>
               <Row label="Ventas" v={<span className="font-semibold">{fmtMXN(hover.sales)}</span>} />
               <Row label="Margen" v={<span className="text-ok">{fmtMXN(hover.margin)}</span>} />
               <Row label="Pedidos" v={hover.orders} />
@@ -199,39 +201,47 @@ export function ReportsSummary() {
           <div className="card__title">Desglose por método de pago</div>
         </div>
         <div className="p-3.5">
-          {PAYMENT_MIX.map((r) => (
-            <div key={r.label} className="mb-3">
-              <div className="flex text-xs mb-1">
-                <span className="flex items-center gap-1.5">
-                  <span style={{ width: 8, height: 8, borderRadius: 2, background: r.color }} />
-                  {r.label}
-                </span>
-                <div className="spacer" />
-                <span className="num font-medium">{fmtMXN(totSales * (r.pct / 100))}</span>
-                <span
-                  className="num ml-2 text-muted text-right"
-                  style={{ width: 36 }}
-                >
-                  {r.pct}%
-                </span>
+          {paymentMix.length === 0 && (
+            <div className="text-muted text-xs mb-3">Sin ventas en el periodo.</div>
+          )}
+          {paymentMix.map((r) => {
+            const meta = PAYMENT_META[r.method] ?? { label: r.method, color: "var(--muted)" };
+            return (
+              <div key={r.method} className="mb-3">
+                <div className="flex text-xs mb-1">
+                  <span className="flex items-center gap-1.5">
+                    <span style={{ width: 8, height: 8, borderRadius: 2, background: meta.color }} />
+                    {meta.label}
+                  </span>
+                  <div className="spacer" />
+                  <span className="num font-medium">{fmtMXN(r.amount)}</span>
+                  <span className="num ml-2 text-muted text-right" style={{ width: 44 }}>
+                    {r.pct.toFixed(1)}%
+                  </span>
+                </div>
+                <div className="bg-surface-3 overflow-hidden" style={{ height: 6, borderRadius: 3 }}>
+                  <div className="h-full" style={{ width: `${Math.min(100, r.pct)}%`, background: meta.color }} />
+                </div>
               </div>
-              <div
-                className="bg-surface-3 overflow-hidden"
-                style={{ height: 6, borderRadius: 3 }}
-              >
-                <div className="h-full" style={{ width: `${r.pct}%`, background: r.color }} />
-              </div>
-            </div>
-          ))}
+            );
+          })}
 
           <div className="divider" />
           <div className="card__title text-[13px] mb-2">Mix por categoría</div>
-          {CATEGORY_MIX.map((r) => (
-            <div key={r.label} className="flex text-xs mb-1.5 items-center gap-1.5">
-              <span style={{ width: 8, height: 8, borderRadius: 2, background: r.color }} />
-              <span>{r.label}</span>
+          {categoryMix.length === 0 && <div className="text-muted text-xs">Sin ventas en el periodo.</div>}
+          {categoryMix.map((r, i) => (
+            <div key={r.category} className="flex text-xs mb-1.5 items-center gap-1.5">
+              <span
+                style={{
+                  width: 8,
+                  height: 8,
+                  borderRadius: 2,
+                  background: CATEGORY_COLORS[i % CATEGORY_COLORS.length],
+                }}
+              />
+              <span>{r.category}</span>
               <div className="spacer" />
-              <span className="num text-muted">{r.pct}%</span>
+              <span className="num text-muted">{r.pct.toFixed(1)}%</span>
             </div>
           ))}
         </div>

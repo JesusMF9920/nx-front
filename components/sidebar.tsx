@@ -24,7 +24,7 @@ const NAV_GROUPS: NavGroup[] = [
   {
     title: "Operación",
     items: [
-      { href: "/dashboard", label: "Dashboard",      icon: I.home },
+      { href: "/dashboard", label: "Dashboard",      icon: I.home,    perm: "reports.read" },
       { href: "/pos",       label: "Punto de venta", icon: I.cart,    badge: "F2" },
       { href: "/quotes",    label: "Cotizaciones",   icon: I.receipt, perm: "sales.quotes.read" },
       { href: "/orders",    label: "Pedidos",        icon: I.receipt, badge: "23" },
@@ -52,7 +52,7 @@ const NAV_GROUPS: NavGroup[] = [
   {
     title: "Análisis",
     items: [
-      { href: "/reports",  label: "Reportes",      icon: I.chart },
+      { href: "/reports",  label: "Reportes",      icon: I.chart,  perm: "reports.read" },
       { href: "/audit",    label: "Bitácora",      icon: I.shield, perm: "audit.read" },
       { href: "/settings", label: "Configuración", icon: I.settings },
     ],
