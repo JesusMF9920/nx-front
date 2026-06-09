@@ -1,13 +1,15 @@
-import type { PurchaseStatus } from "@/lib/types";
+import { PURCHASE_STATUS_ES } from "@/lib/api/purchases-mappers";
+import type { ApiPurchaseStatus } from "@/lib/api/types";
 
-const MAP: Record<PurchaseStatus, string> = {
-  Recibida: "pill--ok",
-  Enviada: "pill--info",
-  "Recibida parcial": "pill--warn",
-  Borrador: "pill--neutral",
-  Cancelada: "pill--danger",
+const CLS: Record<ApiPurchaseStatus, string> = {
+  draft: "pill--neutral",
+  sent: "pill--info",
+  received: "pill--ok",
+  cancelled: "pill--danger",
 };
 
-export function PurchaseStatusPill({ s }: { s: PurchaseStatus }) {
-  return <span className={`pill ${MAP[s] ?? "pill--neutral"}`}>{s}</span>;
+export function PurchaseStatusPill({ status }: { status: ApiPurchaseStatus }) {
+  return (
+    <span className={`pill ${CLS[status]}`}>{PURCHASE_STATUS_ES[status]}</span>
+  );
 }

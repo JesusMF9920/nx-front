@@ -28,7 +28,7 @@ const NAV_GROUPS: NavGroup[] = [
       { href: "/pos",       label: "Punto de venta", icon: I.cart,    badge: "F2" },
       { href: "/quotes",    label: "Cotizaciones",   icon: I.receipt, perm: "sales.quotes.read" },
       { href: "/orders",    label: "Pedidos",        icon: I.receipt, badge: "23" },
-      { href: "/purchases", label: "Compras",        icon: I.truck,   badge: "3" },
+      { href: "/purchases", label: "Compras",        icon: I.truck,   perm: "inventory.purchases.read" },
       { href: "/calendar",  label: "Entregas",       icon: I.calendar, badge: "8" },
       { href: "/approvals", label: "Aprobaciones",   icon: I.paint,   badge: "5" },
     ],

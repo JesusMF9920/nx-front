@@ -1,120 +1,278 @@
 "use client";
 
-import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { useEffect, useRef, useState } from "react";
 import { I } from "@/components/icons";
 import { PageHeader } from "@/components/page-header";
-import { PurchaseDetail } from "@/components/purchase-detail";
 import { PurchaseNewModal } from "@/components/purchase-new-modal";
 import { PurchaseStatusPill } from "@/components/purchase-status-pill";
 import { PurchaseSuggestedModal } from "@/components/purchase-suggested-modal";
-import { fmtMXN } from "@/lib/format";
-import { NEXUM_MATERIALS } from "@/lib/mock-materials";
-import { NEXUM_PURCHASES } from "@/lib/mock-purchases";
-import type { Purchase } from "@/lib/types";
+import { ApiError } from "@/lib/api/errors";
+import { purchasesApi } from "@/lib/api/purchases";
+import type { ApiPurchaseOrder, ApiPurchaseStatus } from "@/lib/api/types";
+import { usePermission } from "@/lib/auth/auth-context";
+import { fmtDate, fmtInt, fmtMXN } from "@/lib/format";
 
-type Tab = "Todas" | "Borrador" | "Enviada" | "Recibida parcial" | "Recibida";
+const PAGE_SIZE = 25;
 
-const TABS: Tab[] = ["Todas", "Borrador", "Enviada", "Recibida parcial", "Recibida"];
+type Tab = "Todas" | "Borradores" | "Enviadas" | "Recibidas" | "Canceladas";
+
+const TABS: Tab[] = [
+  "Todas",
+  "Borradores",
+  "Enviadas",
+  "Recibidas",
+  "Canceladas",
+];
+
+const TAB_TO_STATUS: Record<Tab, ApiPurchaseStatus | null> = {
+  Todas: null,
+  Borradores: "draft",
+  Enviadas: "sent",
+  Recibidas: "received",
+  Canceladas: "cancelled",
+};
 
 export default function PurchasesPage() {
+  const router = useRouter();
+  const canCreate = usePermission("inventory.purchases.create");
   const [tab, setTab] = useState<Tab>("Todas");
-  const [selectedId, setSelectedId] = useState<string>(NEXUM_PURCHASES[0].id);
+  const [query, setQuery] = useState("");
+  const [debounced, setDebounced] = useState("");
+  const [page, setPage] = useState(1);
+  const [orders, setOrders] = useState<ApiPurchaseOrder[]>([]);
+  const [total, setTotal] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [showNew, setShowNew] = useState(false);
   const [showSuggested, setShowSuggested] = useState(false);
+  // Token incremental: cada carga invalida a las anteriores (incluye Reintentar
+  // y onSaved/onGenerated), evitando que una respuesta tardía pise datos nuevos.
+  const reqRef = useRef(0);
 
-  const filtered =
-    tab === "Todas" ? NEXUM_PURCHASES : NEXUM_PURCHASES.filter((p) => p.status === tab);
+  useEffect(() => {
+    const id = setTimeout(() => {
+      setDebounced(query.trim());
+      setPage(1);
+    }, 250);
+    return () => clearTimeout(id);
+  }, [query]);
 
-  const selected: Purchase =
-    NEXUM_PURCHASES.find((p) => p.id === selectedId) ?? NEXUM_PURCHASES[0];
+  const reload = async (targetPage = page) => {
+    const myReq = ++reqRef.current;
+    setLoading(true);
+    setLoadError(null);
+    try {
+      const res = await purchasesApi.list({
+        skip: (targetPage - 1) * PAGE_SIZE,
+        take: PAGE_SIZE,
+        search: debounced || undefined,
+        status: TAB_TO_STATUS[tab] ?? undefined,
+      });
+      if (reqRef.current !== myReq) return;
+      setOrders(res.items);
+      setTotal(res.total);
+    } catch (err) {
+      if (reqRef.current !== myReq) return;
+      setLoadError(
+        err instanceof ApiError
+          ? err.message
+          : "No se pudieron cargar las órdenes de compra.",
+      );
+    } finally {
+      if (reqRef.current === myReq) setLoading(false);
+    }
+  };
 
-  const lowMaterials = NEXUM_MATERIALS.filter((m) => m.stock <= m.reorder);
-  const openOrders = NEXUM_PURCHASES.filter(
-    (p) => p.status === "Enviada" || p.status === "Recibida parcial",
-  );
-  const openValue = openOrders.reduce((s, p) => s + p.total, 0);
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    void reload(page);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [page, tab, debounced]);
+
+  const changeTab = (t: Tab) => {
+    setTab(t);
+    setPage(1);
+  };
+
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
   return (
     <>
       <PageHeader
         title="Compras"
-        sub={`${openOrders.length} OC abiertas · ${fmtMXN(openValue)} en tránsito · ${lowMaterials.length} insumos por reordenar`}
+        sub={
+          tab === "Todas"
+            ? `${fmtInt(total)} órdenes de compra`
+            : `${fmtInt(total)} órdenes · ${tab}`
+        }
         actions={
-          <>
-            {lowMaterials.length > 0 && (
+          canCreate && (
+            <>
               <button className="btn" onClick={() => setShowSuggested(true)}>
-                {I.alert} Sugerencias ({lowMaterials.length})
+                {I.alert} Sugerencias
               </button>
-            )}
-            <button className="btn btn--accent" onClick={() => setShowNew(true)}>
-              {I.plus} Nueva OC
-            </button>
-          </>
+              <button
+                className="btn btn--accent"
+                onClick={() => setShowNew(true)}
+              >
+                {I.plus} Nueva OC
+              </button>
+            </>
+          )
         }
       />
 
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 380px", gap: 18, alignItems: "start" }}>
-        <div className="card">
-          <div className="card__head" style={{ gap: 8 }}>
-            <div className="row" style={{ gap: 4 }}>
-              {TABS.map((t) => (
-                <button
-                  key={t}
-                  className={`btn btn--sm ${tab === t ? "btn--primary" : "btn--ghost"}`}
-                  onClick={() => setTab(t)}
-                >
-                  {t}
-                </button>
-              ))}
-            </div>
+      {loadError && (
+        <div
+          className="card mb-3 flex items-center gap-2"
+          style={{
+            padding: 12,
+            border: "1px solid var(--danger)",
+            color: "var(--danger)",
+            background: "var(--danger-soft)",
+          }}
+          role="alert"
+        >
+          <span className="flex-1">{loadError}</span>
+          <button
+            className="btn btn--sm"
+            type="button"
+            onClick={() => void reload()}
+          >
+            Reintentar
+          </button>
+        </div>
+      )}
+
+      <div className="card">
+        <div className="card__head" style={{ gap: 4 }}>
+          {TABS.map((t) => (
+            <button
+              key={t}
+              className={`btn btn--sm ${tab === t ? "btn--primary" : "btn--ghost"}`}
+              onClick={() => changeTab(t)}
+            >
+              {t}
+            </button>
+          ))}
+          <div className="spacer" />
+          <div className="topbar__search" style={{ margin: 0, width: 240 }}>
+            {I.search}
+            <input
+              placeholder="Buscar folio o proveedor"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+            />
           </div>
-          <table className="tbl">
-            <thead>
+        </div>
+        <table className="tbl">
+          <thead>
+            <tr>
+              <th>Folio</th>
+              <th>Proveedor</th>
+              <th>Esperada</th>
+              <th style={{ textAlign: "right" }}>Líneas</th>
+              <th style={{ textAlign: "right" }}>Total</th>
+              <th>Estado</th>
+            </tr>
+          </thead>
+          <tbody>
+            {loading ? (
               <tr>
-                <th>Folio</th>
-                <th>Proveedor</th>
-                <th>Fecha</th>
-                <th>Esperada</th>
-                <th style={{ textAlign: "right" }}>Líneas</th>
-                <th style={{ textAlign: "right" }}>Total</th>
-                <th>Estado</th>
+                <td colSpan={6} className="text-muted">
+                  Cargando órdenes de compra…
+                </td>
               </tr>
-            </thead>
-            <tbody>
-              {filtered.map((p) => (
+            ) : orders.length === 0 ? (
+              <tr>
+                <td colSpan={6} className="text-muted">
+                  {debounced
+                    ? `Sin órdenes para “${debounced}”.`
+                    : "Sin órdenes de compra."}
+                </td>
+              </tr>
+            ) : (
+              orders.map((p) => (
                 <tr
                   key={p.id}
-                  onClick={() => setSelectedId(p.id)}
-                  style={{ background: selected.id === p.id ? "var(--accent-soft)" : "" }}
+                  onClick={() => router.push(`/purchases/${p.folio}`)}
                 >
-                  <td className="num" style={{ fontWeight: 500 }}>
-                    {p.id}
-                    {p.forOrder && (
-                      <div style={{ fontSize: 10, color: "var(--accent-ink)" }}>
-                        para {p.forOrder}
-                      </div>
-                    )}
+                  <td className="num">{p.folio}</td>
+                  <td>{p.supplierName}</td>
+                  <td className="num text-xs">
+                    {p.expectedDate ? fmtDate(p.expectedDate) : "—"}
                   </td>
-                  <td>{p.supplier}</td>
-                  <td className="num" style={{ fontSize: 12, color: "var(--muted)" }}>{p.date}</td>
-                  <td className="num" style={{ fontSize: 12 }}>{p.expected}</td>
-                  <td className="num" style={{ textAlign: "right" }}>{p.items}</td>
-                  <td className="num" style={{ textAlign: "right", fontWeight: 600 }}>
+                  <td className="num" style={{ textAlign: "right" }}>
+                    {p.itemsCount}
+                  </td>
+                  <td className="num" style={{ textAlign: "right" }}>
                     {fmtMXN(p.total)}
                   </td>
-                  <td><PurchaseStatusPill s={p.status} /></td>
+                  <td>
+                    <PurchaseStatusPill status={p.status} />
+                  </td>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              ))
+            )}
+          </tbody>
+        </table>
+        <div
+          className="flex items-center gap-3 text-xs text-muted"
+          style={{ padding: "10px 14px", borderTop: "1px solid var(--line)" }}
+        >
+          <span>
+            {total === 0
+              ? "Sin órdenes"
+              : `Mostrando ${(page - 1) * PAGE_SIZE + 1}–${Math.min(
+                  page * PAGE_SIZE,
+                  total,
+                )} de ${total}`}
+          </span>
+          <div className="spacer" />
+          <span className="num">
+            Página {page} de {totalPages}
+          </span>
+          <button
+            className="btn btn--sm btn--ghost"
+            type="button"
+            onClick={() => setPage((p) => Math.max(1, p - 1))}
+            disabled={loading || page <= 1}
+            aria-label="Página anterior"
+          >
+            {I.chevronLeft}
+          </button>
+          <button
+            className="btn btn--sm btn--ghost"
+            type="button"
+            onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+            disabled={loading || page >= totalPages}
+            aria-label="Página siguiente"
+          >
+            {I.chevronRight}
+          </button>
         </div>
-
-        <PurchaseDetail po={selected} />
       </div>
 
-      {showNew && <PurchaseNewModal onClose={() => setShowNew(false)} />}
+      {showNew && (
+        <PurchaseNewModal
+          onClose={() => setShowNew(false)}
+          onSaved={(res) => {
+            setShowNew(false);
+            if (res.folio) router.push(`/purchases/${res.folio}`);
+            else void reload();
+          }}
+        />
+      )}
       {showSuggested && (
-        <PurchaseSuggestedModal materials={lowMaterials} onClose={() => setShowSuggested(false)} />
+        <PurchaseSuggestedModal
+          onClose={() => setShowSuggested(false)}
+          onGenerated={() => {
+            setShowSuggested(false);
+            void reload(1);
+            setPage(1);
+          }}
+        />
       )}
     </>
   );
