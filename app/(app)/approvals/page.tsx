@@ -5,6 +5,8 @@ import { ApprovalDetail } from "@/components/approval-detail";
 import { ApprovalPill } from "@/components/approval-pill";
 import { I } from "@/components/icons";
 import { PageHeader } from "@/components/page-header";
+import { StorageUploadModal } from "@/components/storage-upload-modal";
+import { usePermission } from "@/lib/auth/auth-context";
 import { NEXUM_APPROVALS } from "@/lib/mock-orders";
 import type { ApprovalStatus } from "@/lib/types";
 
@@ -22,6 +24,8 @@ const TAB_TO_STATUS: Record<Tab, ApprovalStatus | null> = {
 export default function ApprovalsPage() {
   const [tab, setTab] = useState<Tab>("Pendientes");
   const [selectedId, setSelectedId] = useState<string>(NEXUM_APPROVALS[0].id);
+  const [showUpload, setShowUpload] = useState(false);
+  const canUpload = usePermission("storage.upload");
 
   const filtered = useMemo(() => {
     const status = TAB_TO_STATUS[tab];
@@ -48,7 +52,14 @@ export default function ApprovalsPage() {
         actions={
           <>
             <button className="btn">{I.layers} Plantillas</button>
-            <button className="btn btn--accent">{I.plus} Subir diseño</button>
+            {canUpload && (
+              <button
+                className="btn btn--accent"
+                onClick={() => setShowUpload(true)}
+              >
+                {I.plus} Subir diseño
+              </button>
+            )}
           </>
         }
       />
@@ -119,6 +130,10 @@ export default function ApprovalsPage() {
 
         <ApprovalDetail key={selected.id} item={selected} />
       </div>
+
+      {showUpload && (
+        <StorageUploadModal onClose={() => setShowUpload(false)} />
+      )}
     </>
   );
 }
