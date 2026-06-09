@@ -84,3 +84,37 @@ export async function apiFetch<T>(
   if (res.status === 204) return undefined as T;
   return (await res.json()) as T;
 }
+
+/**
+ * Como `apiFetch` pero devuelve el cuerpo crudo como Blob (descargas de
+ * archivos: Excel/PDF de reportes). Reusa el refresh de token en 401.
+ */
+export async function apiFetchBlob(
+  path: string,
+  init: RequestInit = {},
+  opts: FetchOpts = {},
+): Promise<Blob> {
+  const useAuth = opts.auth !== false;
+  const stored = tokenStorage.read();
+  const headers = new Headers(init.headers);
+  if (useAuth && stored) {
+    headers.set("Authorization", `Bearer ${stored.accessToken}`);
+  }
+
+  const res = await fetch(`${BASE}${path}`, { ...init, headers });
+
+  if (res.status === 401 && useAuth && !opts.retried) {
+    const fresh = await ensureRefresh();
+    if (!fresh) {
+      tokenStorage.clear();
+      if (typeof window !== "undefined" && window.location.pathname !== "/login") {
+        window.location.href = "/login";
+      }
+      throw new ApiError(401, "session expired");
+    }
+    return apiFetchBlob(path, init, { ...opts, retried: true });
+  }
+
+  if (!res.ok) throw await ApiError.fromResponse(res);
+  return res.blob();
+}

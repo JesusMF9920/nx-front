@@ -1,32 +1,33 @@
 import { fmtMXN } from "@/lib/format";
-import { NEXUM_TOP_PRODUCTS } from "@/lib/mock-reports";
+import type { ApiTopProduct } from "@/lib/api/types";
 
-export function ReportsProducts() {
-  const max = Math.max(...NEXUM_TOP_PRODUCTS.map((p) => p.sales));
+export function ReportsProducts({ items }: { items: ApiTopProduct[] }) {
+  const max = Math.max(...items.map((p) => p.sales), 1);
   return (
     <div className="card">
       <div className="card__head">
         <div className="card__title">Productos más vendidos</div>
       </div>
-      <table className="tbl">
-        <thead>
-          <tr>
-            <th>Producto</th>
-            <th>Categoría</th>
-            <th className="text-right">Unidades</th>
-            <th>Ventas</th>
-            <th className="text-right">Margen</th>
-            <th className="text-right">%</th>
-          </tr>
-        </thead>
-        <tbody>
-          {NEXUM_TOP_PRODUCTS.map((p) => {
-            const mPct = (p.margin / p.sales) * 100;
-            return (
-              <tr key={p.name}>
+      {items.length === 0 ? (
+        <div className="empty m-3.5">Sin ventas en el periodo.</div>
+      ) : (
+        <table className="tbl">
+          <thead>
+            <tr>
+              <th>Producto</th>
+              <th>Categoría</th>
+              <th className="text-right">Unidades</th>
+              <th>Ventas</th>
+              <th className="text-right">Margen</th>
+              <th className="text-right">%</th>
+            </tr>
+          </thead>
+          <tbody>
+            {items.map((p) => (
+              <tr key={p.productId}>
                 <td className="font-medium">{p.name}</td>
                 <td>
-                  <span className="tag text-[10px]">{p.cat}</span>
+                  <span className="tag text-[10px]">{p.category || "—"}</span>
                 </td>
                 <td className="num text-right">{p.qty}</td>
                 <td>
@@ -44,12 +45,14 @@ export function ReportsProducts() {
                   </div>
                 </td>
                 <td className="num text-right text-ok">{fmtMXN(p.margin)}</td>
-                <td className="num text-right text-muted">{mPct.toFixed(0)}%</td>
+                <td className="num text-right text-muted">
+                  {p.marginPct.toFixed(0)}%
+                </td>
               </tr>
-            );
-          })}
-        </tbody>
-      </table>
+            ))}
+          </tbody>
+        </table>
+      )}
     </div>
   );
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { I } from "@/components/icons";
 import { PageHeader } from "@/components/page-header";
 import { ReportsAging } from "@/components/reports-aging";
@@ -8,29 +8,111 @@ import { ReportsClients } from "@/components/reports-clients";
 import { ReportsProducts } from "@/components/reports-products";
 import { ReportsSellers } from "@/components/reports-sellers";
 import { ReportsSummary } from "@/components/reports-summary";
+import { ApiError } from "@/lib/api/errors";
+import {
+  reportsApi,
+  type ExportableReport,
+  type ExportFormat,
+  type ReportRange,
+} from "@/lib/api/reports";
+import type {
+  ApiAgingRow,
+  ApiSalesSummary,
+  ApiSeller,
+  ApiTopClient,
+  ApiTopProduct,
+} from "@/lib/api/types";
+import { usePermission } from "@/lib/auth/auth-context";
 import { fmtMXN } from "@/lib/format";
-import { NEXUM_AGING, NEXUM_REPORT_DAILY } from "@/lib/mock-reports";
 
-type Range = "7d" | "30d" | "90d" | "Año";
+const RANGES: ReportRange[] = ["7d", "30d", "90d", "Año"];
 type Tab = "Resumen" | "Productos" | "Clientes" | "Vendedores" | "Cobranza";
-
-const RANGES: Range[] = ["7d", "30d", "90d", "Año"];
 const TABS: Tab[] = ["Resumen", "Productos", "Clientes", "Vendedores", "Cobranza"];
+
+const TAB_REPORT: Partial<Record<Tab, ExportableReport>> = {
+  Productos: "top-products",
+  Clientes: "top-clients",
+  Vendedores: "sellers",
+  Cobranza: "aging",
+};
 
 type KpiTone = "ok" | "warn" | "neutral";
 
 export default function ReportsPage() {
-  const [range, setRange] = useState<Range>("30d");
+  const canRead = usePermission("reports.read");
+  const canExport = usePermission("reports.export");
+  const [range, setRange] = useState<ReportRange>("30d");
   const [tab, setTab] = useState<Tab>("Resumen");
 
-  const data = NEXUM_REPORT_DAILY;
-  const totSales = data.reduce((s, d) => s + d.sales, 0);
-  const totOrders = data.reduce((s, d) => s + d.orders, 0);
-  const totMargin = data.reduce((s, d) => s + d.margin, 0);
-  const avgTicket = totSales / totOrders;
-  const marginPct = (totMargin / totSales) * 100;
-  const totCxC = NEXUM_AGING.reduce((s, a) => s + a.total, 0);
-  const overdue = NEXUM_AGING.reduce((s, a) => s + a.b3160 + a.b6190 + a.b90, 0);
+  const [summary, setSummary] = useState<ApiSalesSummary | null>(null);
+  const [products, setProducts] = useState<ApiTopProduct[]>([]);
+  const [clients, setClients] = useState<ApiTopClient[]>([]);
+  const [sellers, setSellers] = useState<ApiSeller[]>([]);
+  const [aging, setAging] = useState<ApiAgingRow[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const reqRef = useRef(0);
+
+  useEffect(() => {
+    if (!canRead) return;
+    const token = ++reqRef.current;
+    void (async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        const [s, p, c, v, a] = await Promise.all([
+          reportsApi.salesSummary(range),
+          reportsApi.topProducts(range),
+          reportsApi.topClients(range),
+          reportsApi.sellers(range),
+          reportsApi.aging(),
+        ]);
+        if (token !== reqRef.current) return;
+        setSummary(s);
+        setProducts(p.items);
+        setClients(c.items);
+        setSellers(v.items);
+        setAging(a.items);
+      } catch (err) {
+        if (token !== reqRef.current) return;
+        setError(
+          err instanceof ApiError ? err.message : "No se pudieron cargar los reportes.",
+        );
+      } finally {
+        if (token === reqRef.current) setLoading(false);
+      }
+    })();
+  }, [range, canRead]);
+
+  const exportReport = async (format: ExportFormat) => {
+    const report = TAB_REPORT[tab];
+    if (!report) return;
+    try {
+      await reportsApi.download(report, format, report === "aging" ? undefined : range);
+    } catch (err) {
+      setError(
+        err instanceof ApiError ? err.message : "No se pudo exportar el reporte.",
+      );
+    }
+  };
+
+  if (!canRead) {
+    return (
+      <>
+        <PageHeader title="Reportes" sub="Ventas, margen, cobranza y desempeño" />
+        <div className="empty m-3.5">No tienes permiso para ver los reportes.</div>
+      </>
+    );
+  }
+
+  const totSales = summary?.totals.sales ?? 0;
+  const totOrders = summary?.totals.orders ?? 0;
+  const totMargin = summary?.totals.margin ?? 0;
+  const avgTicket = summary?.totals.avgTicket ?? 0;
+  const marginPct = summary?.totals.marginPct ?? 0;
+  const totCxC = aging.reduce((s, a) => s + a.total, 0);
+  const overdue = aging.reduce((s, a) => s + a.b3160 + a.b6190 + a.b90, 0);
+  const exportable = TAB_REPORT[tab] !== undefined;
 
   return (
     <>
@@ -51,26 +133,53 @@ export default function ReportsPage() {
                 </button>
               ))}
             </div>
-            <button className="btn">{I.download} Exportar Excel</button>
-            <button className="btn">{I.copy} PDF</button>
+            {canExport && (
+              <>
+                <button
+                  className="btn"
+                  disabled={!exportable || loading}
+                  onClick={() => void exportReport("xlsx")}
+                  title={exportable ? "" : "Selecciona una pestaña con tabla"}
+                >
+                  {I.download} Exportar Excel
+                </button>
+                <button
+                  className="btn"
+                  disabled={!exportable || loading}
+                  onClick={() => void exportReport("pdf")}
+                >
+                  {I.copy} PDF
+                </button>
+              </>
+            )}
           </>
         }
       />
 
+      {error && (
+        <div
+          className="mb-3 text-[13px]"
+          style={{
+            padding: 10,
+            border: "1px solid var(--danger)",
+            color: "var(--danger)",
+            background: "var(--danger-soft)",
+            borderRadius: 8,
+          }}
+          role="alert"
+        >
+          {error}
+        </div>
+      )}
+
       <div className="kpi-grid mb-[18px]">
-        <Kpi
-          label="Ventas netas"
-          value={fmtMXN(totSales)}
-          delta="+18.4%"
-          up
-          hint="vs período anterior"
-        />
+        <Kpi label="Ventas netas" value={fmtMXN(totSales)} delta={loading ? "…" : "del periodo"} up hint="período seleccionado" />
         <Kpi
           label="Pedidos"
           value={totOrders}
-          delta="+12"
+          delta={`Ticket ${fmtMXN(avgTicket)}`}
           up
-          hint={`Ticket promedio ${fmtMXN(avgTicket)}`}
+          hint="promedio"
         />
         <Kpi
           label="Margen bruto"
@@ -83,7 +192,7 @@ export default function ReportsPage() {
         <Kpi
           label="Cuentas por cobrar"
           value={fmtMXN(totCxC)}
-          delta={fmtMXN(overdue)}
+          delta={overdue > 0 ? `${fmtMXN(overdue)} vencido` : "al corriente"}
           up={false}
           hint="vencido > 30 días"
           tone={overdue > 0 ? "warn" : "neutral"}
@@ -103,11 +212,23 @@ export default function ReportsPage() {
         ))}
       </div>
 
-      {tab === "Resumen" && <ReportsSummary />}
-      {tab === "Productos" && <ReportsProducts />}
-      {tab === "Clientes" && <ReportsClients />}
-      {tab === "Vendedores" && <ReportsSellers />}
-      {tab === "Cobranza" && <ReportsAging />}
+      {loading ? (
+        <div className="text-muted text-sm">Cargando reportes…</div>
+      ) : (
+        <>
+          {tab === "Resumen" && summary && (
+            <ReportsSummary
+              daily={summary.daily}
+              paymentMix={summary.paymentMix}
+              categoryMix={summary.categoryMix}
+            />
+          )}
+          {tab === "Productos" && <ReportsProducts items={products} />}
+          {tab === "Clientes" && <ReportsClients items={clients} />}
+          {tab === "Vendedores" && <ReportsSellers items={sellers} />}
+          {tab === "Cobranza" && <ReportsAging items={aging} />}
+        </>
+      )}
     </>
   );
 }

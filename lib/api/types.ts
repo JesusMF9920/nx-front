@@ -453,3 +453,117 @@ export type ApiSupplier = {
   createdAt: string;
   updatedAt: string;
 };
+
+// ── Reportes / Dashboard (Fase E) ──────────────────────────────────────────
+
+export type ApiReportDaily = {
+  /** 'YYYY-MM-DD' en TZ America/Mexico_City. */
+  day: string;
+  sales: number;
+  orders: number;
+  margin: number;
+};
+
+export type ApiDashboardDelivery = {
+  orderId: string;
+  folio: string;
+  clientName: string;
+  status: ApiOrderStatus;
+  deliverAt: string;
+  itemsCount: number;
+};
+
+export type ApiDashboardOrder = {
+  orderId: string;
+  folio: string;
+  clientName: string;
+  sellerName: string | null;
+  status: ApiOrderStatus;
+  total: number;
+  deliverAt: string | null;
+  createdAt: string;
+};
+
+export type ApiDashboard = {
+  salesToday: number;
+  openOrders: number;
+  upcomingDeliveries: number;
+  /** Proxy por order.status='client_approval' hasta el módulo design (Fase F). */
+  pendingApprovals: number;
+  salesSeries: ApiReportDaily[];
+  todayDeliveries: ApiDashboardDelivery[];
+  recentOrders: ApiDashboardOrder[];
+};
+
+export type ApiPaymentMixMethod = "cash" | "terminal" | "credit";
+
+export type ApiPaymentMixEntry = {
+  method: ApiPaymentMixMethod;
+  amount: number;
+  /** % sobre ventas (0–100). */
+  pct: number;
+};
+
+export type ApiCategoryMixEntry = {
+  category: string;
+  sales: number;
+  /** % sobre el total de categorías (suma 100). */
+  pct: number;
+};
+
+export type ApiSalesSummary = {
+  totals: {
+    sales: number;
+    orders: number;
+    avgTicket: number;
+    margin: number;
+    marginPct: number;
+  };
+  daily: ApiReportDaily[];
+  paymentMix: ApiPaymentMixEntry[];
+  categoryMix: ApiCategoryMixEntry[];
+};
+
+export type ApiTopProduct = {
+  productId: string;
+  name: string;
+  category: string;
+  qty: number;
+  sales: number;
+  margin: number;
+  marginPct: number;
+};
+
+export type ApiTopClient = {
+  clientId: string;
+  name: string;
+  orders: number;
+  sales: number;
+  margin: number;
+  debt: number;
+};
+
+export type ApiSeller = {
+  sellerId: string;
+  name: string | null;
+  orders: number;
+  sales: number;
+  avgTicket: number;
+  conversionPct: number;
+};
+
+export type ApiAgingBucket = "0-30" | "31-60" | "61-90" | "90+";
+
+export type ApiAgingRow = {
+  orderId: string;
+  folio: string;
+  clientName: string;
+  /** 'YYYY-MM-DD' (fecha de la venta). */
+  date: string;
+  bucket: ApiAgingBucket;
+  total: number;
+  b030: number;
+  b3160: number;
+  b6190: number;
+  b90: number;
+};
