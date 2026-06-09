@@ -366,6 +366,55 @@ export type ApiConvertResult = {
   paid: number;
 };
 
+// ── Compras / Órdenes de compra (Fase D) ──────────────────────────────────
+
+export type ApiPurchaseStatus = "draft" | "sent" | "received" | "cancelled";
+
+export type ApiPurchaseLineKind = "catalog" | "free";
+
+export type ApiPurchaseLine = {
+  id: string;
+  /** 'catalog' (referencia un material) | 'free' (línea libre ad-hoc). */
+  kind: ApiPurchaseLineKind;
+  /** null en línea libre. */
+  materialId: string | null;
+  /** Nombre del material (catálogo) o el texto de la línea libre. */
+  materialName: string;
+  sku: string | null;
+  materialVariantId: string | null;
+  variantCode: string | null;
+  variantLabel: string | null;
+  qty: number;
+  unitCost: number;
+  lineTotal: number;
+};
+
+/** Forma del GET /purchases (lista). */
+export type ApiPurchaseOrder = {
+  id: string;
+  folio: string;
+  supplierId: string;
+  supplierName: string;
+  status: ApiPurchaseStatus;
+  total: number;
+  expectedDate: string | null;
+  itemsCount: number;
+  receivedAt: string | null;
+  createdAt: string;
+};
+
+/** Forma del GET /purchases/:idOrFolio (detalle). */
+export type ApiPurchaseOrderDetail = Omit<ApiPurchaseOrder, "itemsCount"> & {
+  createdById: string;
+  subtotal: number;
+  discount: number;
+  tax: number;
+  notes: string | null;
+  cancelledAt: string | null;
+  items: ApiPurchaseLine[];
+  updatedAt: string;
+};
+
 export type ApiStockShortage = {
   materialId: string;
   materialName: string;
