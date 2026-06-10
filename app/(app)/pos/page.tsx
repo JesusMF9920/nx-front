@@ -294,10 +294,12 @@ export default function POSPage() {
   );
 
   return (
+    // Responsive tablet (H3): <768 apila catálogo/carrito; 768–1024 angosta el
+    // carrito; ≥1024 el layout original. Breakpoints en clases (los estilos
+    // inline no admiten media queries).
     <div
-      className="grid"
+      className="grid grid-cols-1 md:grid-cols-[1fr_minmax(300px,340px)] lg:grid-cols-[1fr_420px]"
       style={{
-        gridTemplateColumns: "1fr 420px",
         gap: 0,
         height: "calc(100vh - 48px)",
         margin: "-24px -28px -80px",
@@ -337,7 +339,7 @@ export default function POSPage() {
           </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-5">
+        <div className="flex-1 overflow-y-auto p-5 @container">
           {(loadError || actionError) && (
             <div
               className="flex items-start gap-2 rounded-md mb-3"
@@ -371,7 +373,9 @@ export default function POSPage() {
                 : "No hay productos activos en el catálogo."}
             </div>
           ) : (
-            <div className="grid gap-3" style={{ gridTemplateColumns: "repeat(4, 1fr)" }}>
+            // Columnas por ancho del CONTENEDOR (no viewport): el espacio
+            // real depende del sidebar y del carrito.
+            <div className="grid gap-3 grid-cols-2 @md:grid-cols-3 @xl:grid-cols-4">
               {products.map((p) => (
                 <button
                   type="button"

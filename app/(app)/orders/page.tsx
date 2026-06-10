@@ -141,7 +141,9 @@ export default function OrdersPage() {
           </div>
           <button className="icon-btn" aria-label="Filtros">{I.filter}</button>
         </div>
-        <table className="tbl">
+        {/* Responsive tablet (H3): la tabla no colapsa columnas — scrollea. */}
+        <div className="overflow-x-auto">
+          <table className="tbl min-w-[760px]">
           <thead>
             <tr>
               <th>Pedido</th>
@@ -180,7 +182,8 @@ export default function OrdersPage() {
               ))
             )}
           </tbody>
-        </table>
+          </table>
+        </div>
         <div
           className="flex items-center gap-3 text-xs text-muted"
           style={{
