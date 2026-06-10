@@ -77,6 +77,9 @@ export type ListOrdersParams = {
   search?: string;
   from?: string;
   to?: string;
+  /** Rango half-open [deliverFrom, deliverTo) sobre deliverAt — calendario. */
+  deliverFrom?: string;
+  deliverTo?: string;
   skip?: number;
   take?: number;
 };

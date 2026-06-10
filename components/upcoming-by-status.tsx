@@ -16,6 +16,9 @@ export function UpcomingByStatus({ title, items }: { title: string; items: Upcom
         <div className="card__title">{title}</div>
       </div>
       <div className="card__body p-0">
+        {items.length === 0 && (
+          <div className="text-muted text-xs px-4 py-3">Sin pedidos.</div>
+        )}
         {items.map((it, i) => (
           <Link
             key={it.id}

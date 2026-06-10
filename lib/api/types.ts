@@ -45,6 +45,100 @@ export type ApiPresignDownload = {
   expiresIn: number;
 };
 
+// ── Design (Fase F): fichas de diseño + aprobación de clientes ─────────────
+
+export type ApiDesignProofStatus =
+  | "draft"
+  | "awaiting_client"
+  | "changes_requested"
+  | "approved";
+
+export type ApiApprovalChannel = "link" | "whatsapp";
+
+export type ApiDesignCommentAuthorType = "user" | "client" | "system";
+
+/** Forma del GET /design/proofs (lista). */
+export type ApiDesignProofListItem = {
+  id: string;
+  folio: string;
+  orderFolio: string;
+  clientName: string;
+  productName: string;
+  status: ApiDesignProofStatus;
+  currentVersion: number;
+  lastChannel: ApiApprovalChannel | null;
+  lastSentAt: string | null;
+  updatedAt: string;
+};
+
+export type ApiDesignProofVersion = {
+  version: number;
+  contentType: string;
+  note: string | null;
+  sentAt: string | null;
+  channel: ApiApprovalChannel | null;
+  createdAt: string;
+};
+
+export type ApiDesignProofComment = {
+  id: string;
+  authorType: ApiDesignCommentAuthorType;
+  authorName: string;
+  body: string;
+  createdAt: string;
+};
+
+/** Forma del GET /design/proofs/:idOrFolio (detalle). */
+export type ApiDesignProofDetail = {
+  id: string;
+  folio: string;
+  orderId: string;
+  orderItemId: string;
+  orderFolio: string;
+  clientName: string;
+  productName: string;
+  itemSource: "internal" | "supplier";
+  status: ApiDesignProofStatus;
+  currentVersion: number;
+  lastChannel: ApiApprovalChannel | null;
+  lastSentAt: string | null;
+  decidedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+  versions: ApiDesignProofVersion[];
+  comments: ApiDesignProofComment[];
+};
+
+export type ApiSendProofResult = {
+  proofId: string;
+  version: number;
+  channel: ApiApprovalChannel;
+  /** URL pública completa — única vez que el backend la entrega. */
+  url: string;
+  expiresAt: string;
+};
+
+export type ApiProofDownload = {
+  downloadUrl: string;
+  contentType: string;
+  expiresIn: number;
+};
+
+/** Vista pública (página /approve/[token], sin login). */
+export type ApiPublicApproval = {
+  folio: string;
+  orderFolio: string;
+  productName: string;
+  clientName: string;
+  status: ApiDesignProofStatus;
+  version: number;
+  versionNote: string | null;
+  contentType: string;
+  previewUrl: string;
+  tokenExpiresAt: string;
+  comments: ApiDesignProofComment[];
+};
+
 export type ApiLoginResponse = {
   accessToken: string;
   refreshToken: string;
