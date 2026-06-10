@@ -87,26 +87,49 @@ export function ApprovalSendModal({
             canal se lo compartes:
           </div>
           <div className="mt-3 flex gap-2">
-            {(["link", "whatsapp"] as const).map((c) => (
+            {(
+              [
+                ["link", "Link directo"],
+                ["whatsapp", "WhatsApp"],
+                ["email", "Correo"],
+              ] as const
+            ).map(([c, label]) => (
               <button
                 key={c}
                 type="button"
                 className={`btn btn--sm ${channel === c ? "btn--primary" : "btn--ghost"}`}
                 onClick={() => setChannel(c)}
               >
-                {c === "link" ? "Link directo" : "WhatsApp"}
+                {label}
               </button>
             ))}
           </div>
           <div className="text-muted text-xs mt-2">
-            El envío real por WhatsApp llega en una fase posterior — por ahora
-            copia el link y compártelo tú.
+            {channel === "email"
+              ? "El link de aprobación se enviará al correo registrado del cliente."
+              : "El envío real por WhatsApp llega en una fase posterior — por ahora copia el link y compártelo tú."}
           </div>
         </>
       ) : (
         <>
+          {result.sentTo && (
+            <div
+              className="rounded-md text-sm mb-3"
+              style={{
+                padding: "10px 12px",
+                border: "1px solid var(--ok)",
+                background: "var(--ok-soft)",
+              }}
+              role="status"
+            >
+              Enviado por correo a <strong>{result.sentTo}</strong>.
+            </div>
+          )}
           <div className="text-sm text-ink-2">
-            Link generado (v{result.version}). Compártelo con el cliente —{" "}
+            Link generado (v{result.version}).{" "}
+            {result.sentTo
+              ? "También puedes compartirlo tú —"
+              : "Compártelo con el cliente —"}{" "}
             <strong>sólo se muestra una vez</strong>; si se pierde, re-envía
             para generar otro.
           </div>

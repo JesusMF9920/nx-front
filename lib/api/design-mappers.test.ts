@@ -18,6 +18,7 @@ describe("APPROVAL_CHANNEL_ES", () => {
     expect(APPROVAL_CHANNEL_ES).toEqual({
       link: "Link",
       whatsapp: "WhatsApp",
+      email: "Correo",
     });
   });
 });
