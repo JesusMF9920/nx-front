@@ -211,7 +211,6 @@ describe("buildThermalTicketHtml", () => {
 
     const evil = buildThermalTicketHtml(
       order(),
-      // eslint-disable-next-line no-script-url
       business({ logoUrl: "javascript:alert(1)" }),
     );
     expect(evil).not.toContain("javascript:alert(1)");
