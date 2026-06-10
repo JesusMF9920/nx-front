@@ -4,3 +4,7 @@ allowBuilds:
 ignoredBuiltDependencies:
   - sharp
   - unrs-resolver
+# Política supply-chain (paridad con nxpos-api): rechaza paquetes publicados
+# hace menos de 1 día. Si una transitiva del día bloquea la instalación,
+# fijar versión previa con overrides (precedente: strnum en el backend).
+minimumReleaseAge: 1440
