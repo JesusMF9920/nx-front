@@ -96,7 +96,12 @@ export const quotesApi = {
   send(
     quoteId: string,
     channel: ApiQuoteChannel,
-  ): Promise<{ quoteId: string; status: ApiQuoteStatus }> {
+  ): Promise<{
+    quoteId: string;
+    status: ApiQuoteStatus;
+    /** Correo del destinatario cuando channel='email'; null en otros canales. */
+    sentTo: string | null;
+  }> {
     return apiFetch(`/quotes/${quoteId}/send`, {
       method: "POST",
       body: JSON.stringify({ channel }),

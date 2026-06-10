@@ -77,6 +77,7 @@ export default function QuoteDetailPage() {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [missing, setMissing] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
+  const [sendNotice, setSendNotice] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [showEdit, setShowEdit] = useState(false);
   const [showConvert, setShowConvert] = useState(false);
@@ -160,10 +161,15 @@ export default function QuoteDetailPage() {
     if (!detail) return;
     const quoteId = detail.id;
     setShowSend(false);
-    void runAction(
-      () => quotesApi.send(quoteId, channel),
-      "No se pudo enviar la cotización.",
-    );
+    setSendNotice(null);
+    void runAction(async () => {
+      const res = await quotesApi.send(quoteId, channel);
+      if (channel === "email" && res.sentTo) {
+        setSendNotice(
+          `Cotización enviada por correo a ${res.sentTo} (PDF adjunto).`,
+        );
+      }
+    }, "No se pudo enviar la cotización.");
   };
 
   const approve = () => {
@@ -333,6 +339,28 @@ export default function QuoteDetailPage() {
           </>
         }
       />
+
+      {sendNotice && (
+        <div
+          className="card mb-3 flex items-start gap-2"
+          style={{
+            padding: 12,
+            border: "1px solid var(--ok)",
+            background: "var(--ok-soft)",
+          }}
+          role="status"
+        >
+          <span className="flex-1">{sendNotice}</span>
+          <button
+            className="icon-btn"
+            onClick={() => setSendNotice(null)}
+            aria-label="Cerrar mensaje"
+            type="button"
+          >
+            {I.x}
+          </button>
+        </div>
+      )}
 
       {actionError && (
         <div
@@ -590,8 +618,9 @@ export default function QuoteDetailPage() {
             ))}
           </div>
           <div className="text-[11px] text-muted mt-3">
-            Solo registra el canal — el envío real (WhatsApp/correo) llega en una
-            fase posterior.
+            Correo envía la cotización con el PDF adjunto al correo del
+            cliente. WhatsApp, Link y Presencial solo registran el canal por
+            ahora.
           </div>
         </Modal>
       )}
