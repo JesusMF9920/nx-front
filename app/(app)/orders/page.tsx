@@ -2,17 +2,17 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { I } from "@/components/icons";
 import { PageHeader } from "@/components/page-header";
 import { PaymentPill } from "@/components/payment-pill";
 import { StatusPill } from "@/components/status-pill";
 import { usePermission } from "@/lib/auth/auth-context";
-import { ApiError } from "@/lib/api/errors";
 import { ordersApi } from "@/lib/api/orders";
 import { ORDER_STATUS_ES, paymentLabel } from "@/lib/api/sales-mappers";
 import type { ApiOrder, ApiOrderStatus } from "@/lib/api/types";
 import { fmtDate, fmtInt, fmtMXN } from "@/lib/format";
+import { useApiList } from "@/lib/hooks/use-api-list";
 
 const PAGE_SIZE = 25;
 
@@ -51,58 +51,30 @@ export default function OrdersPage() {
   const canSell = usePermission("sales.pos.sell");
   const [tab, setTab] = useState<Tab>("Todos");
   const [query, setQuery] = useState("");
-  const [debounced, setDebounced] = useState("");
-  const [page, setPage] = useState(1);
-  const [orders, setOrders] = useState<ApiOrder[]>([]);
-  const [total, setTotal] = useState(0);
-  const [loading, setLoading] = useState(true);
-  const [loadError, setLoadError] = useState<string | null>(null);
 
-  // Debounce de búsqueda (250ms). Resetea page al mismo tiempo para que
-  // la siguiente fetch sea atómica con el nuevo término.
-  useEffect(() => {
-    const id = setTimeout(() => {
-      setDebounced(query.trim());
-      setPage(1);
-    }, 250);
-    return () => clearTimeout(id);
-  }, [query]);
-
-  const reload = async (targetPage = page) => {
-    setLoading(true);
-    setLoadError(null);
-    try {
-      const res = await ordersApi.list({
-        skip: (targetPage - 1) * PAGE_SIZE,
-        take: PAGE_SIZE,
-        search: debounced || undefined,
-        status: TAB_TO_STATUS[tab] ?? undefined,
-      });
-      setOrders(res.items);
-      setTotal(res.total);
-    } catch (err) {
-      setLoadError(
-        err instanceof ApiError
-          ? err.message
-          : "No se pudieron cargar los pedidos.",
-      );
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    void reload();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [page, tab, debounced]);
+  const {
+    items: orders,
+    total,
+    totalPages,
+    page,
+    setPage,
+    loading,
+    error: loadError,
+    debounced,
+    reload,
+  } = useApiList<ApiOrder>({
+    fetcher: (params) =>
+      ordersApi.list({ ...params, status: TAB_TO_STATUS[tab] ?? undefined }),
+    filterKey: tab,
+    search: query,
+    pageSize: PAGE_SIZE,
+    errorMessage: "No se pudieron cargar los pedidos.",
+  });
 
   const changeTab = (t: Tab) => {
     setTab(t);
     setPage(1);
   };
-
-  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
   return (
     <>
@@ -169,7 +141,9 @@ export default function OrdersPage() {
           </div>
           <button className="icon-btn" aria-label="Filtros">{I.filter}</button>
         </div>
-        <table className="tbl">
+        {/* Responsive tablet (H3): la tabla no colapsa columnas — scrollea. */}
+        <div className="overflow-x-auto">
+          <table className="tbl min-w-[760px]">
           <thead>
             <tr>
               <th>Pedido</th>
@@ -208,7 +182,8 @@ export default function OrdersPage() {
               ))
             )}
           </tbody>
-        </table>
+          </table>
+        </div>
         <div
           className="flex items-center gap-3 text-xs text-muted"
           style={{

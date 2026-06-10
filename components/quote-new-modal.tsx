@@ -27,6 +27,7 @@ import type {
   ApiQuotePreview,
 } from "@/lib/api/types";
 import { fmtMXN } from "@/lib/format";
+import { effectiveQty, lineSubtotal } from "@/lib/pos-cart";
 import type { CartLine, ProductSource, SizeBreakdownEntry } from "@/lib/types";
 
 type BuilderLine = CartLine & { unitPriceOverride?: number };
@@ -49,26 +50,6 @@ const PAGE_SIZE = 12;
 
 function sourceLabel(s: ApiProductSource): ProductSource {
   return s === "internal" ? "Interno" : "Proveedor";
-}
-
-function effectiveQty(line: BuilderLine): number {
-  if (line.sizeBreakdown) {
-    return line.sizeBreakdown.reduce((s, b) => s + b.qty, 0);
-  }
-  return line.qty;
-}
-
-function lineSubtotal(line: BuilderLine): number {
-  if (line.unitPriceOverride !== undefined) {
-    return effectiveQty(line) * line.unitPriceOverride;
-  }
-  if (line.sizeBreakdown) {
-    return line.sizeBreakdown.reduce(
-      (s, b) => s + b.qty * (line.price + b.surcharge),
-      0,
-    );
-  }
-  return line.qty * line.price;
 }
 
 /** Reconstruye las líneas del builder desde un borrador para editar. */

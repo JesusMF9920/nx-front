@@ -29,6 +29,7 @@ import type {
   ApiProductSource,
 } from "@/lib/api/types";
 import { fmtMXN } from "@/lib/format";
+import { cartTotals, lineSubtotal } from "@/lib/pos-cart";
 import type { CartLine, ProductSource, SizeBreakdownEntry } from "@/lib/types";
 
 type PickerState = {
@@ -41,13 +42,6 @@ type PickerState = {
 
 function sourceLabel(s: ApiProductSource): ProductSource {
   return s === "internal" ? "Interno" : "Proveedor";
-}
-
-function lineSubtotal(line: CartLine): number {
-  if (line.sizeBreakdown) {
-    return line.sizeBreakdown.reduce((s, b) => s + b.qty * (line.price + b.surcharge), 0);
-  }
-  return line.qty * line.price;
 }
 
 export default function POSPage() {
@@ -141,10 +135,7 @@ export default function POSPage() {
   }, []);
 
   // Totales client-side SOLO orientativos — el total autoritativo lo da posApi.preview.
-  const subtotal = cart.reduce((s, l) => s + lineSubtotal(l), 0);
-  const discountApplied = Math.min(discount, subtotal);
-  const tax = (subtotal - discountApplied) * 0.16;
-  const total = subtotal - discountApplied + tax;
+  const { subtotal, discountApplied, tax, total } = cartTotals(cart, discount);
 
   const totalPages = Math.max(1, Math.ceil(productsTotal / PAGE_SIZE));
 
@@ -303,10 +294,12 @@ export default function POSPage() {
   );
 
   return (
+    // Responsive tablet (H3): <768 apila catálogo/carrito; 768–1024 angosta el
+    // carrito; ≥1024 el layout original. Breakpoints en clases (los estilos
+    // inline no admiten media queries).
     <div
-      className="grid"
+      className="grid grid-cols-1 md:grid-cols-[1fr_minmax(300px,340px)] lg:grid-cols-[1fr_420px]"
       style={{
-        gridTemplateColumns: "1fr 420px",
         gap: 0,
         height: "calc(100vh - 48px)",
         margin: "-24px -28px -80px",
@@ -346,7 +339,7 @@ export default function POSPage() {
           </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-5">
+        <div className="flex-1 overflow-y-auto p-5 @container">
           {(loadError || actionError) && (
             <div
               className="flex items-start gap-2 rounded-md mb-3"
@@ -380,7 +373,9 @@ export default function POSPage() {
                 : "No hay productos activos en el catálogo."}
             </div>
           ) : (
-            <div className="grid gap-3" style={{ gridTemplateColumns: "repeat(4, 1fr)" }}>
+            // Columnas por ancho del CONTENEDOR (no viewport): el espacio
+            // real depende del sidebar y del carrito.
+            <div className="grid gap-3 grid-cols-2 @md:grid-cols-3 @xl:grid-cols-4">
               {products.map((p) => (
                 <button
                   type="button"

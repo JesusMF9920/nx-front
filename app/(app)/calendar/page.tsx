@@ -238,10 +238,12 @@ export default function CalendarPage() {
           </div>
         </div>
 
+        {/* Responsive tablet (H3): la semana NO colapsa a menos columnas —
+            scrollea horizontal hasta que las 7 caben (≥1024). */}
+        <div className="overflow-x-auto">
         <div
-          className="grid"
+          className="grid grid-cols-7 min-w-[980px] lg:min-w-0"
           style={{
-            gridTemplateColumns: "repeat(7, 1fr)",
             borderTop: "1px solid var(--line)",
             gap: 0,
           }}
@@ -301,9 +303,10 @@ export default function CalendarPage() {
             );
           })}
         </div>
+        </div>
       </div>
 
-      <div className="grid gap-5" style={{ gridTemplateColumns: "1fr 1fr" }}>
+      <div className="grid gap-5 grid-cols-1 lg:grid-cols-2">
         <UpcomingByStatus
           title="Esperando aprobación cliente"
           items={approvalItems}
