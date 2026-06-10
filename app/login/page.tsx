@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, type FormEvent } from "react";
 import { I } from "@/components/icons";
@@ -79,9 +80,12 @@ export default function LoginPage() {
                 <label className="label" htmlFor="password">
                   Contraseña
                 </label>
-                <a href="#" className="help ml-auto text-accent-ink">
+                <Link
+                  href="/password-reset"
+                  className="help ml-auto text-accent-ink"
+                >
                   ¿Olvidaste tu contraseña?
-                </a>
+                </Link>
               </div>
               <input
                 id="password"
