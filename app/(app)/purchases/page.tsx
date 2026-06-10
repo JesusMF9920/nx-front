@@ -1,17 +1,17 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import { I } from "@/components/icons";
 import { PageHeader } from "@/components/page-header";
 import { PurchaseNewModal } from "@/components/purchase-new-modal";
 import { PurchaseStatusPill } from "@/components/purchase-status-pill";
 import { PurchaseSuggestedModal } from "@/components/purchase-suggested-modal";
-import { ApiError } from "@/lib/api/errors";
 import { purchasesApi } from "@/lib/api/purchases";
 import type { ApiPurchaseOrder, ApiPurchaseStatus } from "@/lib/api/types";
 import { usePermission } from "@/lib/auth/auth-context";
 import { fmtDate, fmtInt, fmtMXN } from "@/lib/format";
+import { useApiList } from "@/lib/hooks/use-api-list";
 
 const PAGE_SIZE = 25;
 
@@ -38,64 +38,32 @@ export default function PurchasesPage() {
   const canCreate = usePermission("inventory.purchases.create");
   const [tab, setTab] = useState<Tab>("Todas");
   const [query, setQuery] = useState("");
-  const [debounced, setDebounced] = useState("");
-  const [page, setPage] = useState(1);
-  const [orders, setOrders] = useState<ApiPurchaseOrder[]>([]);
-  const [total, setTotal] = useState(0);
-  const [loading, setLoading] = useState(true);
-  const [loadError, setLoadError] = useState<string | null>(null);
   const [showNew, setShowNew] = useState(false);
   const [showSuggested, setShowSuggested] = useState(false);
-  // Token incremental: cada carga invalida a las anteriores (incluye Reintentar
-  // y onSaved/onGenerated), evitando que una respuesta tardía pise datos nuevos.
-  const reqRef = useRef(0);
 
-  useEffect(() => {
-    const id = setTimeout(() => {
-      setDebounced(query.trim());
-      setPage(1);
-    }, 250);
-    return () => clearTimeout(id);
-  }, [query]);
-
-  const reload = async (targetPage = page) => {
-    const myReq = ++reqRef.current;
-    setLoading(true);
-    setLoadError(null);
-    try {
-      const res = await purchasesApi.list({
-        skip: (targetPage - 1) * PAGE_SIZE,
-        take: PAGE_SIZE,
-        search: debounced || undefined,
-        status: TAB_TO_STATUS[tab] ?? undefined,
-      });
-      if (reqRef.current !== myReq) return;
-      setOrders(res.items);
-      setTotal(res.total);
-    } catch (err) {
-      if (reqRef.current !== myReq) return;
-      setLoadError(
-        err instanceof ApiError
-          ? err.message
-          : "No se pudieron cargar las órdenes de compra.",
-      );
-    } finally {
-      if (reqRef.current === myReq) setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    void reload(page);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [page, tab, debounced]);
+  const {
+    items: orders,
+    total,
+    totalPages,
+    page,
+    setPage,
+    loading,
+    error: loadError,
+    debounced,
+    reload,
+  } = useApiList<ApiPurchaseOrder>({
+    fetcher: (params) =>
+      purchasesApi.list({ ...params, status: TAB_TO_STATUS[tab] ?? undefined }),
+    filterKey: tab,
+    search: query,
+    pageSize: PAGE_SIZE,
+    errorMessage: "No se pudieron cargar las órdenes de compra.",
+  });
 
   const changeTab = (t: Tab) => {
     setTab(t);
     setPage(1);
   };
-
-  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
   return (
     <>
@@ -269,8 +237,10 @@ export default function PurchasesPage() {
           onClose={() => setShowSuggested(false)}
           onGenerated={() => {
             setShowSuggested(false);
-            void reload(1);
+            // setPage(1) dispara el reload del hook; si ya estaba en la 1,
+            // el reload explícito refresca igual (stale-guard incluido).
             setPage(1);
+            void reload();
           }}
         />
       )}
