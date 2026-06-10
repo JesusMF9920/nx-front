@@ -29,6 +29,7 @@ import type {
   ApiProductSource,
 } from "@/lib/api/types";
 import { fmtMXN } from "@/lib/format";
+import { cartTotals, lineSubtotal } from "@/lib/pos-cart";
 import type { CartLine, ProductSource, SizeBreakdownEntry } from "@/lib/types";
 
 type PickerState = {
@@ -41,13 +42,6 @@ type PickerState = {
 
 function sourceLabel(s: ApiProductSource): ProductSource {
   return s === "internal" ? "Interno" : "Proveedor";
-}
-
-function lineSubtotal(line: CartLine): number {
-  if (line.sizeBreakdown) {
-    return line.sizeBreakdown.reduce((s, b) => s + b.qty * (line.price + b.surcharge), 0);
-  }
-  return line.qty * line.price;
 }
 
 export default function POSPage() {
@@ -141,10 +135,7 @@ export default function POSPage() {
   }, []);
 
   // Totales client-side SOLO orientativos — el total autoritativo lo da posApi.preview.
-  const subtotal = cart.reduce((s, l) => s + lineSubtotal(l), 0);
-  const discountApplied = Math.min(discount, subtotal);
-  const tax = (subtotal - discountApplied) * 0.16;
-  const total = subtotal - discountApplied + tax;
+  const { subtotal, discountApplied, tax, total } = cartTotals(cart, discount);
 
   const totalPages = Math.max(1, Math.ceil(productsTotal / PAGE_SIZE));
 
