@@ -14,4 +14,5 @@ export const DESIGN_PROOF_STATUS_ES: Record<ApiDesignProofStatus, string> = {
 export const APPROVAL_CHANNEL_ES: Record<ApiApprovalChannel, string> = {
   link: "Link",
   whatsapp: "WhatsApp",
+  email: "Correo",
 };

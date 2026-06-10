@@ -53,7 +53,7 @@ export type ApiDesignProofStatus =
   | "changes_requested"
   | "approved";
 
-export type ApiApprovalChannel = "link" | "whatsapp";
+export type ApiApprovalChannel = "link" | "whatsapp" | "email";
 
 export type ApiDesignCommentAuthorType = "user" | "client" | "system";
 
@@ -116,6 +116,8 @@ export type ApiSendProofResult = {
   /** URL pública completa — única vez que el backend la entrega. */
   url: string;
   expiresAt: string;
+  /** Correo del destinatario cuando channel='email'; null en otros canales. */
+  sentTo: string | null;
 };
 
 export type ApiProofDownload = {
