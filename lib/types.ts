@@ -35,8 +35,6 @@ export type Delivery = {
   supplier: boolean;
 };
 
-export type ApprovalStatus = "Esperando cliente" | "Cambios solicitados" | "Aprobado";
-
 export type ClientType = "Negocio" | "Persona";
 
 export type Client = {
@@ -261,14 +259,3 @@ export type CartLine = {
   sizedFromMaterial?: string;
 };
 
-export type Approval = {
-  id: string;
-  order: string;
-  client: string;
-  product: string;
-  version: number;
-  sent: string;
-  channel: "Link" | "WhatsApp";
-  status: ApprovalStatus;
-  note: string;
-};

@@ -1,4 +1,4 @@
-import type { Approval, Delivery, Order } from "./types";
+import type { Delivery, Order } from "./types";
 
 export const NEXUM_ORDERS: Order[] = [
   { id: "ORD-1842", date: "2026-05-06", client: "Café Aurora",            clientId: "c1", total: 2450.00, paid: 2450.00, payment: "Efectivo", status: "En diseño",          deliver: "2026-05-08", items: 2 },
@@ -36,10 +36,3 @@ export const NEXUM_DELIVERIES_BY_DAY: Record<string, Delivery[]> = {
   "2026-05-13": [],
 };
 
-export const NEXUM_APPROVALS: Approval[] = [
-  { id: "APR-2241", order: "ORD-1840", client: "Estudio Pliegue",      product: "Tarjeta presentación couché",     version: 3, sent: "2026-05-05", channel: "Link",     status: "Esperando cliente",   note: "Ajustamos espaciado del logotipo" },
-  { id: "APR-2240", order: "ORD-1842", client: "Café Aurora",          product: "Playera blanca DTF",              version: 1, sent: "2026-05-06", channel: "WhatsApp", status: "Esperando cliente",   note: "Primera propuesta" },
-  { id: "APR-2239", order: "ORD-1842", client: "Café Aurora",          product: "Vaso cerámico sublimado 11oz",    version: 1, sent: "2026-05-06", channel: "Link",     status: "Esperando cliente",   note: "" },
-  { id: "APR-2238", order: "ORD-1837", client: "Mercería Las Flores",  product: "Volante 1/4 carta",               version: 2, sent: "2026-05-04", channel: "Link",     status: "Cambios solicitados", note: "Cliente pide cambiar tipografía" },
-  { id: "APR-2237", order: "ORD-1841", client: "Escuela Patria Nueva", product: "Playera serigrafía",              version: 4, sent: "2026-05-04", channel: "WhatsApp", status: "Aprobado",            note: "Aprobado por Lic. Ruiz" },
-];
