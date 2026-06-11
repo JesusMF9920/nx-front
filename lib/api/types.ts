@@ -739,12 +739,15 @@ export type ApiCashSession = {
   movements: ApiCashMovement[];
 };
 
-/** Corte X/Z: la sesión + desglose de pagos. */
+/**
+ * Corte X/Z: la sesión + desglose de pagos. Los totales son null en sesiones
+ * ABIERTAS (exponerlos permitiría derivar el esperado del arqueo ciego).
+ */
 export type ApiCashSessionDetail = ApiCashSession & {
-  cashTotal: number;
-  cashCount: number;
-  terminalTotal: number;
-  terminalCount: number;
+  cashTotal: number | null;
+  cashCount: number | null;
+  terminalTotal: number | null;
+  terminalCount: number | null;
 };
 
 export type ApiCashCloseResult = {

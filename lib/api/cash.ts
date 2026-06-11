@@ -14,9 +14,15 @@ export const cashApi = {
     });
   },
 
-  /** La sesión abierta o null (el VM nunca trae esperado en abiertas). */
-  active(): Promise<ApiCashSession | null> {
-    return apiFetch<ApiCashSession | null>("/cash-sessions/active");
+  /**
+   * La sesión abierta o null (el VM nunca trae esperado en abiertas). El
+   * backend la envuelve en { session } para que el body siempre sea JSON.
+   */
+  async active(): Promise<ApiCashSession | null> {
+    const res = await apiFetch<{ session: ApiCashSession | null }>(
+      "/cash-sessions/active",
+    );
+    return res.session;
   },
 
   addMovement(input: {

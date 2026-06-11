@@ -50,7 +50,7 @@ export function buildCashCutTicketHtml(
   ${cut.closedAt ? `<div class="row sm"><span>Cierre</span><span>${escapeHtml(DATE_TIME_ES.format(new Date(cut.closedAt)))}</span></div>` : ""}
   <div class="div"></div>
   <div class="row"><span>Fondo inicial</span><span>${fmtMXN(cut.openingFloat)}</span></div>
-  <div class="row"><span>Efectivo cobrado (${cut.cashCount})</span><span>${fmtMXN(cut.cashTotal)}</span></div>
+  <div class="row"><span>Efectivo cobrado (${cut.cashCount ?? 0})</span><span>${fmtMXN(cut.cashTotal ?? 0)}</span></div>
   ${deposits.length > 0 ? `<div class="sm b" style="margin-top:4px">Depósitos</div>${movementRows(deposits, "+")}` : ""}
   ${withdrawals.length > 0 ? `<div class="sm b" style="margin-top:4px">Retiros</div>${movementRows(withdrawals, "−")}` : ""}
   <div class="div"></div>
@@ -58,7 +58,7 @@ export function buildCashCutTicketHtml(
   <div class="row"><span>Contado</span><span>${fmtMXN(cut.countedCash ?? 0)}</span></div>
   <div class="row total"><span>${escapeHtml(diffLabel)}</span><span>${escapeHtml(fmtSigned(difference))}</span></div>
   <div class="div"></div>
-  <div class="row sm"><span>Terminal (informativo, ${cut.terminalCount})</span><span>${fmtMXN(cut.terminalTotal)}</span></div>
+  <div class="row sm"><span>Terminal (informativo, ${cut.terminalCount ?? 0})</span><span>${fmtMXN(cut.terminalTotal ?? 0)}</span></div>
   ${cut.closingNotes ? `<div class="sm">Notas: ${escapeHtml(cut.closingNotes)}</div>` : ""}
 </body>
 </html>`;

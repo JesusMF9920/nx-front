@@ -633,9 +633,9 @@ export default function CashPage() {
             </div>
             <div className="flex justify-between">
               <span className="text-muted">
-                Efectivo cobrado ({detail.cashCount})
+                Efectivo cobrado ({detail.cashCount ?? 0})
               </span>
-              <span className="num">{fmtMXN(detail.cashTotal)}</span>
+              <span className="num">{fmtMXN(detail.cashTotal ?? 0)}</span>
             </div>
             {detail.movements.map((m) => (
               <div key={m.id} className="flex justify-between text-[13px]">
@@ -663,9 +663,9 @@ export default function CashPage() {
             </div>
             <div className="flex justify-between text-[13px]">
               <span className="text-muted">
-                Terminal (informativo, {detail.terminalCount})
+                Terminal (informativo, {detail.terminalCount ?? 0})
               </span>
-              <span className="num">{fmtMXN(detail.terminalTotal)}</span>
+              <span className="num">{fmtMXN(detail.terminalTotal ?? 0)}</span>
             </div>
             {detail.closingNotes && (
               <div className="text-muted text-xs">
