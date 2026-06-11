@@ -7,6 +7,7 @@ import { Avatar } from "@/components/avatar";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { I } from "@/components/icons";
 import { OrderPaymentModal } from "@/components/order-payment-modal";
+import { OrderRefundModal } from "@/components/order-refund-modal";
 import { OrderStatusBanner } from "@/components/order-status-banner";
 import { PageHeader } from "@/components/page-header";
 import { StatusPill } from "@/components/status-pill";
@@ -35,6 +36,7 @@ import { fmtDate, fmtDateLong, fmtMXN } from "@/lib/format";
 const ACTION_ICON: Record<string, ReactNode> = {
   "sales.order.placed": I.cart,
   "sales.order.payment_received": I.cash,
+  "sales.order.refunded": I.arrowLeft,
   "sales.order.status_changed": I.arrowRight,
   "sales.order.item_status_changed": I.layers,
   "sales.order.cancelled": I.x,
@@ -69,6 +71,13 @@ function timelineSub(entry: ApiAuditEntry): string | null {
       if (typeof md.amount === "number") parts.push(fmtMXN(md.amount));
       if (typeof md.paid === "number" && typeof md.total === "number")
         parts.push(`acumulado ${fmtMXN(md.paid)} de ${fmtMXN(md.total)}`);
+      return parts.join(" · ");
+    }
+    case "sales.order.refunded": {
+      const parts: string[] = [methodEs(md.method)];
+      if (typeof md.amount === "number") parts.push(fmtMXN(md.amount));
+      if (typeof md.reason === "string" && md.reason.length > 0)
+        parts.push(md.reason);
       return parts.join(" · ");
     }
     case "sales.order.status_changed":
@@ -117,6 +126,7 @@ export default function OrderDetailPage() {
   const [missing, setMissing] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
   const [showPayment, setShowPayment] = useState(false);
+  const [showRefund, setShowRefund] = useState(false);
   const [showCancel, setShowCancel] = useState(false);
   const [transitioning, setTransitioning] = useState(false);
   const [itemBusy, setItemBusy] = useState<string | null>(null);
@@ -128,6 +138,7 @@ export default function OrderDetailPage() {
   // Gating de UI (el backend revalida con sus guards).
   const canManage = usePermission("sales.orders.manage");
   const canRecordPayment = usePermission("sales.payments.record");
+  const canRefund = usePermission("sales.refunds.create");
   const canCancel = usePermission("sales.orders.cancel");
   // Quien puede ver la orden puede imprimirla; el gate real es el flag.
   const ticketsEnabled = useFeature("tickets");
@@ -618,6 +629,9 @@ export default function OrderDetailPage() {
                 />
                 <SummaryRow label="IVA" value={fmtMXN(detail.tax)} />
                 <SummaryRow label="Pagado" value={fmtMXN(detail.paid)} />
+                {detail.refunded > 0 && (
+                  <SummaryRow label="Devuelto" value={`-${fmtMXN(detail.refunded)}`} />
+                )}
                 <SummaryRow label="Por cobrar" value={fmtMXN(pending)} muted={pending === 0} />
                 <SummaryRow label="Método" value={paymentLabel(detail)} mono={false} />
               </div>
@@ -644,6 +658,30 @@ export default function OrderDetailPage() {
                   ))}
                 </div>
               )}
+              {detail.refunds.length > 0 && (
+                <div className="mt-2.5">
+                  <div
+                    className="text-[11px] text-muted uppercase"
+                    style={{ letterSpacing: ".06em" }}
+                  >
+                    Devoluciones
+                  </div>
+                  {detail.refunds.map((r) => (
+                    <div key={r.id} className="my-1">
+                      <div className="flex items-center text-[13px]">
+                        <span>
+                          {r.folio} · {PAYMENT_METHOD_ES[r.method]}
+                        </span>
+                        <div className="flex-1" />
+                        <span className="num">-{fmtMXN(r.amount)}</span>
+                      </div>
+                      <div className="text-muted text-[11px]">
+                        {r.reason} · {fmtDate(r.createdAt)}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
               {canRecordPayment && pending > 0 && !isCancelled && (
                 <button
                   className="btn btn--accent w-full justify-center mt-2.5"
@@ -651,6 +689,15 @@ export default function OrderDetailPage() {
                   onClick={() => setShowPayment(true)}
                 >
                   {I.cash} Registrar pago
+                </button>
+              )}
+              {canRefund && detail.paid - detail.refunded > 0.001 && (
+                <button
+                  className="btn btn--danger w-full justify-center mt-2.5"
+                  type="button"
+                  onClick={() => setShowRefund(true)}
+                >
+                  {I.arrowLeft} Devolver dinero
                 </button>
               )}
             </div>
@@ -724,6 +771,14 @@ export default function OrderDetailPage() {
         <OrderPaymentModal
           order={detail}
           onClose={() => setShowPayment(false)}
+          onDone={load}
+        />
+      )}
+
+      {showRefund && (
+        <OrderRefundModal
+          order={detail}
+          onClose={() => setShowRefund(false)}
           onDone={load}
         />
       )}

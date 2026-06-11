@@ -47,6 +47,8 @@ const cut = (over: Partial<ApiCashSessionDetail> = {}): ApiCashSessionDetail => 
   ],
   cashTotal: 232,
   cashCount: 1,
+  refundsTotal: 0,
+  refundsCount: 0,
   terminalTotal: 116,
   terminalCount: 1,
   ...over,
@@ -83,5 +85,17 @@ describe("buildCashCutTicketHtml", () => {
     const html = buildCashCutTicketHtml(cut(), business);
     expect(html).not.toContain("<b>extra</b>");
     expect(html).toContain("&lt;b&gt;extra&lt;/b&gt;");
+  });
+
+  it("muestra la línea de devoluciones en efectivo sólo cuando hay (I.2)", () => {
+    expect(buildCashCutTicketHtml(cut(), business)).not.toContain(
+      "Devoluciones efectivo",
+    );
+    const html = buildCashCutTicketHtml(
+      cut({ refundsTotal: 30, refundsCount: 1 }),
+      business,
+    );
+    expect(html).toContain("Devoluciones efectivo (1)");
+    expect(html).toContain("−$30.00");
   });
 });

@@ -322,6 +322,17 @@ export type ApiPayment = {
   createdAt: string;
 };
 
+/** Devolución de dinero (DEV-). SOLO dinero — no revierte stock. */
+export type ApiRefund = {
+  id: string;
+  folio: string;
+  method: ApiPaymentMethod;
+  amount: number;
+  reason: string;
+  createdById: string;
+  createdAt: string;
+};
+
 export type ApiSizeBreakdownEntry = {
   sizeId: string;
   /** Piezas de esa talla. */
@@ -370,6 +381,8 @@ export type ApiOrder = {
   total: number;
   /** Σ payments — siempre derivado por el backend. */
   paid: number;
+  /** Σ refunds (devoluciones) — siempre derivado por el backend. */
+  refunded: number;
   paymentMethods: ApiPaymentMethod[];
   deliverAt: string | null;
   itemsCount: number;
@@ -386,6 +399,7 @@ export type ApiOrderDetail = Omit<ApiOrder, "itemsCount"> & {
   cancelledAt: string | null;
   items: ApiOrderItem[];
   payments: ApiPayment[];
+  refunds: ApiRefund[];
   updatedAt: string;
 };
 
@@ -746,6 +760,9 @@ export type ApiCashSession = {
 export type ApiCashSessionDetail = ApiCashSession & {
   cashTotal: number | null;
   cashCount: number | null;
+  /** Σ devoluciones en efectivo de la sesión — salen del cajón. */
+  refundsTotal: number | null;
+  refundsCount: number | null;
   terminalTotal: number | null;
   terminalCount: number | null;
 };

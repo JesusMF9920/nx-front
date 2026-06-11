@@ -51,6 +51,7 @@ export function buildCashCutTicketHtml(
   <div class="div"></div>
   <div class="row"><span>Fondo inicial</span><span>${fmtMXN(cut.openingFloat)}</span></div>
   <div class="row"><span>Efectivo cobrado (${cut.cashCount ?? 0})</span><span>${fmtMXN(cut.cashTotal ?? 0)}</span></div>
+  ${(cut.refundsTotal ?? 0) > 0 ? `<div class="row"><span>Devoluciones efectivo (${cut.refundsCount ?? 0})</span><span>−${fmtMXN(cut.refundsTotal ?? 0)}</span></div>` : ""}
   ${deposits.length > 0 ? `<div class="sm b" style="margin-top:4px">Depósitos</div>${movementRows(deposits, "+")}` : ""}
   ${withdrawals.length > 0 ? `<div class="sm b" style="margin-top:4px">Retiros</div>${movementRows(withdrawals, "−")}` : ""}
   <div class="div"></div>

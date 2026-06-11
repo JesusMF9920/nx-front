@@ -28,6 +28,22 @@ export type CheckoutPaymentInput = {
   reference?: string;
 };
 
+export type RefundInput = {
+  method: ApiPaymentMethod;
+  amount: number;
+  /** Motivo de la devolución (obligatorio). */
+  reason: string;
+};
+
+export type RefundResult = {
+  orderId: string;
+  folio: string;
+  refundFolio: string;
+  refunded: number;
+  paid: number;
+  total: number;
+};
+
 export type CheckoutInput = {
   clientId: string;
   lines: CheckoutLineInput[];
@@ -132,6 +148,14 @@ export const ordersApi = {
       `/orders/${orderId}/payments`,
       { method: "POST", body: JSON.stringify(payment) },
     );
+  },
+
+  /** Devolución de dinero (DEV-). SOLO dinero — no revierte stock. */
+  refund(orderId: string, input: RefundInput): Promise<RefundResult> {
+    return apiFetch<RefundResult>(`/orders/${orderId}/refunds`, {
+      method: "POST",
+      body: JSON.stringify(input),
+    });
   },
 
   transitionStatus(orderId: string, status: ApiOrderStatus): Promise<void> {
