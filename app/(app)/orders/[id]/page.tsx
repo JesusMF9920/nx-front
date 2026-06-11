@@ -137,6 +137,9 @@ export default function OrderDetailPage() {
 
   // Gating de UI (el backend revalida con sus guards).
   const canManage = usePermission("sales.orders.manage");
+  // Avanzar el estatus de un job (taller) es permiso propio (I.3); la gestión
+  // en bloque de la orden sigue en sales.orders.manage.
+  const canAdvance = usePermission("sales.production.advance");
   const canRecordPayment = usePermission("sales.payments.record");
   const canRefund = usePermission("sales.refunds.create");
   const canCancel = usePermission("sales.orders.cancel");
@@ -527,7 +530,7 @@ export default function OrderDetailPage() {
                     <td>
                       <div className="grid gap-1 justify-items-start">
                         <StatusPill s={ORDER_STATUS_ES[j.status]} />
-                        {canManage && (
+                        {canAdvance && (
                         <select
                           className="select"
                           style={{ fontSize: 12, padding: "2px 6px" }}
