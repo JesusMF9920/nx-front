@@ -50,7 +50,8 @@ function dimensionText(d: ApiDimensionData): string {
   return dims;
 }
 
-const STYLES = `
+/** Hoja base 80mm compartida por todos los tickets térmicos (venta, corte). */
+export const TICKET_80MM_STYLES = `
   @page { size: 80mm auto; margin: 0; }
   * { box-sizing: border-box; }
   body {
@@ -121,7 +122,7 @@ export function buildThermalTicketHtml(
 <head>
 <meta charset="utf-8">
 <title>Ticket ${escapeHtml(order.folio)}</title>
-<style>${STYLES}</style>
+<style>${TICKET_80MM_STYLES}</style>
 </head>
 <body>
   ${logoUrl ? `<img class="logo" src="${escapeHtml(logoUrl)}" alt="">` : ""}
