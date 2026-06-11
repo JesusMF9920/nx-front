@@ -143,6 +143,11 @@ export default function OrderDetailPage() {
   const canRecordPayment = usePermission("sales.payments.record");
   const canRefund = usePermission("sales.refunds.create");
   const canCancel = usePermission("sales.orders.cancel");
+  // El select por job ofrece "Entregado" sólo a gestión de orden; el taller
+  // (sales.production.advance) avanza un job hasta "listo para entrega".
+  const jobStatusOptions = canManage
+    ? MANUAL_ORDER_TRANSITIONS
+    : MANUAL_ORDER_TRANSITIONS.filter((s) => s !== "delivered");
   // Quien puede ver la orden puede imprimirla; el gate real es el flag.
   const ticketsEnabled = useFeature("tickets");
 
@@ -541,12 +546,12 @@ export default function OrderDetailPage() {
                           }
                           aria-label={`Estatus de ${j.productName}`}
                         >
-                          {!MANUAL_ORDER_TRANSITIONS.includes(j.status) && (
+                          {!jobStatusOptions.includes(j.status) && (
                             <option value={j.status} disabled>
                               {ORDER_STATUS_ES[j.status]}
                             </option>
                           )}
-                          {MANUAL_ORDER_TRANSITIONS.map((s) => (
+                          {jobStatusOptions.map((s) => (
                             <option key={s} value={s}>
                               {ORDER_STATUS_ES[s]}
                             </option>

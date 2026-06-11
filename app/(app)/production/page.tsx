@@ -9,7 +9,7 @@ import { usePermission } from "@/lib/auth/auth-context";
 import { ApiError } from "@/lib/api/errors";
 import { ordersApi } from "@/lib/api/orders";
 import { productionApi } from "@/lib/api/production";
-import { MANUAL_ORDER_TRANSITIONS, ORDER_STATUS_ES } from "@/lib/api/sales-mappers";
+import { ORDER_STATUS_ES } from "@/lib/api/sales-mappers";
 import type { ApiOrderStatus, ApiProductionItem } from "@/lib/api/types";
 import { fmtDate, fmtInt } from "@/lib/format";
 
@@ -186,14 +186,15 @@ export default function ProductionPage() {
                                 }
                                 aria-label={`Avanzar ${item.productName} del pedido ${item.orderFolio}`}
                               >
-                                {!MANUAL_ORDER_TRANSITIONS.includes(
-                                  item.status,
-                                ) && (
+                                {/* El taller avanza hasta "listo para
+                                    entrega"; marcar Entregado es de gestión de
+                                    la orden (se hace desde el pedido). */}
+                                {!PIPELINE.includes(item.status) && (
                                   <option value={item.status} disabled>
                                     {ORDER_STATUS_ES[item.status]}
                                   </option>
                                 )}
-                                {MANUAL_ORDER_TRANSITIONS.map((s) => (
+                                {PIPELINE.map((s) => (
                                   <option key={s} value={s}>
                                     {ORDER_STATUS_ES[s]}
                                   </option>
