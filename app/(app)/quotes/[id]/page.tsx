@@ -23,8 +23,10 @@ import type {
   ApiQuoteDetail,
   ApiUser,
 } from "@/lib/api/types";
+import { settingsApi } from "@/lib/api/settings";
 import { usersApi } from "@/lib/api/users";
-import { usePermission } from "@/lib/auth/auth-context";
+import { useFeature, usePermission } from "@/lib/auth/auth-context";
+import { buildQuoteWhatsappMessage, buildWaMeUrl } from "@/lib/share/whatsapp";
 import { fmtDate, fmtDateLong, fmtMXN } from "@/lib/format";
 
 const ACTION_ICON: Record<string, ReactNode> = {
@@ -78,6 +80,9 @@ export default function QuoteDetailPage() {
   const [missing, setMissing] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
   const [sendNotice, setSendNotice] = useState<string | null>(null);
+  /** Link wa.me del último envío por WhatsApp (persistente: inmune a popup blockers). */
+  const [waLink, setWaLink] = useState<string | null>(null);
+  const whatsappEnabled = useFeature("whatsapp");
   const [busy, setBusy] = useState(false);
   const [showEdit, setShowEdit] = useState(false);
   const [showConvert, setShowConvert] = useState(false);
@@ -159,15 +164,37 @@ export default function QuoteDetailPage() {
   // el folio (COT-…), así que se usa SIEMPRE detail.id (UUID), no el route param.
   const send = (channel: ApiQuoteChannel) => {
     if (!detail) return;
-    const quoteId = detail.id;
+    const { id: quoteId, folio, clientName, total, validUntil } = detail;
     setShowSend(false);
     setSendNotice(null);
+    setWaLink(null);
     void runAction(async () => {
       const res = await quotesApi.send(quoteId, channel);
       if (channel === "email" && res.sentTo) {
         setSendNotice(
           `Cotización enviada por correo a ${res.sentTo} (PDF adjunto).`,
         );
+      } else if (channel === "whatsapp" && whatsappEnabled) {
+        // sentTo trae el teléfono del cliente (o null → selector de contactos).
+        const business = await settingsApi.getBusinessCached();
+        const url = buildWaMeUrl(
+          res.sentTo,
+          buildQuoteWhatsappMessage({
+            businessName: business.name,
+            clientName,
+            folio,
+            total,
+            validUntil,
+          }),
+        );
+        setWaLink(url);
+        setSendNotice(
+          res.sentTo
+            ? `Mensaje de WhatsApp listo para ${res.sentTo}.`
+            : "Mensaje de WhatsApp listo — el cliente no tiene teléfono registrado, elige el contacto al abrir.",
+        );
+        // Intento de apertura directa; si el popup se bloquea queda el enlace.
+        window.open(url, "_blank");
       }
     }, "No se pudo enviar la cotización.");
   };
@@ -351,9 +378,17 @@ export default function QuoteDetailPage() {
           role="status"
         >
           <span className="flex-1">{sendNotice}</span>
+          {waLink && (
+            <a className="btn btn--sm" href={waLink} target="_blank" rel="noreferrer">
+              {I.whatsapp} Abrir WhatsApp
+            </a>
+          )}
           <button
             className="icon-btn"
-            onClick={() => setSendNotice(null)}
+            onClick={() => {
+              setSendNotice(null);
+              setWaLink(null);
+            }}
             aria-label="Cerrar mensaje"
             type="button"
           >
@@ -618,9 +653,9 @@ export default function QuoteDetailPage() {
             ))}
           </div>
           <div className="text-[11px] text-muted mt-3">
-            Correo envía la cotización con el PDF adjunto al correo del
-            cliente. WhatsApp, Link y Presencial solo registran el canal por
-            ahora.
+            {whatsappEnabled
+              ? "Correo envía la cotización con el PDF adjunto. WhatsApp abre el chat con el mensaje prellenado. Link y Presencial solo registran el canal."
+              : "Correo envía la cotización con el PDF adjunto al correo del cliente. WhatsApp, Link y Presencial solo registran el canal por ahora."}
           </div>
         </Modal>
       )}
