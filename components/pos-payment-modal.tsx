@@ -14,8 +14,12 @@ import {
   type CheckoutResult,
 } from "@/lib/api/orders";
 import type { ApiStockShortage } from "@/lib/api/types";
+import { cashApi } from "@/lib/api/cash";
 import { useFeature } from "@/lib/auth/auth-context";
 import type { PaymentMethod } from "@/lib/types";
+
+/** Métodos que tocan EFECTIVO (requieren caja abierta con el feature on). */
+const CASH_METHODS: PaymentMethod[] = ["Efectivo", "Mixto"];
 
 /** Qué tickets imprimir tras el cobro — lo ejecuta la página (no el modal). */
 export type TicketPrintPrefs = {
@@ -64,6 +68,28 @@ export function PosPaymentModal({
   const [printTicket, setPrintTicket] = useState(true);
   const [printLetter, setPrintLetter] = useState(false);
   const [emailTicket, setEmailTicket] = useState(true);
+
+  // Corte de caja: con el feature ON y sin sesión abierta, Efectivo/Mixto se
+  // bloquean (el backend igual lo rechaza con 409 — esto es UX). Si el fetch
+  // falla, null = desconocido → no se bloquea la UI.
+  const cashFeatureOn = useFeature("cash_sessions");
+  const [cashSessionOpen, setCashSessionOpen] = useState<boolean | null>(null);
+  useEffect(() => {
+    if (!cashFeatureOn) return;
+    let cancelled = false;
+    cashApi
+      .active()
+      .then((s) => {
+        if (!cancelled) setCashSessionOpen(s !== null);
+      })
+      .catch(() => {
+        if (!cancelled) setCashSessionOpen(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [cashFeatureOn]);
+  const cashBlocked = cashFeatureOn && cashSessionOpen === false;
 
   const [preview, setPreview] = useState<CheckoutPreview | null>(null);
   const [previewLoading, setPreviewLoading] = useState(true);
@@ -149,6 +175,7 @@ export function PosPaymentModal({
     !previewLoading &&
     !stockBlocked &&
     !submitting &&
+    !(cashBlocked && CASH_METHODS.includes(method)) &&
     (method !== "Efectivo" || cash >= total - 0.005) &&
     (method !== "Mixto" || mixedOk);
 
@@ -252,24 +279,46 @@ export function PosPaymentModal({
         <div>
           <div className="label mb-2">Método de pago</div>
           <div className="grid grid-cols-2 gap-1.5">
-            {METHOD_OPTIONS.map((m) => (
-              <button
-                type="button"
-                key={m.id}
-                onClick={() => setMethod(m.id)}
-                className="text-left rounded-md p-2.5 cursor-pointer flex flex-col gap-1"
-                style={{
-                  border: method === m.id ? "1.5px solid var(--accent)" : "1px solid var(--line)",
-                  background: method === m.id ? "var(--accent-soft)" : "var(--surface)",
-                  color: method === m.id ? "var(--accent-ink)" : "var(--ink)",
-                }}
-              >
-                <span>{m.icon}</span>
-                <div className="font-medium text-[13px]">{m.id}</div>
-                <div className="text-[11px] text-muted">{m.sub}</div>
-              </button>
-            ))}
+            {METHOD_OPTIONS.map((m) => {
+              const blocked = cashBlocked && CASH_METHODS.includes(m.id);
+              return (
+                <button
+                  type="button"
+                  key={m.id}
+                  onClick={() => setMethod(m.id)}
+                  disabled={blocked}
+                  className="text-left rounded-md p-2.5 cursor-pointer flex flex-col gap-1"
+                  style={{
+                    border: method === m.id ? "1.5px solid var(--accent)" : "1px solid var(--line)",
+                    background: method === m.id ? "var(--accent-soft)" : "var(--surface)",
+                    color: method === m.id ? "var(--accent-ink)" : "var(--ink)",
+                    opacity: blocked ? 0.45 : 1,
+                  }}
+                >
+                  <span>{m.icon}</span>
+                  <div className="font-medium text-[13px]">{m.id}</div>
+                  <div className="text-[11px] text-muted">
+                    {blocked ? "Requiere caja abierta" : m.sub}
+                  </div>
+                </button>
+              );
+            })}
           </div>
+          {cashBlocked && (
+            <div
+              className="rounded-md text-xs mt-2"
+              style={{
+                padding: "8px 10px",
+                border: "1px solid var(--warn)",
+                color: "var(--warn)",
+                background: "var(--warn-soft)",
+              }}
+              role="status"
+            >
+              La caja está cerrada — ábrela en la sección Caja para cobrar en
+              efectivo. Terminal y crédito siguen disponibles.
+            </div>
+          )}
 
           {method === "Efectivo" && (
             <>

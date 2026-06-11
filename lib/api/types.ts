@@ -703,3 +703,54 @@ export type ApiFeatureFlag = {
   enabled: boolean;
   updatedAt: string | null;
 };
+
+/** Corte de caja (I.1). */
+export type ApiCashMovementType = "deposit" | "withdrawal";
+
+export type ApiCashMovement = {
+  id: string;
+  type: ApiCashMovementType;
+  amount: number;
+  reason: string;
+  createdById: string;
+  createdAt: string;
+};
+
+export type ApiCashSessionStatus = "open" | "closed";
+
+/**
+ * Sesión de caja. Arqueo CIEGO: counted/expected/difference son null mientras
+ * está abierta — el esperado solo existe después del corte.
+ */
+export type ApiCashSession = {
+  id: string;
+  folio: string;
+  status: ApiCashSessionStatus;
+  openingFloat: number;
+  openedById: string;
+  openedAt: string;
+  closedById: string | null;
+  closedAt: string | null;
+  countedCash: number | null;
+  expectedCash: number | null;
+  /** counted − expected (negativo = faltante). */
+  difference: number | null;
+  closingNotes: string | null;
+  movements: ApiCashMovement[];
+};
+
+/** Corte X/Z: la sesión + desglose de pagos. */
+export type ApiCashSessionDetail = ApiCashSession & {
+  cashTotal: number;
+  cashCount: number;
+  terminalTotal: number;
+  terminalCount: number;
+};
+
+export type ApiCashCloseResult = {
+  sessionId: string;
+  folio: string;
+  countedCash: number;
+  expectedCash: number;
+  difference: number;
+};

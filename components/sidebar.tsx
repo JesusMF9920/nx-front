@@ -13,6 +13,8 @@ type NavItem = {
   badge?: string;
   /** Si está presente, sólo se muestra cuando el usuario tiene este permiso. */
   perm?: string;
+  /** Si está presente, sólo se muestra con este feature flag encendido. */
+  feature?: string;
 };
 
 type NavGroup = {
@@ -26,6 +28,7 @@ const NAV_GROUPS: NavGroup[] = [
     items: [
       { href: "/dashboard", label: "Dashboard",      icon: I.home,    perm: "reports.read" },
       { href: "/pos",       label: "Punto de venta", icon: I.cart,    badge: "F2" },
+      { href: "/cash",      label: "Caja",           icon: I.cash,    perm: "sales.cash.read", feature: "cash_sessions" },
       { href: "/quotes",    label: "Cotizaciones",   icon: I.receipt, perm: "sales.quotes.read" },
       { href: "/orders",    label: "Pedidos",        icon: I.receipt, badge: "23" },
       { href: "/purchases", label: "Compras",        icon: I.truck,   perm: "inventory.purchases.read" },
@@ -69,7 +72,7 @@ function initialsFor(name: string): string {
 export function Sidebar() {
   const pathname = usePathname();
   const router = useRouter();
-  const { user, roles, permissions, logout } = useAuth();
+  const { user, roles, permissions, features, logout } = useAuth();
   const displayName = user?.name ?? "—";
   const displayInitials = user ? initialsFor(user.name) : "·";
   const displayRole =
@@ -77,7 +80,11 @@ export function Sidebar() {
   const permsSet = new Set(permissions);
   const groups = NAV_GROUPS.map((g) => ({
     ...g,
-    items: g.items.filter((it) => !it.perm || permsSet.has(it.perm)),
+    items: g.items.filter(
+      (it) =>
+        (!it.perm || permsSet.has(it.perm)) &&
+        (!it.feature || features[it.feature] === true),
+    ),
   })).filter((g) => g.items.length > 0);
 
   const handleLogout = async () => {

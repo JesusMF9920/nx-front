@@ -7,6 +7,7 @@ import { Avatar } from "@/components/avatar";
 import { I } from "@/components/icons";
 import { Modal } from "@/components/modal";
 import { SummaryRow } from "@/components/summary-row";
+import { PosCashIndicator } from "@/components/pos-cash-indicator";
 import { PosClientPicker } from "@/components/pos-client-picker";
 import { PosPaymentModal } from "@/components/pos-payment-modal";
 import {
@@ -324,6 +325,7 @@ export default function POSPage() {
             />
             <span className="kbd">F3</span>
           </div>
+          <PosCashIndicator />
           <div className="row gap-1">
             {categories.map((c) => (
               <button
