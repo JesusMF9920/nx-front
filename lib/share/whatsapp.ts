@@ -53,8 +53,9 @@ export function buildQuoteWhatsappMessage(args: {
   const vigencia = args.validUntil
     ? ` Vigente hasta el ${DATE_ES.format(new Date(args.validUntil))}.`
     : "";
+  // Sin emojis: el redirect de wa.me corrompe caracteres de 4 bytes (U+FFFD).
   return (
-    `Hola ${args.clientName} 👋\n` +
+    `Hola ${args.clientName}:\n` +
     `Te compartimos tu cotización ${args.folio} de ${args.businessName} ` +
     `por un total de ${fmtMXN(args.total)}.${vigencia}\n` +
     `¿Te la enviamos en PDF por correo o tienes alguna duda?`
@@ -68,8 +69,9 @@ export function buildProofWhatsappMessage(args: {
   url: string;
   expiresAt: string;
 }): string {
+  // Sin emojis: el redirect de wa.me corrompe caracteres de 4 bytes (U+FFFD).
   return (
-    `Hola ${args.clientName} 👋\n` +
+    `Hola ${args.clientName}:\n` +
     `Tu diseño (versión ${args.version}) de ${args.businessName} está listo ` +
     `para revisión. Apruébalo o pide cambios aquí:\n${args.url}\n` +
     `El enlace vence el ${DATE_ES.format(new Date(args.expiresAt))}.`

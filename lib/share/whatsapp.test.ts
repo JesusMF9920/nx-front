@@ -46,11 +46,11 @@ describe("buildWaMeUrl", () => {
     expect(buildWaMeUrl("123", "hola")).toBe("https://wa.me/?text=hola");
   });
 
-  it("saltos de línea y emoji sobreviven el encoding", () => {
-    const url = buildWaMeUrl(null, "línea 1\nlínea 2 👋");
+  it("saltos de línea y acentos sobreviven el encoding", () => {
+    const url = buildWaMeUrl(null, "línea 1\nlínea 2 ¿ó?");
     expect(url).toContain("%0A");
     expect(decodeURIComponent(url.split("text=")[1])).toBe(
-      "línea 1\nlínea 2 👋",
+      "línea 1\nlínea 2 ¿ó?",
     );
   });
 });
