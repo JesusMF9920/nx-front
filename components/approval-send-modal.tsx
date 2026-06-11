@@ -3,7 +3,10 @@
 import { useState } from "react";
 import { Modal } from "./modal";
 import { designApi } from "@/lib/api/design";
+import { settingsApi } from "@/lib/api/settings";
 import type { ApiApprovalChannel, ApiSendProofResult } from "@/lib/api/types";
+import { useFeature } from "@/lib/auth/auth-context";
+import { buildProofWhatsappMessage, buildWaMeUrl } from "@/lib/share/whatsapp";
 
 /**
  * Envía la prueba al cliente: registra el canal y genera el link público
@@ -12,17 +15,22 @@ import type { ApiApprovalChannel, ApiSendProofResult } from "@/lib/api/types";
  */
 export function ApprovalSendModal({
   proofId,
+  clientName,
   onClose,
   onSent,
 }: {
   proofId: string;
+  clientName: string;
   onClose: () => void;
   onSent: () => void;
 }) {
+  const whatsappEnabled = useFeature("whatsapp");
   const [channel, setChannel] = useState<ApiApprovalChannel>("link");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<ApiSendProofResult | null>(null);
+  /** Link wa.me persistente (inmune a popup blockers). */
+  const [waLink, setWaLink] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
 
   async function handleSend() {
@@ -32,6 +40,23 @@ export function ApprovalSendModal({
     try {
       const res = await designApi.send(proofId, channel);
       setResult(res);
+      if (channel === "whatsapp" && whatsappEnabled) {
+        // sentTo trae el teléfono del cliente (o null → selector de contactos).
+        const business = await settingsApi.getBusinessCached();
+        const url = buildWaMeUrl(
+          res.sentTo,
+          buildProofWhatsappMessage({
+            businessName: business.name,
+            clientName,
+            version: res.version,
+            url: res.url,
+            expiresAt: res.expiresAt,
+          }),
+        );
+        setWaLink(url);
+        // Intento de apertura directa; si el popup se bloquea queda el enlace.
+        window.open(url, "_blank");
+      }
       onSent();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Algo salió mal.");
@@ -107,12 +132,16 @@ export function ApprovalSendModal({
           <div className="text-muted text-xs mt-2">
             {channel === "email"
               ? "El link de aprobación se enviará al correo registrado del cliente."
-              : "El envío real por WhatsApp llega en una fase posterior — por ahora copia el link y compártelo tú."}
+              : channel === "whatsapp" && whatsappEnabled
+                ? "Se abrirá WhatsApp con el mensaje y el link de aprobación prellenados."
+                : channel === "whatsapp"
+                  ? "El envío real por WhatsApp llega en una fase posterior — por ahora copia el link y compártelo tú."
+                  : "Copia el link y compártelo con el cliente por el medio que prefieras."}
           </div>
         </>
       ) : (
         <>
-          {result.sentTo && (
+          {result.channel === "email" && result.sentTo && (
             <div
               className="rounded-md text-sm mb-3"
               style={{
@@ -123,6 +152,31 @@ export function ApprovalSendModal({
               role="status"
             >
               Enviado por correo a <strong>{result.sentTo}</strong>.
+            </div>
+          )}
+          {waLink && (
+            <div
+              className="rounded-md text-sm mb-3 flex items-center gap-2"
+              style={{
+                padding: "10px 12px",
+                border: "1px solid var(--ok)",
+                background: "var(--ok-soft)",
+              }}
+              role="status"
+            >
+              <span className="flex-1">
+                {result.sentTo
+                  ? `Mensaje de WhatsApp listo para ${result.sentTo}.`
+                  : "Mensaje de WhatsApp listo — el cliente no tiene teléfono registrado, elige el contacto al abrir."}
+              </span>
+              <a
+                className="btn btn--sm btn--accent"
+                href={waLink}
+                target="_blank"
+                rel="noreferrer"
+              >
+                Abrir WhatsApp
+              </a>
             </div>
           )}
           <div className="text-sm text-ink-2">

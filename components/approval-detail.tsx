@@ -365,6 +365,7 @@ export function ApprovalDetail({
       {showSend && (
         <ApprovalSendModal
           proofId={detail.id}
+          clientName={detail.clientName}
           onClose={() => setShowSend(false)}
           onSent={() => {
             void reload();
