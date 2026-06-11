@@ -13,6 +13,7 @@ import {
 
 import { authApi } from "@/lib/api/auth";
 import { meApi } from "@/lib/api/me";
+import { settingsApi } from "@/lib/api/settings";
 import type { ApiMe, ApiRole, ApiUser } from "@/lib/api/types";
 import { tokenStorage } from "./tokens";
 
@@ -23,6 +24,8 @@ export type AuthState = {
   user: ApiUser | null;
   roles: ApiRole[];
   permissions: string[];
+  /** Feature flags del backend (key → enabled). Vacío = todo oculto. */
+  features: Record<string, boolean>;
   mustChangePassword: boolean;
 };
 
@@ -40,19 +43,35 @@ const initialState: AuthState = {
   user: null,
   roles: [],
   permissions: [],
+  features: {},
   mustChangePassword: false,
 };
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
-function stateFromMe(me: ApiMe): AuthState {
+function stateFromMe(me: ApiMe, features: Record<string, boolean>): AuthState {
   return {
     status: "authenticated",
     user: me.user,
     roles: me.roles,
     permissions: me.permissions,
+    features,
     mustChangePassword: me.user.mustChangePassword,
   };
+}
+
+/**
+ * Carga los feature flags junto con /me. FAIL-CLOSED: si el fetch falla, {} —
+ * la UI esconde lo gateado en vez de mostrar funciones que el backend va a
+ * rechazar (su guard revalida siempre).
+ */
+async function fetchFeatures(): Promise<Record<string, boolean>> {
+  try {
+    const res = await settingsApi.listFeatures();
+    return Object.fromEntries(res.items.map((f) => [f.key, f.enabled]));
+  } catch {
+    return {};
+  }
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -66,8 +85,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return;
     }
     try {
-      const me = await meApi.get();
-      setState(stateFromMe(me));
+      const [me, features] = await Promise.all([
+        meApi.get(),
+        fetchFeatures(),
+      ]);
+      setState(stateFromMe(me, features));
     } catch {
       tokenStorage.clear();
       setState({ ...initialState, status: "unauthenticated" });
@@ -132,4 +154,24 @@ export function useAuth(): AuthContextValue {
 export function usePermission(permission: string): boolean {
   const { permissions } = useAuth();
   return permissions.includes(permission);
+}
+
+/**
+ * Helper puro de useFeature (testeable sin React): un flag sólo está activo
+ * con `true` explícito — ausente o cargando cuenta como apagado (fail-closed).
+ */
+export function hasFeature(
+  features: Record<string, boolean>,
+  key: string,
+): boolean {
+  return features[key] === true;
+}
+
+/**
+ * ¿El feature flag está encendido? Espejo de usePermission: gating de UI
+ * solamente — el backend revalida con su FeatureFlagsGuard.
+ */
+export function useFeature(key: string): boolean {
+  const { features } = useAuth();
+  return hasFeature(features, key);
 }

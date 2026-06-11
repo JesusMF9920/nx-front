@@ -54,7 +54,7 @@ const NAV_GROUPS: NavGroup[] = [
     items: [
       { href: "/reports",  label: "Reportes",      icon: I.chart,  perm: "reports.read" },
       { href: "/audit",    label: "Bitácora",      icon: I.shield, perm: "audit.read" },
-      { href: "/settings", label: "Configuración", icon: I.settings },
+      { href: "/settings", label: "Configuración", icon: I.settings, perm: "settings.manage" },
     ],
   },
 ];

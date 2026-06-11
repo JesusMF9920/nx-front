@@ -680,3 +680,26 @@ export type ApiAgingRow = {
   b6190: number;
   b90: number;
 };
+
+/** Identidad del negocio (módulo settings) — la llevan tickets y PDFs. */
+export type ApiBusinessSettings = {
+  name: string;
+  address: string | null;
+  phone: string | null;
+  rfc: string | null;
+  email: string | null;
+  /** Object key en Spaces (settings/logo-…); null sin logo. */
+  logoKey: string | null;
+  /** GET presignada temporal (TTL 10 min); null sin logo o sin storage. */
+  logoUrl: string | null;
+  updatedAt: string | null;
+};
+
+/** Feature flag del catálogo del backend (label/description ya en español). */
+export type ApiFeatureFlag = {
+  key: string;
+  label: string;
+  description: string;
+  enabled: boolean;
+  updatedAt: string | null;
+};

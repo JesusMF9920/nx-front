@@ -12,9 +12,10 @@ import { PageHeader } from "@/components/page-header";
 import { StatusPill } from "@/components/status-pill";
 import { SummaryRow } from "@/components/summary-row";
 import type { ApiAuditEntry } from "@/lib/api/audit";
-import { usePermission } from "@/lib/auth/auth-context";
+import { useFeature, usePermission } from "@/lib/auth/auth-context";
 import { ApiError } from "@/lib/api/errors";
 import { ordersApi } from "@/lib/api/orders";
+import { openLetterTicket, printThermalTicket } from "@/lib/print/order-ticket";
 import {
   MANUAL_ORDER_TRANSITIONS,
   ORDER_STATUS_ES,
@@ -122,11 +123,14 @@ export default function OrderDetailPage() {
   const [deliverDraft, setDeliverDraft] = useState("");
   const [notesDraft, setNotesDraft] = useState("");
   const [savingMeta, setSavingMeta] = useState(false);
+  const [printing, setPrinting] = useState(false);
 
   // Gating de UI (el backend revalida con sus guards).
   const canManage = usePermission("sales.orders.manage");
   const canRecordPayment = usePermission("sales.payments.record");
   const canCancel = usePermission("sales.orders.cancel");
+  // Quien puede ver la orden puede imprimirla; el gate real es el flag.
+  const ticketsEnabled = useFeature("tickets");
 
   const load = useCallback(async () => {
     try {
@@ -316,6 +320,38 @@ export default function OrderDetailPage() {
     );
   }
 
+  const printThermal = async () => {
+    if (printing) return;
+    setPrinting(true);
+    setActionError(null);
+    try {
+      await printThermalTicket(detail);
+    } catch (err) {
+      setActionError(
+        err instanceof ApiError ? err.message : "No se pudo imprimir el ticket.",
+      );
+    } finally {
+      setPrinting(false);
+    }
+  };
+
+  const openLetter = async () => {
+    if (printing) return;
+    setPrinting(true);
+    setActionError(null);
+    try {
+      await openLetterTicket(detail.id);
+    } catch (err) {
+      setActionError(
+        err instanceof ApiError
+          ? err.message
+          : "No se pudo generar el ticket carta.",
+      );
+    } finally {
+      setPrinting(false);
+    }
+  };
+
   return (
     <>
       {breadcrumb}
@@ -334,7 +370,26 @@ export default function OrderDetailPage() {
         }
         actions={
           <>
-            <button className="btn">{I.printer} Reimprimir ticket</button>
+            {ticketsEnabled && (
+              <>
+                <button
+                  className="btn"
+                  type="button"
+                  disabled={printing}
+                  onClick={() => void printThermal()}
+                >
+                  {I.printer} Reimprimir ticket
+                </button>
+                <button
+                  className="btn"
+                  type="button"
+                  disabled={printing}
+                  onClick={() => void openLetter()}
+                >
+                  {I.printer} Ticket carta (PDF)
+                </button>
+              </>
+            )}
             <button className="btn">{I.mail} Enviar comprobante</button>
             <button className="btn btn--accent">{I.send} Notificar al cliente</button>
             {canCancel && !isCancelled && detail.status !== "delivered" && (

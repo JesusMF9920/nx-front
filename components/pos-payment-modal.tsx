@@ -14,7 +14,14 @@ import {
   type CheckoutResult,
 } from "@/lib/api/orders";
 import type { ApiStockShortage } from "@/lib/api/types";
+import { useFeature } from "@/lib/auth/auth-context";
 import type { PaymentMethod } from "@/lib/types";
+
+/** Qué tickets imprimir tras el cobro — lo ejecuta la página (no el modal). */
+export type TicketPrintPrefs = {
+  printThermal: boolean;
+  printLetter: boolean;
+};
 
 type Props = {
   clientId: string;
@@ -24,7 +31,7 @@ type Props = {
   notes?: string;
   customerEmail?: string;
   onClose: () => void;
-  onPaid: (result: CheckoutResult) => void;
+  onPaid: (result: CheckoutResult, prints: TicketPrintPrefs) => void;
 };
 
 const METHOD_OPTIONS: { id: PaymentMethod; icon: ReactNode; sub: string }[] = [
@@ -53,7 +60,9 @@ export function PosPaymentModal({
   const [reference, setReference] = useState("");
   const [mixedCash, setMixedCash] = useState("");
   const [mixedTerminal, setMixedTerminal] = useState("");
+  const ticketsEnabled = useFeature("tickets");
   const [printTicket, setPrintTicket] = useState(true);
+  const [printLetter, setPrintLetter] = useState(false);
   const [emailTicket, setEmailTicket] = useState(true);
 
   const [preview, setPreview] = useState<CheckoutPreview | null>(null);
@@ -163,7 +172,10 @@ export function PosPaymentModal({
           : {}),
         ...(notes ? { notes } : {}),
       });
-      onPaid(res);
+      onPaid(res, {
+        printThermal: ticketsEnabled && printTicket,
+        printLetter: ticketsEnabled && printLetter,
+      });
     } catch (err) {
       if (err instanceof ApiError && err.status === 409) {
         if (err.body?.error === "InsufficientStockForSaleError") {
@@ -386,18 +398,26 @@ export function PosPaymentModal({
 
           <div className="label mb-2">Comprobante</div>
           <div className="flex flex-col gap-2">
-            <label className="flex items-center gap-2 text-[13px]">
-              <input
-                type="checkbox"
-                checked={printTicket}
-                onChange={(e) => setPrintTicket(e.target.checked)}
-              />
-              {I.printer} Imprimir ticket térmico (80 mm)
-            </label>
-            <label className="flex items-center gap-2 text-[13px]">
-              <input type="checkbox" />
-              {I.printer} Imprimir ticket carta con logo
-            </label>
+            {ticketsEnabled && (
+              <>
+                <label className="flex items-center gap-2 text-[13px]">
+                  <input
+                    type="checkbox"
+                    checked={printTicket}
+                    onChange={(e) => setPrintTicket(e.target.checked)}
+                  />
+                  {I.printer} Imprimir ticket térmico (80 mm)
+                </label>
+                <label className="flex items-center gap-2 text-[13px]">
+                  <input
+                    type="checkbox"
+                    checked={printLetter}
+                    onChange={(e) => setPrintLetter(e.target.checked)}
+                  />
+                  {I.printer} Imprimir ticket carta con logo
+                </label>
+              </>
+            )}
             <label className="flex items-center gap-2 text-[13px]">
               <input
                 type="checkbox"

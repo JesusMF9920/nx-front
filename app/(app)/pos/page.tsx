@@ -20,7 +20,8 @@ import {
 import { catalogApi } from "@/lib/api/catalog";
 import { ApiError } from "@/lib/api/errors";
 import { inventoryApi } from "@/lib/api/inventory";
-import type { CheckoutLineInput } from "@/lib/api/orders";
+import { ordersApi, type CheckoutLineInput } from "@/lib/api/orders";
+import { openLetterTicket, printThermalTicket } from "@/lib/print/order-ticket";
 import type {
   ApiClient,
   ApiMaterial,
@@ -731,12 +732,25 @@ export default function POSPage() {
           deliverAt={deliverAt || undefined}
           customerEmail={client.email ?? undefined}
           onClose={() => setShowPay(false)}
-          onPaid={(res) => {
+          onPaid={(res, prints) => {
             setShowPay(false);
             setCart([]);
             setDiscount(0);
             setDeliverAt("");
-            router.push(`/orders/${res.folio}`);
+            void (async () => {
+              // La venta YA existe: si la impresión falla, avisar en consola
+              // y navegar igual — nunca bloquear el flujo de cobro.
+              try {
+                if (prints.printThermal) {
+                  const order = await ordersApi.get(res.folio);
+                  await printThermalTicket(order);
+                }
+                if (prints.printLetter) await openLetterTicket(res.folio);
+              } catch (err) {
+                console.warn("No se pudo imprimir el ticket:", err);
+              }
+              router.push(`/orders/${res.folio}`);
+            })();
           }}
         />
       )}
