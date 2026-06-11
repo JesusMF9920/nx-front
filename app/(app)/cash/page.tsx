@@ -637,6 +637,14 @@ export default function CashPage() {
               </span>
               <span className="num">{fmtMXN(detail.cashTotal ?? 0)}</span>
             </div>
+            {(detail.refundsTotal ?? 0) > 0 && (
+              <div className="flex justify-between">
+                <span className="text-muted">
+                  Devoluciones efectivo ({detail.refundsCount ?? 0})
+                </span>
+                <span className="num">−{fmtMXN(detail.refundsTotal ?? 0)}</span>
+              </div>
+            )}
             {detail.movements.map((m) => (
               <div key={m.id} className="flex justify-between text-[13px]">
                 <span className="text-muted">

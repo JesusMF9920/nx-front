@@ -55,6 +55,7 @@ export const MANUAL_ORDER_TRANSITIONS: ApiOrderStatus[] = [
 export const SALES_AUDIT_ACTION_ES: Record<string, string> = {
   "sales.order.placed": "Venta creada",
   "sales.order.payment_received": "Pago registrado",
+  "sales.order.refunded": "Devolución registrada",
   "sales.order.status_changed": "Estatus del pedido actualizado",
   "sales.order.item_status_changed": "Estatus de producto actualizado",
   "sales.order.cancelled": "Pedido cancelado",
