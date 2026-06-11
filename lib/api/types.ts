@@ -371,6 +371,25 @@ export type ApiOrderItem = {
   lineTotal: number;
 };
 
+/** Un job en la cola de producción (GET /production/queue). */
+export type ApiProductionItem = {
+  itemId: string;
+  orderId: string;
+  orderFolio: string;
+  clientName: string;
+  productName: string;
+  sku: string;
+  qty: number;
+  variantLabel: string | null;
+  source: ApiProductSource;
+  supplierName: string | null;
+  needsApproval: boolean;
+  status: ApiOrderStatus;
+  designVersion: number;
+  deliverAt: string | null;
+  orderCreatedAt: string;
+};
+
 /** Forma del GET /orders (lista). */
 export type ApiOrder = {
   id: string;
