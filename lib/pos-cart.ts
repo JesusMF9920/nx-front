@@ -8,6 +8,21 @@
 export const IVA_RATE = 0.16;
 
 /**
+ * Anticipo default sugerido al cobrar una venta (50%). Es solo el preset del
+ * front; el cajero puede ajustar el monto por venta y el backend acepta
+ * cualquier pago parcial 0 ≤ pago ≤ total.
+ */
+export const DEFAULT_DEPOSIT_PCT = 0.5;
+
+/** Monto de anticipo (round2) para un total y porcentaje dados. */
+export function depositAmount(
+  total: number,
+  pct: number = DEFAULT_DEPOSIT_PCT,
+): number {
+  return Math.round(total * pct * 100) / 100;
+}
+
+/**
  * Tipado ESTRUCTURAL: CartLine (POS) y BuilderLine (cotizador) encajan sin
  * acoplarse. `unitPriceOverride` sólo existe en el cotizador (precio manual
  * por línea); el POS nunca lo trae.
