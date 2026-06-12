@@ -49,4 +49,13 @@ export const authApi = {
       { auth: false },
     );
   },
+
+  /** Aceptar una invitación: el usuario fija su contraseña con el token. */
+  acceptInvitation(token: string, newPassword: string): Promise<void> {
+    return apiFetch<void>(
+      "/auth/invitations/accept",
+      { method: "POST", body: JSON.stringify({ token, newPassword }) },
+      { auth: false },
+    );
+  },
 };
