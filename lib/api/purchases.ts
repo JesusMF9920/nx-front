@@ -2,6 +2,7 @@ import type { ApiAuditEntry } from "./audit";
 import { apiFetch } from "./client";
 import type {
   ApiList,
+  ApiMaterialDemand,
   ApiPurchaseOrder,
   ApiPurchaseOrderDetail,
   ApiPurchaseStatus,
@@ -99,5 +100,23 @@ export const purchasesApi = {
       method: "POST",
       body: JSON.stringify(reason ? { reason } : {}),
     });
+  },
+
+  /** "Por comprar": demanda pendiente de insumos bajo demanda (de los pedidos). */
+  listDemand(): Promise<{ items: ApiMaterialDemand[] }> {
+    return apiFetch<{ items: ApiMaterialDemand[] }>("/purchases/demand");
+  },
+
+  /** Crea una OC (de UN proveedor) sembrada con la demanda seleccionada. */
+  createOrdersFromDemand(input: {
+    supplierId: string;
+    demandIds: string[];
+    expectedDate?: string;
+    notes?: string;
+  }): Promise<{ purchaseOrderId: string; folio: string }> {
+    return apiFetch<{ purchaseOrderId: string; folio: string }>(
+      "/purchases/demand/create-orders",
+      { method: "POST", body: JSON.stringify(input) },
+    );
   },
 };

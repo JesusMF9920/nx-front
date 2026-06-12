@@ -278,10 +278,41 @@ export type ApiMaterial = {
   cost: number;
   location: string | null;
   supplierName: string | null;
+  /** Insumo bajo demanda: no se almacena, se compra al pedir. */
+  buyToOrder: boolean;
   isActive: boolean;
   variants: ApiMaterialVariant[];
   createdAt: string;
   updatedAt: string;
+};
+
+/** Insumo bajo demanda que se comprará para la venta (no descuenta stock). */
+export type ApiToPurchaseLine = {
+  materialId: string;
+  materialName: string;
+  unit: string;
+  materialVariantId: string | null;
+  materialVariantCode: string | null;
+  qty: number;
+  supplierName: string | null;
+};
+
+/** Demanda de compra pendiente (insumo bajo demanda) de un pedido — "Por comprar". */
+export type ApiMaterialDemand = {
+  id: string;
+  orderId: string;
+  orderFolio: string;
+  clientName: string;
+  deliverAt: string | null;
+  materialId: string;
+  materialName: string;
+  unit: string;
+  materialVariantId: string | null;
+  materialVariantCode: string | null;
+  qty: number;
+  unitCost: number;
+  supplierName: string | null;
+  createdAt: string;
 };
 
 export type ApiStockMoveType = "entry" | "exit" | "adjust";
