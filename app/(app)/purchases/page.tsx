@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { I } from "@/components/icons";
 import { PageHeader } from "@/components/page-header";
+import { PurchaseDemandPanel } from "@/components/purchase-demand-panel";
 import { PurchaseNewModal } from "@/components/purchase-new-modal";
 import { PurchaseStatusPill } from "@/components/purchase-status-pill";
 import { PurchaseSuggestedModal } from "@/components/purchase-suggested-modal";
@@ -15,9 +16,16 @@ import { useApiList } from "@/lib/hooks/use-api-list";
 
 const PAGE_SIZE = 25;
 
-type Tab = "Todas" | "Borradores" | "Enviadas" | "Recibidas" | "Canceladas";
+type Tab =
+  | "Por comprar"
+  | "Todas"
+  | "Borradores"
+  | "Enviadas"
+  | "Recibidas"
+  | "Canceladas";
 
 const TABS: Tab[] = [
+  "Por comprar",
   "Todas",
   "Borradores",
   "Enviadas",
@@ -26,6 +34,7 @@ const TABS: Tab[] = [
 ];
 
 const TAB_TO_STATUS: Record<Tab, ApiPurchaseStatus | null> = {
+  "Por comprar": null,
   Todas: null,
   Borradores: "draft",
   Enviadas: "sent",
@@ -134,6 +143,13 @@ export default function PurchasesPage() {
             />
           </div>
         </div>
+        {tab === "Por comprar" ? (
+          <PurchaseDemandPanel
+            canCreate={canCreate}
+            onCreated={(folio) => router.push(`/purchases/${folio}`)}
+          />
+        ) : (
+          <>
         <table className="tbl">
           <thead>
             <tr>
@@ -220,6 +236,8 @@ export default function PurchasesPage() {
             {I.chevronRight}
           </button>
         </div>
+          </>
+        )}
       </div>
 
       {showNew && (

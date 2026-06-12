@@ -297,6 +297,24 @@ export type ApiToPurchaseLine = {
   supplierName: string | null;
 };
 
+/** Demanda de compra pendiente (insumo bajo demanda) de un pedido — "Por comprar". */
+export type ApiMaterialDemand = {
+  id: string;
+  orderId: string;
+  orderFolio: string;
+  clientName: string;
+  deliverAt: string | null;
+  materialId: string;
+  materialName: string;
+  unit: string;
+  materialVariantId: string | null;
+  materialVariantCode: string | null;
+  qty: number;
+  unitCost: number;
+  supplierName: string | null;
+  createdAt: string;
+};
+
 export type ApiStockMoveType = "entry" | "exit" | "adjust";
 
 export type ApiStockMove = {
