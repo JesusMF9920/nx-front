@@ -61,6 +61,7 @@ export type ApiDesignCommentAuthorType = "user" | "client" | "system";
 export type ApiDesignProofListItem = {
   id: string;
   folio: string;
+  orderId: string;
   orderFolio: string;
   clientName: string;
   productName: string;
