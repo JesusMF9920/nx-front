@@ -80,7 +80,20 @@ export async function apiFetch<T>(
     return apiFetch<T>(path, init, { ...opts, retried: true });
   }
 
-  if (!res.ok) throw await ApiError.fromResponse(res);
+  if (!res.ok) {
+    const err = await ApiError.fromResponse(res);
+    // Backstop del cambio forzado: si el guard bloquea, manda a fijar la
+    // contraseña (el layout ya redirige por /me; esto cubre el resto).
+    if (
+      err.status === 403 &&
+      err.body?.error === "PASSWORD_CHANGE_REQUIRED" &&
+      typeof window !== "undefined" &&
+      window.location.pathname !== "/change-password"
+    ) {
+      window.location.href = "/change-password";
+    }
+    throw err;
+  }
   if (res.status === 204) return undefined as T;
   return (await res.json()) as T;
 }

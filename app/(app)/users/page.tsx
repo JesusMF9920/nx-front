@@ -13,6 +13,7 @@ import { rolesApi } from "@/lib/api/roles";
 import type { ApiRole, ApiUser } from "@/lib/api/types";
 import { usersApi } from "@/lib/api/users";
 import { useAuth } from "@/lib/auth/auth-context";
+import { generateTempPassword } from "@/lib/auth/generate-password";
 
 const dateFmt = new Intl.DateTimeFormat("es-MX", {
   dateStyle: "medium",
@@ -562,37 +563,51 @@ function NewUserModal({
   onClose: () => void;
   onCreated: () => void | Promise<void>;
 }) {
+  const [mode, setMode] = useState<"temporary" | "invite">("temporary");
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [roleId, setRoleId] = useState<string>(roles[0]?.id ?? "");
   const [password, setPassword] = useState("");
   const [confirmPwd, setConfirmPwd] = useState("");
+  const [showPwd, setShowPwd] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const generate = () => {
+    const p = generateTempPassword();
+    setPassword(p);
+    setConfirmPwd(p);
+    setShowPwd(true); // revela para que el admin la copie
+  };
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
     if (submitting) return;
     setError(null);
-    if (password.length < 8) {
-      setError("La contraseña debe tener al menos 8 caracteres.");
-      return;
-    }
-    if (password !== confirmPwd) {
-      setError("La contraseña y su confirmación no coinciden.");
-      return;
-    }
     if (!roleId) {
       setError("Selecciona un rol.");
       return;
     }
+    if (mode === "temporary") {
+      if (password.length < 8) {
+        setError("La contraseña debe tener al menos 8 caracteres.");
+        return;
+      }
+      if (password !== confirmPwd) {
+        setError("La contraseña y su confirmación no coinciden.");
+        return;
+      }
+    }
     setSubmitting(true);
     try {
-      const { id } = await usersApi.create({
-        email: email.trim(),
-        name: name.trim(),
-        password,
-      });
+      const { id } =
+        mode === "temporary"
+          ? await usersApi.create({
+              email: email.trim(),
+              name: name.trim(),
+              password,
+            })
+          : await usersApi.invite({ email: email.trim(), name: name.trim() });
       await rolesApi.assign(roleId, id);
       await onCreated();
     } catch (err) {
@@ -624,7 +639,15 @@ function NewUserModal({
             disabled={submitting}
           >
             {submitting ? (
-              "Creando…"
+              mode === "invite" ? (
+                "Enviando…"
+              ) : (
+                "Creando…"
+              )
+            ) : mode === "invite" ? (
+              <>
+                {I.mail} Enviar invitación
+              </>
             ) : (
               <>
                 {I.plus} Crear usuario
@@ -635,6 +658,22 @@ function NewUserModal({
       }
     >
       <form id="new-user-form" onSubmit={submit} className="grid" style={{ gap: 14 }}>
+        <div className="flex gap-1.5">
+          <button
+            type="button"
+            className={`btn btn--sm ${mode === "temporary" ? "btn--primary" : "btn--ghost"}`}
+            onClick={() => setMode("temporary")}
+          >
+            Contraseña temporal
+          </button>
+          <button
+            type="button"
+            className={`btn btn--sm ${mode === "invite" ? "btn--primary" : "btn--ghost"}`}
+            onClick={() => setMode("invite")}
+          >
+            Invitar por correo
+          </button>
+        </div>
         <div className="field">
           <span className="label">Nombre completo</span>
           <input
@@ -670,35 +709,65 @@ function NewUserModal({
             ))}
           </select>
         </div>
-        <div className="grid" style={{ gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-          <div className="field">
-            <span className="label">Contraseña temporal</span>
-            <input
-              className="input"
-              type="password"
-              minLength={8}
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-            />
+        {mode === "temporary" ? (
+          <>
+            <div
+              className="grid"
+              style={{ gridTemplateColumns: "1fr 1fr", gap: 12 }}
+            >
+              <div className="field">
+                <div className="flex items-center justify-between">
+                  <span className="label">Contraseña temporal</span>
+                  <button
+                    type="button"
+                    className="btn btn--sm btn--ghost"
+                    onClick={generate}
+                  >
+                    Generar
+                  </button>
+                </div>
+                <input
+                  className="input"
+                  type={showPwd ? "text" : "password"}
+                  minLength={8}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                />
+              </div>
+              <div className="field">
+                <div className="flex items-center justify-between">
+                  <span className="label">Confirmar</span>
+                  <button
+                    type="button"
+                    className="btn btn--sm btn--ghost"
+                    onClick={() => setShowPwd((s) => !s)}
+                  >
+                    {showPwd ? "Ocultar" : "Mostrar"}
+                  </button>
+                </div>
+                <input
+                  className="input"
+                  type={showPwd ? "text" : "password"}
+                  minLength={8}
+                  value={confirmPwd}
+                  onChange={(e) => setConfirmPwd(e.target.value)}
+                  required
+                />
+              </div>
+            </div>
+            <div className="help">
+              Crea la cuenta con esta contraseña temporal y compártela en
+              privado. El usuario tendrá que cambiarla en su primer ingreso.
+            </div>
+          </>
+        ) : (
+          <div className="help">
+            Se crea la cuenta sin contraseña y se envía un correo a{" "}
+            <strong>{email.trim() || "el usuario"}</strong> con un enlace para
+            que cree la suya. El enlace vence en 72 horas.
           </div>
-          <div className="field">
-            <span className="label">Confirmar</span>
-            <input
-              className="input"
-              type="password"
-              minLength={8}
-              value={confirmPwd}
-              onChange={(e) => setConfirmPwd(e.target.value)}
-              required
-            />
-          </div>
-        </div>
-        {/* TODO: el backend aún no tiene el concepto de "sucursal". */}
-        <div className="help">
-          Crea la cuenta con esta contraseña temporal y compártela en privado.
-          El usuario tendrá que cambiarla en su primer ingreso.
-        </div>
+        )}
         {error && (
           <div
             className="rounded-md text-xs"

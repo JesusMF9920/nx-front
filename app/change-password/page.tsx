@@ -9,7 +9,7 @@ import { useAuth } from "@/lib/auth/auth-context";
 
 export default function ChangePasswordPage() {
   const router = useRouter();
-  const { status, user, mustChangePassword, refresh } = useAuth();
+  const { status, user, mustChangePassword, logout } = useAuth();
 
   const [currentPwd, setCurrentPwd] = useState("");
   const [newPwd, setNewPwd] = useState("");
@@ -41,8 +41,11 @@ export default function ChangePasswordPage() {
         currentPassword: currentPwd,
         newPassword: newPwd,
       });
-      await refresh();
-      router.replace("/dashboard");
+      // Cambiar la contraseña revoca la sesión (refresh tokens) y el access
+      // token actual trae el flag stale; re-loguear emite uno fresco que el
+      // guard ya deja pasar. Salir y volver a /login.
+      await logout();
+      router.replace("/login?passwordChanged=1");
     } catch (err) {
       const message =
         err instanceof ApiError

@@ -35,6 +35,19 @@ export const usersApi = {
     });
   },
 
+  /** Alta por invitación: crea el usuario sin contraseña y le manda el correo. */
+  invite(input: { email: string; name: string }): Promise<{ id: string }> {
+    return apiFetch<{ id: string }>("/users/invite", {
+      method: "POST",
+      body: JSON.stringify(input),
+    });
+  },
+
+  /** Reenvía la invitación (invalida el link previo). */
+  resendInvite(id: string): Promise<void> {
+    return apiFetch<void>(`/users/${id}/invite`, { method: "POST" });
+  },
+
   update(id: string, patch: UpdateUserInput): Promise<void> {
     return apiFetch<void>(`/users/${id}`, {
       method: "PATCH",
