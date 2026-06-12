@@ -268,6 +268,7 @@ export function PosPaymentModal({
   ];
 
   const consumption = preview?.consumption ?? [];
+  const toPurchase = preview?.toPurchase ?? [];
 
   return (
     <Modal
@@ -673,6 +674,40 @@ export function PosPaymentModal({
               </div>
               <div className="text-[10px] text-muted mt-1.5">
                 Solo productos internos descuentan inventario. Productos con proveedor generan OC.
+              </div>
+            </>
+          )}
+
+          {toPurchase.length > 0 && (
+            <>
+              <div className="divider" />
+              <div className="label mb-2 flex items-center gap-1.5">
+                {I.cart} Se comprará (bajo demanda)
+              </div>
+              <div className="bg-surface-2 border border-line rounded-md p-2.5">
+                {toPurchase.map((t) => (
+                  <div
+                    key={t.materialId + (t.materialVariantCode ?? "")}
+                    className="flex items-center gap-2 text-xs py-1"
+                  >
+                    <div className="flex-1 min-w-0">
+                      <div className="font-medium">
+                        {t.materialName}
+                        {t.materialVariantCode ? ` · ${t.materialVariantCode}` : ""}
+                      </div>
+                      <div className="text-muted text-[10px]">
+                        {t.supplierName ?? "Sin proveedor"}
+                      </div>
+                    </div>
+                    <span className="num font-semibold">
+                      {t.qty.toFixed(2)} {t.unit}
+                    </span>
+                  </div>
+                ))}
+              </div>
+              <div className="text-[10px] text-muted mt-1.5">
+                Estos insumos no se almacenan: se comprarán para este pedido (no
+                bloquean la venta).
               </div>
             </>
           )}

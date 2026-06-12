@@ -64,6 +64,12 @@ export function InventoryMaterialDetail({
         <div className="text-muted text-xs">
           <span className="font-mono">{material.sku}</span> ·{" "}
           <span className="tag">{material.category}</span>
+          {material.buyToOrder && (
+            <>
+              {" · "}
+              <span className="pill pill--neutral">Bajo demanda</span>
+            </>
+          )}
           {!material.isActive && (
             <>
               {" · "}
@@ -78,9 +84,13 @@ export function InventoryMaterialDetail({
           <Kv
             label={hasVariants ? "Stock total" : "Stock"}
             v={
-              <span style={{ color: lowStock ? "var(--warn)" : "var(--ink)" }}>
-                {fmtInt(material.stock)} {material.unit}
-              </span>
+              material.buyToOrder ? (
+                "Bajo demanda"
+              ) : (
+                <span style={{ color: lowStock ? "var(--warn)" : "var(--ink)" }}>
+                  {fmtInt(material.stock)} {material.unit}
+                </span>
+              )
             }
           />
           <Kv

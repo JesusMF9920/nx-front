@@ -16,6 +16,8 @@ export type CreateMaterialInput = {
   cost: number;
   location?: string | null;
   supplierName?: string | null;
+  /** Insumo bajo demanda: no se almacena, se compra al pedir. */
+  buyToOrder?: boolean;
 };
 
 export type UpdateMaterialInput = {
@@ -27,6 +29,7 @@ export type UpdateMaterialInput = {
   cost?: number;
   location?: string | null;
   supplierName?: string | null;
+  buyToOrder?: boolean;
 };
 
 export type ListMaterialsParams = {

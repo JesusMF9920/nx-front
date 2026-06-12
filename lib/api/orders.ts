@@ -8,6 +8,7 @@ import type {
   ApiOrderStatus,
   ApiPaymentMethod,
   ApiStockShortage,
+  ApiToPurchaseLine,
 } from "./types";
 
 export type CheckoutLineInput = {
@@ -76,6 +77,8 @@ export type CheckoutPreview = {
   }[];
   consumption: ApiConsumptionLine[];
   shortages: ApiStockShortage[];
+  /** Insumos bajo demanda que se comprarán (no descuentan ni bloquean). */
+  toPurchase: ApiToPurchaseLine[];
   available: boolean;
 };
 

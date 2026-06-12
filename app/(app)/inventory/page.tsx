@@ -529,6 +529,7 @@ function MaterialEditModal({
   const [cost, setCost] = useState(String(material.cost));
   const [location, setLocation] = useState(material.location ?? "");
   const [supplierName, setSupplierName] = useState(material.supplierName ?? "");
+  const [buyToOrder, setBuyToOrder] = useState(material.buyToOrder);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -557,6 +558,7 @@ function MaterialEditModal({
         cost: costNum,
         location: location.trim() || null,
         supplierName: supplierName.trim() || null,
+        buyToOrder,
       });
       await onDone();
     } catch (err) {
@@ -674,6 +676,23 @@ function MaterialEditModal({
             onChange={(e) => setSupplierName(e.target.value)}
             maxLength={120}
           />
+        </div>
+        <div className="field col-span-full">
+          <span className="label">Tipo de insumo</span>
+          <label className="flex items-center gap-2 text-[13px]">
+            <input
+              type="checkbox"
+              checked={buyToOrder}
+              onChange={(e) => setBuyToOrder(e.target.checked)}
+            />
+            Bajo demanda — no se almacena, se compra cuando un pedido lo necesita
+          </label>
+          {buyToOrder && material.stock > 0 && (
+            <small className="help mt-1" style={{ color: "var(--warn)" }}>
+              Este insumo tiene {material.stock} {material.unit} en stock; bajo
+              demanda no se descontará al vender.
+            </small>
+          )}
         </div>
         {error && (
           <div

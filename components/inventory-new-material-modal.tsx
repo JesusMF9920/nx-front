@@ -29,6 +29,7 @@ export function InventoryNewMaterialModal({
   const [cost, setCost] = useState("");
   const [location, setLocation] = useState("");
   const [supplierName, setSupplierName] = useState("");
+  const [buyToOrder, setBuyToOrder] = useState(false);
   const [suppliers, setSuppliers] = useState<ApiSupplier[]>([]);
   const [variants, setVariants] = useState<VariantRow[]>([]);
   const [createdId, setCreatedId] = useState<string | null>(null);
@@ -64,7 +65,7 @@ export function InventoryNewMaterialModal({
 
   const stockNum = Number(initialStock);
   const stockVariantConflict =
-    variants.length > 0 && Number.isFinite(stockNum) && stockNum > 0;
+    !buyToOrder && variants.length > 0 && Number.isFinite(stockNum) && stockNum > 0;
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
@@ -111,11 +112,12 @@ export function InventoryNewMaterialModal({
         name: name.trim(),
         category: category.trim(),
         unit: unit.trim() || "pieza",
-        initialStock: stockNum,
+        initialStock: buyToOrder ? 0 : stockNum,
         reorderPoint: reorderNum,
         cost: costNum,
         location: location.trim() || null,
         supplierName: supplierName.trim() || null,
+        buyToOrder,
       });
       id = res.id;
       if (cleanVariants.length > 0) {
@@ -243,9 +245,13 @@ export function InventoryNewMaterialModal({
             type="number"
             min={0}
             step={1}
-            value={initialStock}
+            value={buyToOrder ? "0" : initialStock}
             onChange={(e) => setInitialStock(e.target.value)}
+            disabled={buyToOrder}
           />
+          {buyToOrder && (
+            <small className="help mt-1">Bajo demanda: no se almacena.</small>
+          )}
         </div>
         <div className="field">
           <span className="label">Punto de reorden</span>
@@ -291,6 +297,18 @@ export function InventoryNewMaterialModal({
               maxLength={120}
             />
           )}
+        </div>
+
+        <div className="field col-span-full">
+          <span className="label">Tipo de insumo</span>
+          <label className="flex items-center gap-2 text-[13px]">
+            <input
+              type="checkbox"
+              checked={buyToOrder}
+              onChange={(e) => setBuyToOrder(e.target.checked)}
+            />
+            Bajo demanda — no se almacena, se compra cuando un pedido lo necesita
+          </label>
         </div>
 
         <div className="col-span-full">
