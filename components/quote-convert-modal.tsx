@@ -9,6 +9,7 @@ import type { CheckoutPaymentInput } from "@/lib/api/orders";
 import { quotesApi } from "@/lib/api/quotes";
 import type { ApiConvertResult, ApiQuoteDetail, ApiStockShortage } from "@/lib/api/types";
 import { fmtMXN } from "@/lib/format";
+import { DEFAULT_DEPOSIT_PCT, depositAmount } from "@/lib/pos-cart";
 import type { PaymentMethod } from "@/lib/types";
 
 type Props = {
@@ -21,7 +22,16 @@ const METHOD_OPTIONS: { id: PaymentMethod; icon: ReactNode; sub: string }[] = [
   { id: "Efectivo", icon: I.cash, sub: "Pago de contado" },
   { id: "Terminal", icon: I.card, sub: "Tarjeta" },
   { id: "Mixto", icon: I.layers, sub: "Efectivo + tarjeta" },
-  { id: "Crédito", icon: I.clock, sub: "Sin pago inicial" },
+];
+
+/** Cuánto se cobra AHORA; el resto queda como saldo (se liquida al entregar). */
+type ChargeMode = "deposit" | "full" | "credit" | "custom";
+
+const CHARGE_PRESETS: { id: ChargeMode; label: string }[] = [
+  { id: "deposit", label: `Anticipo ${Math.round(DEFAULT_DEPOSIT_PCT * 100)}%` },
+  { id: "full", label: "Total" },
+  { id: "credit", label: "Crédito" },
+  { id: "custom", label: "Otro" },
 ];
 
 function round2(n: number): number {
@@ -31,6 +41,8 @@ function round2(n: number): number {
 export function QuoteConvertModal({ quote, onClose, onConverted }: Props) {
   const total = quote.total;
   const [method, setMethod] = useState<PaymentMethod>("Efectivo");
+  const [chargeMode, setChargeMode] = useState<ChargeMode>("deposit");
+  const [customCharge, setCustomCharge] = useState("");
   const [reference, setReference] = useState("");
   const [mixedCash, setMixedCash] = useState("");
   const [mixedTerminal, setMixedTerminal] = useState("");
@@ -39,24 +51,40 @@ export function QuoteConvertModal({ quote, onClose, onConverted }: Props) {
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
 
+  // Cobro inicial: anticipo (default 50%), total, crédito (0) o monto libre.
+  // El resto queda como saldo a liquidar a la entrega.
+  const customChargeNum = parseFloat(customCharge || "0") || 0;
+  const chargeNow = round2(
+    chargeMode === "full"
+      ? total
+      : chargeMode === "credit"
+        ? 0
+        : chargeMode === "deposit"
+          ? depositAmount(total)
+          : Math.min(Math.max(0, customChargeNum), total),
+  );
+  const balanceAfter = round2(Math.max(0, total - chargeNow));
+  const isCredit = chargeNow <= 0;
+
   const mixedCashNum = parseFloat(mixedCash || "0") || 0;
   const mixedTerminalNum = parseFloat(mixedTerminal || "0") || 0;
   const mixedSum = round2(mixedCashNum + mixedTerminalNum);
-  const mixedRemaining = round2(total - mixedSum);
+  const mixedRemaining = round2(chargeNow - mixedSum);
   const mixedOk =
     mixedCashNum >= 0 &&
     mixedTerminalNum >= 0 &&
     mixedSum > 0 &&
-    Math.abs(mixedSum - total) <= 0.01;
+    Math.abs(mixedSum - chargeNow) <= 0.01;
 
   const buildPayments = (): CheckoutPaymentInput[] => {
+    if (isCredit) return [];
     switch (method) {
       case "Efectivo":
-        return [{ method: "cash", amount: total }];
+        return [{ method: "cash", amount: chargeNow }];
       case "Terminal": {
         const ref = reference.trim();
         return [
-          { method: "terminal", amount: total, ...(ref ? { reference: ref } : {}) },
+          { method: "terminal", amount: chargeNow, ...(ref ? { reference: ref } : {}) },
         ];
       }
       case "Mixto": {
@@ -77,7 +105,8 @@ export function QuoteConvertModal({ quote, onClose, onConverted }: Props) {
     }
   };
 
-  const canConfirm = !submitting && (method !== "Mixto" || mixedOk);
+  const canConfirm =
+    !submitting && (isCredit || method !== "Mixto" || mixedOk);
 
   const confirm = async () => {
     if (!canConfirm) return;
@@ -176,6 +205,55 @@ export function QuoteConvertModal({ quote, onClose, onConverted }: Props) {
       </div>
 
       <div className="label mb-2">Cobro inicial</div>
+      <div className="grid grid-cols-4 gap-1.5">
+        {CHARGE_PRESETS.map((c) => (
+          <button
+            type="button"
+            key={c.id}
+            onClick={() => setChargeMode(c.id)}
+            className="rounded-md py-2 px-1.5 cursor-pointer text-[12px] font-medium text-center"
+            style={{
+              border:
+                chargeMode === c.id
+                  ? "1.5px solid var(--accent)"
+                  : "1px solid var(--line)",
+              background:
+                chargeMode === c.id ? "var(--accent-soft)" : "var(--surface)",
+              color: chargeMode === c.id ? "var(--accent-ink)" : "var(--ink)",
+            }}
+          >
+            {c.label}
+          </button>
+        ))}
+      </div>
+      {chargeMode === "custom" && (
+        <label className="field mt-2">
+          <span className="label">
+            Monto a cobrar ahora (máx {fmtMXN(total)})
+          </span>
+          <input
+            className="input num"
+            type="number"
+            min={0}
+            max={total}
+            step="0.01"
+            value={customCharge}
+            onChange={(e) => setCustomCharge(e.target.value)}
+            placeholder={String(depositAmount(total))}
+          />
+        </label>
+      )}
+      <div className="text-[11px] mt-1.5" style={{ color: "var(--muted)" }}>
+        Cobro ahora{" "}
+        <strong className="num" style={{ color: "var(--ink)" }}>
+          {fmtMXN(chargeNow)}
+        </strong>{" "}
+        · Saldo a la entrega <span className="num">{fmtMXN(balanceAfter)}</span>
+      </div>
+
+      {!isCredit && (
+      <>
+      <div className="label mb-2 mt-3">Método de pago</div>
       <div className="grid grid-cols-2 gap-1.5">
         {METHOD_OPTIONS.map((m) => (
           <button
@@ -244,10 +322,13 @@ export function QuoteConvertModal({ quote, onClose, onConverted }: Props) {
         </div>
       )}
 
-      {method === "Crédito" && (
+      </>
+      )}
+
+      {isCredit && (
         <div className="mt-3 p-3 border border-line rounded-md bg-surface-2 text-xs text-muted">
-          {I.clock} El pedido se genera <strong className="text-ink">sin pago</strong>{" "}
-          y queda pendiente de cobro.
+          {I.clock} El pedido se genera <strong className="text-ink">sin pago inicial</strong>{" "}
+          y queda pendiente de cobro (se liquida a la entrega).
         </div>
       )}
 

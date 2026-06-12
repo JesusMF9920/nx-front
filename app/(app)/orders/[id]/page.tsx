@@ -6,6 +6,7 @@ import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react
 import { Avatar } from "@/components/avatar";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { I } from "@/components/icons";
+import { Modal } from "@/components/modal";
 import { OrderPaymentModal } from "@/components/order-payment-modal";
 import { OrderRefundModal } from "@/components/order-refund-modal";
 import { OrderStatusBanner } from "@/components/order-status-banner";
@@ -126,6 +127,10 @@ export default function OrderDetailPage() {
   const [missing, setMissing] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
   const [showPayment, setShowPayment] = useState(false);
+  // Liquidación al entregar: si hay saldo al pasar a "Entregado", se ofrece
+  // cobrarlo antes (deliverAfterPay encadena la entrega tras registrar el pago).
+  const [deliverPrompt, setDeliverPrompt] = useState(false);
+  const [deliverAfterPay, setDeliverAfterPay] = useState(false);
   const [showRefund, setShowRefund] = useState(false);
   const [showCancel, setShowCancel] = useState(false);
   const [transitioning, setTransitioning] = useState(false);
@@ -228,6 +233,17 @@ export default function OrderDetailPage() {
     } finally {
       setTransitioning(false);
     }
+  };
+
+  // Intercepta "Entregado" con saldo pendiente: ofrece liquidar antes (aviso
+  // suave, no bloquea). Las demás transiciones pasan directo.
+  const onOrderStatusSelect = (status: ApiOrderStatus) => {
+    if (!detail || status === detail.status) return;
+    if (status === "delivered" && pending > 0 && canRecordPayment) {
+      setDeliverPrompt(true);
+      return;
+    }
+    void changeOrderStatus(status);
   };
 
   const changeItemStatus = async (itemId: string, status: ApiOrderStatus) => {
@@ -465,7 +481,7 @@ export default function OrderDetailPage() {
                     className="select"
                     value={detail.status}
                     disabled={transitioning || isCancelled}
-                    onChange={(e) => void changeOrderStatus(e.target.value as ApiOrderStatus)}
+                    onChange={(e) => onOrderStatusSelect(e.target.value as ApiOrderStatus)}
                   >
                     {!MANUAL_ORDER_TRANSITIONS.includes(detail.status) && (
                       <option value={detail.status} disabled>
@@ -778,9 +794,66 @@ export default function OrderDetailPage() {
       {showPayment && (
         <OrderPaymentModal
           order={detail}
-          onClose={() => setShowPayment(false)}
-          onDone={load}
+          onClose={() => {
+            setShowPayment(false);
+            setDeliverAfterPay(false);
+          }}
+          onDone={async () => {
+            await load();
+            // Si el pago salió de la liquidación al entregar, completa la
+            // entrega tras registrarlo (el cajero pudo cobrar parcial o total).
+            if (deliverAfterPay) {
+              setDeliverAfterPay(false);
+              await changeOrderStatus("delivered");
+            }
+          }}
         />
+      )}
+
+      {deliverPrompt && (
+        <Modal
+          title="Liquidar antes de entregar"
+          onClose={() => setDeliverPrompt(false)}
+          width={440}
+          footer={
+            <>
+              <button
+                className="btn btn--ghost"
+                type="button"
+                onClick={() => setDeliverPrompt(false)}
+              >
+                Cancelar
+              </button>
+              <button
+                className="btn"
+                type="button"
+                onClick={() => {
+                  setDeliverPrompt(false);
+                  void changeOrderStatus("delivered");
+                }}
+              >
+                Entregar sin liquidar
+              </button>
+              <button
+                className="btn btn--accent"
+                type="button"
+                onClick={() => {
+                  setDeliverPrompt(false);
+                  setDeliverAfterPay(true);
+                  setShowPayment(true);
+                }}
+              >
+                {I.cash} Registrar pago
+              </button>
+            </>
+          }
+        >
+          <p className="text-[13px]">
+            Este pedido tiene un{" "}
+            <strong>saldo pendiente de {fmtMXN(pending)}</strong>. ¿Registrar el
+            pago antes de marcarlo como entregado?
+          </p>
+        </Modal>
       )}
 
       {showRefund && (

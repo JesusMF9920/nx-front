@@ -5,6 +5,7 @@ import { I } from "@/components/icons";
 import { Modal } from "@/components/modal";
 import { SummaryRow } from "@/components/summary-row";
 import { fmtMXN } from "@/lib/format";
+import { DEFAULT_DEPOSIT_PCT, depositAmount } from "@/lib/pos-cart";
 import { ApiError } from "@/lib/api/errors";
 import {
   posApi,
@@ -42,7 +43,16 @@ const METHOD_OPTIONS: { id: PaymentMethod; icon: ReactNode; sub: string }[] = [
   { id: "Efectivo", icon: I.cash,   sub: "Calcular cambio" },
   { id: "Terminal", icon: I.card,   sub: "Mercado Libre" },
   { id: "Mixto",    icon: I.layers, sub: "Efectivo + tarjeta" },
-  { id: "Crédito",  icon: I.clock,  sub: "30 días" },
+];
+
+/** Cuánto se cobra AHORA; el resto queda como saldo (se liquida al entregar). */
+type ChargeMode = "deposit" | "full" | "credit" | "custom";
+
+const CHARGE_PRESETS: { id: ChargeMode; label: string }[] = [
+  { id: "deposit", label: `Anticipo ${Math.round(DEFAULT_DEPOSIT_PCT * 100)}%` },
+  { id: "full", label: "Total" },
+  { id: "credit", label: "Crédito" },
+  { id: "custom", label: "Otro" },
 ];
 
 function round2(n: number): number {
@@ -60,6 +70,8 @@ export function PosPaymentModal({
   onPaid,
 }: Props) {
   const [method, setMethod] = useState<PaymentMethod>("Efectivo");
+  const [chargeMode, setChargeMode] = useState<ChargeMode>("deposit");
+  const [customCharge, setCustomCharge] = useState("");
   const [cash, setCash] = useState(0);
   const [reference, setReference] = useState("");
   const [mixedCash, setMixedCash] = useState("");
@@ -111,7 +123,6 @@ export function PosPaymentModal({
       setPreview(res);
       setShortages(res.shortages);
       setStockBlocked(!res.available);
-      setCash(res.total);
     } catch (err) {
       setPreviewError(
         err instanceof ApiError
@@ -130,26 +141,48 @@ export function PosPaymentModal({
   }, []);
 
   const total = preview?.total ?? 0;
-  const change = Math.max(0, cash - total);
+  // Cobro AHORA: anticipo (default 50%), total, crédito (0) o un monto libre.
+  // El resto queda como saldo a liquidar a la entrega.
+  const customChargeNum = parseFloat(customCharge || "0") || 0;
+  const chargeNow = round2(
+    chargeMode === "full"
+      ? total
+      : chargeMode === "credit"
+        ? 0
+        : chargeMode === "deposit"
+          ? depositAmount(total)
+          : Math.min(Math.max(0, customChargeNum), total),
+  );
+  const balanceAfter = round2(Math.max(0, total - chargeNow));
+  const isCredit = chargeNow <= 0;
+  const change = Math.max(0, cash - chargeNow);
+
+  // El "Recibido" (efectivo) arranca en el monto a cobrar ahora; al cambiar de
+  // modo de cobro se re-sincroniza. El cajero puede sobrescribirlo manualmente.
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setCash(chargeNow);
+  }, [chargeNow]);
 
   const mixedCashNum = parseFloat(mixedCash || "0") || 0;
   const mixedTerminalNum = parseFloat(mixedTerminal || "0") || 0;
   const mixedSum = round2(mixedCashNum + mixedTerminalNum);
-  const mixedRemaining = round2(total - mixedSum);
+  const mixedRemaining = round2(chargeNow - mixedSum);
   const mixedOk =
     mixedCashNum >= 0 &&
     mixedTerminalNum >= 0 &&
     mixedSum > 0 &&
-    Math.abs(mixedSum - total) <= 0.01;
+    Math.abs(mixedSum - chargeNow) <= 0.01;
 
   const buildPayments = (): CheckoutPaymentInput[] => {
+    if (isCredit) return [];
     switch (method) {
       case "Efectivo":
-        return [{ method: "cash", amount: total }];
+        return [{ method: "cash", amount: chargeNow }];
       case "Terminal": {
         const ref = reference.trim();
         return [
-          { method: "terminal", amount: total, ...(ref ? { reference: ref } : {}) },
+          { method: "terminal", amount: chargeNow, ...(ref ? { reference: ref } : {}) },
         ];
       }
       case "Mixto": {
@@ -175,9 +208,10 @@ export function PosPaymentModal({
     !previewLoading &&
     !stockBlocked &&
     !submitting &&
-    !(cashBlocked && CASH_METHODS.includes(method)) &&
-    (method !== "Efectivo" || cash >= total - 0.005) &&
-    (method !== "Mixto" || mixedOk);
+    (isCredit ||
+      (!(cashBlocked && CASH_METHODS.includes(method)) &&
+        (method !== "Efectivo" || cash >= chargeNow - 0.005) &&
+        (method !== "Mixto" || mixedOk)));
 
   const confirm = async () => {
     if (!preview || !canConfirm) return;
@@ -226,7 +260,12 @@ export function PosPaymentModal({
     }
   };
 
-  const quickCash = [total, Math.ceil(total / 100) * 100, Math.ceil(total / 500) * 500, Math.ceil(total / 1000) * 1000];
+  const quickCash = [
+    chargeNow,
+    Math.ceil(chargeNow / 100) * 100,
+    Math.ceil(chargeNow / 500) * 500,
+    Math.ceil(chargeNow / 1000) * 1000,
+  ];
 
   const consumption = preview?.consumption ?? [];
 
@@ -277,6 +316,56 @@ export function PosPaymentModal({
 
       <div className="grid grid-cols-2 gap-[18px]">
         <div>
+          <div className="label mb-2">Cobro ahora</div>
+          <div className="grid grid-cols-4 gap-1.5">
+            {CHARGE_PRESETS.map((c) => (
+              <button
+                type="button"
+                key={c.id}
+                onClick={() => setChargeMode(c.id)}
+                className="rounded-md py-2 px-1.5 cursor-pointer text-[12px] font-medium text-center"
+                style={{
+                  border:
+                    chargeMode === c.id
+                      ? "1.5px solid var(--accent)"
+                      : "1px solid var(--line)",
+                  background:
+                    chargeMode === c.id ? "var(--accent-soft)" : "var(--surface)",
+                  color: chargeMode === c.id ? "var(--accent-ink)" : "var(--ink)",
+                }}
+              >
+                {c.label}
+              </button>
+            ))}
+          </div>
+          {chargeMode === "custom" && (
+            <div className="field mt-2">
+              <span className="label">
+                Monto a cobrar ahora (máx {fmtMXN(total)})
+              </span>
+              <input
+                className="input num"
+                type="number"
+                min={0}
+                max={total}
+                step="0.01"
+                value={customCharge}
+                onChange={(e) => setCustomCharge(e.target.value)}
+                placeholder={String(depositAmount(total))}
+              />
+            </div>
+          )}
+          <div className="text-[11px] mt-1.5" style={{ color: "var(--muted)" }}>
+            Cobro ahora{" "}
+            <strong className="num" style={{ color: "var(--ink)" }}>
+              {fmtMXN(chargeNow)}
+            </strong>{" "}
+            · Saldo a la entrega <span className="num">{fmtMXN(balanceAfter)}</span>
+          </div>
+          <div className="divider" />
+
+          {!isCredit && (
+          <>
           <div className="label mb-2">Método de pago</div>
           <div className="grid grid-cols-2 gap-1.5">
             {METHOD_OPTIONS.map((m) => {
@@ -360,7 +449,7 @@ export function PosPaymentModal({
                 />
               </label>
               <button className="btn btn--primary w-full justify-center" type="button">
-                {I.send} Enviar {fmtMXN(total)} a la terminal
+                {I.send} Enviar {fmtMXN(chargeNow)} a la terminal
               </button>
             </div>
           )}
@@ -400,16 +489,20 @@ export function PosPaymentModal({
               </label>
               <div className="text-[11px]" style={{ color: mixedOk ? "var(--muted)" : "var(--danger)" }}>
                 {mixedOk
-                  ? "Los montos cubren el total."
-                  : `Los montos deben sumar ${fmtMXN(total)} (restan ${fmtMXN(mixedRemaining)}).`}
+                  ? "Los montos cubren el cobro."
+                  : `Los montos deben sumar ${fmtMXN(chargeNow)} (restan ${fmtMXN(mixedRemaining)}).`}
               </div>
             </div>
           )}
 
-          {method === "Crédito" && (
+          </>
+          )}
+
+          {isCredit && (
             <div className="mt-3.5 p-3.5 border border-line rounded-md bg-surface-2 text-xs text-muted">
               {I.clock} La orden se registra <strong className="text-ink">sin pagos</strong> y queda
-              pendiente de cobro. Los abonos se capturan después desde el pedido.
+              pendiente de cobro. Los abonos (incluida la liquidación a la
+              entrega) se capturan después desde el pedido.
             </div>
           )}
         </div>
@@ -425,17 +518,22 @@ export function PosPaymentModal({
               </>
             )}
             <SummaryRow
-              label="Total a cobrar"
+              label="Total del pedido"
               value={previewLoading ? "Calculando…" : fmtMXN(total)}
-              big
             />
-            {method === "Efectivo" && (
+            <SummaryRow label="Cobro ahora" value={fmtMXN(chargeNow)} big />
+            <SummaryRow
+              label="Saldo a la entrega"
+              value={fmtMXN(balanceAfter)}
+              muted={balanceAfter === 0}
+            />
+            {!isCredit && method === "Efectivo" && (
               <>
                 <SummaryRow label="Recibido" value={fmtMXN(cash)} />
                 <SummaryRow label="Cambio" value={fmtMXN(change)} />
               </>
             )}
-            {method === "Mixto" && (
+            {!isCredit && method === "Mixto" && (
               <>
                 <SummaryRow label="Efectivo" value={fmtMXN(mixedCashNum)} />
                 <SummaryRow label="Terminal" value={fmtMXN(mixedTerminalNum)} />

@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
 
-import { cartTotals, effectiveQty, lineSubtotal } from "./pos-cart";
+import {
+  DEFAULT_DEPOSIT_PCT,
+  cartTotals,
+  depositAmount,
+  effectiveQty,
+  lineSubtotal,
+} from "./pos-cart";
 
 describe("effectiveQty", () => {
   it("sin tallas → qty de la línea", () => {
@@ -90,5 +96,23 @@ describe("cartTotals", () => {
       tax: 0,
       total: 0,
     });
+  });
+});
+
+describe("depositAmount", () => {
+  it("default 50% del total", () => {
+    expect(DEFAULT_DEPOSIT_PCT).toBe(0.5);
+    expect(depositAmount(200)).toBe(100);
+  });
+
+  it("redondea a 2 decimales (total impar)", () => {
+    // 50% de 92.81 = 46.405 → 46.41
+    expect(depositAmount(92.81)).toBe(46.41);
+  });
+
+  it("acepta un porcentaje explícito", () => {
+    expect(depositAmount(150, 0.3)).toBe(45);
+    expect(depositAmount(100, 1)).toBe(100);
+    expect(depositAmount(100, 0)).toBe(0);
   });
 });
