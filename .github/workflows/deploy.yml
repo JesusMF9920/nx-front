@@ -30,7 +30,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       # URL del API que queda embebida en el bundle (no es secreto).
-      NEXT_PUBLIC_API_URL: http://146.190.170.209/api
+      NEXT_PUBLIC_API_URL: https://nexum.chdevstudio.com.mx/api
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
