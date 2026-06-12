@@ -10,47 +10,25 @@ import {
   validateRecipeRows,
   type RecipeRow,
 } from "@/components/recipe-editor";
-import {
-  catalogApi,
-  type CreateProductInput,
-  type ProductVariantInput,
-} from "@/lib/api/catalog";
+import { catalogApi, type CreateProductInput } from "@/lib/api/catalog";
 import { ApiError } from "@/lib/api/errors";
 import type {
-  ApiDimensionConfig,
   ApiMaterial,
   ApiProductSource,
   ApiVariantType,
 } from "@/lib/api/types";
-import { fmtMXN } from "@/lib/format";
 
-type VariantDraft = { code: string; label: string; priceMod: string };
 type SurchargeDraft = { code: string; label: string; amount: string };
 
+// Un producto es simple o hereda sus tallas de un insumo. Las variantes
+// (tallas + stock) viven SOLO en el inventario, no en el producto.
 const VARIANT_OPTIONS: { id: ApiVariantType; label: string; sub: string }[] = [
   { id: "none", label: "Sin variantes", sub: "Producto único" },
-  { id: "size", label: "Tallas", sub: "CH / M / G / EG" },
-  { id: "preset", label: "Medidas fijas", sub: "Lista predefinida" },
-  { id: "dimension", label: "Por dimensión", sub: "Alto × ancho" },
   {
     id: "sized_from_material",
-    label: "Tallas desde material",
-    sub: "Stock en el insumo",
+    label: "Por talla (desde insumo)",
+    sub: "Tallas y stock del insumo",
   },
-];
-
-const ADULT_SIZES: VariantDraft[] = [
-  { code: "CH", label: "CH", priceMod: "0" },
-  { code: "M", label: "M", priceMod: "0" },
-  { code: "G", label: "G", priceMod: "0" },
-  { code: "EG", label: "EG", priceMod: "15" },
-];
-
-const KID_SIZES: VariantDraft[] = [
-  { code: "2", label: "2", priceMod: "0" },
-  { code: "4", label: "4", priceMod: "0" },
-  { code: "6", label: "6", priceMod: "0" },
-  { code: "8", label: "8", priceMod: "0" },
 ];
 
 export function NewProductForm({
@@ -74,39 +52,20 @@ export function NewProductForm({
   const [needsApproval, setNeedsApproval] = useState(false);
 
   const [variantType, setVariantType] = useState<ApiVariantType>("none");
-  const [variants, setVariants] = useState<VariantDraft[]>([
-    { code: "", label: "", priceMod: "0" },
-  ]);
-  const [dimUnit, setDimUnit] = useState<ApiDimensionConfig["unit"]>("cm");
-  const [dimMin, setDimMin] = useState("1");
-  const [dimMax, setDimMax] = useState("100");
-  const [dimStep, setDimStep] = useState("1");
-  const [dimPriceMode, setDimPriceMode] =
-    useState<ApiDimensionConfig["priceMode"]>("area");
   const [sizedMaterial, setSizedMaterial] = useState<ApiMaterial | null>(null);
   const [surcharges, setSurcharges] = useState<SurchargeDraft[]>([]);
 
   const [showRecipe, setShowRecipe] = useState(false);
   const [recipeRows, setRecipeRows] = useState<RecipeRow[]>([]);
 
-  // Para reintentos tras un fallo parcial (producto creado, pasos pendientes).
+  // Para reintentos tras un fallo parcial (producto creado, receta pendiente).
   const [createdId, setCreatedId] = useState<string | null>(null);
-  const [variantsSaved, setVariantsSaved] = useState(false);
   const [recipeSaved, setRecipeSaved] = useState(false);
 
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const isPredef = variantType === "size" || variantType === "preset";
-  const basePrice = Number(price);
   const stockDisabled = source === "supplier" || variantType !== "none";
-
-  const updateVariant = (index: number, patch: Partial<VariantDraft>) =>
-    setVariants(variants.map((v, i) => (i === index ? { ...v, ...patch } : v)));
-  const removeVariant = (index: number) =>
-    setVariants(variants.filter((_, i) => i !== index));
-  const addVariant = () =>
-    setVariants([...variants, { code: "", label: "", priceMod: "0" }]);
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
@@ -132,66 +91,6 @@ export function NewProductForm({
     if (!Number.isInteger(leadNum) || leadNum < 0) {
       setError("Lead days debe ser un entero >= 0.");
       return;
-    }
-
-    // Variantes predefinidas (tallas / medidas fijas).
-    const variantInputs: ProductVariantInput[] = [];
-    if (isPredef) {
-      const filled = variants.filter(
-        (v) => v.code.trim() !== "" || v.label.trim() !== "",
-      );
-      if (filled.length === 0) {
-        setError(
-          "Añade al menos una variante o cambia el tipo a “Sin variantes”.",
-        );
-        return;
-      }
-      const seen = new Set<string>();
-      for (const v of filled) {
-        const code = v.code.trim();
-        const label = v.label.trim() || code;
-        if (!code) {
-          setError("Cada variante necesita un código.");
-          return;
-        }
-        if (seen.has(code.toLowerCase())) {
-          setError(`Código de variante duplicado: ${code}.`);
-          return;
-        }
-        seen.add(code.toLowerCase());
-        const mod = v.priceMod.trim() === "" ? 0 : Number(v.priceMod);
-        if (!Number.isFinite(mod)) {
-          setError(`Modificador inválido para la variante ${code}.`);
-          return;
-        }
-        variantInputs.push({
-          code,
-          label,
-          priceMod: mod,
-          sortOrder: variantInputs.length,
-        });
-      }
-    }
-
-    // Configuración por dimensión.
-    let dimensionConfig: ApiDimensionConfig | null = null;
-    if (variantType === "dimension") {
-      const min = Number(dimMin);
-      const max = Number(dimMax);
-      const step = Number(dimStep);
-      if (!Number.isFinite(min) || min <= 0) {
-        setError("La medida mínima debe ser mayor a 0.");
-        return;
-      }
-      if (!Number.isFinite(max) || max <= min) {
-        setError("La medida máxima debe ser mayor que la mínima.");
-        return;
-      }
-      if (!Number.isFinite(step) || step <= 0) {
-        setError("El paso debe ser mayor a 0.");
-        return;
-      }
-      dimensionConfig = { unit: dimUnit, min, max, step, priceMode: dimPriceMode };
     }
 
     // Tallas desde material.
@@ -238,24 +137,18 @@ export function NewProductForm({
       unit: unit.trim() || "pieza",
       needsApproval,
       variantType,
-      dimensionConfig,
       sizeSurcharges,
       sizedFromMaterialId,
     };
 
     setSubmitting(true);
-    let step: "create" | "variants" | "recipe" = "create";
+    let step: "create" | "recipe" = "create";
     try {
       let id = createdId;
       if (!id) {
         const res = await catalogApi.create(payload);
         id = res.id;
         setCreatedId(id);
-      }
-      if (variantInputs.length > 0 && !variantsSaved) {
-        step = "variants";
-        await catalogApi.setVariants(id, variantInputs);
-        setVariantsSaved(true);
       }
       if (recipeRows.length > 0 && !recipeSaved) {
         step = "recipe";
@@ -273,9 +166,8 @@ export function NewProductForm({
       if (step === "create") {
         setError(detail ?? "No se pudo crear el producto.");
       } else {
-        const what = step === "variants" ? "las variantes" : "la receta";
         setError(
-          `El producto se creó, pero no se pudieron guardar ${what}: ${
+          `El producto se creó, pero no se pudo guardar la receta: ${
             detail ?? "error desconocido"
           }. Corrige e intenta de nuevo — no se creará un producto duplicado.`,
         );
@@ -283,8 +175,6 @@ export function NewProductForm({
       setSubmitting(false);
     }
   };
-
-  const variantGridCols = "110px 1fr 130px 110px 32px";
 
   return (
     <Modal
@@ -422,10 +312,9 @@ export function NewProductForm({
             onChange={(e) => setStock(e.target.value)}
             disabled={stockDisabled}
           />
-          {variantType !== "none" && source === "internal" && (
+          {variantType === "sized_from_material" && source === "internal" && (
             <small className="help mt-1">
-              Con variantes, el stock se captura por variante o vive en el
-              insumo.
+              Con tallas desde insumo, el stock vive en el insumo.
             </small>
           )}
         </div>
@@ -467,7 +356,7 @@ export function NewProductForm({
           <div
             style={{
               display: "grid",
-              gridTemplateColumns: "repeat(5, 1fr)",
+              gridTemplateColumns: "repeat(2, 1fr)",
               gap: 6,
             }}
           >
@@ -506,228 +395,6 @@ export function NewProductForm({
             ))}
           </div>
         </div>
-
-        {isPredef && (
-          <div className="field col-span-full">
-            <span className="label">
-              {variantType === "size"
-                ? "Tallas disponibles"
-                : "Medidas disponibles"}
-            </span>
-            {variantType === "size" && (
-              <div className="flex gap-1.5 mb-1.5">
-                <button
-                  type="button"
-                  className="btn btn--sm"
-                  onClick={() => setVariants(ADULT_SIZES.map((v) => ({ ...v })))}
-                >
-                  Cargar adulto (CH–EG)
-                </button>
-                <button
-                  type="button"
-                  className="btn btn--sm"
-                  onClick={() => setVariants(KID_SIZES.map((v) => ({ ...v })))}
-                >
-                  Cargar infantil (2–8)
-                </button>
-              </div>
-            )}
-            <div
-              style={{
-                border: "1px solid var(--line)",
-                borderRadius: "var(--r-md)",
-                overflow: "hidden",
-              }}
-            >
-              <div
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: variantGridCols,
-                  padding: "8px 10px",
-                  background: "var(--surface-2)",
-                  fontSize: 11,
-                  color: "var(--muted)",
-                  textTransform: "uppercase",
-                  letterSpacing: ".06em",
-                  borderBottom: "1px solid var(--line)",
-                  gap: 8,
-                }}
-              >
-                <span>Código</span>
-                <span>Etiqueta</span>
-                <span style={{ textAlign: "right" }}>± Modificador</span>
-                <span style={{ textAlign: "right" }}>Precio final</span>
-                <span />
-              </div>
-              {variants.map((v, i) => (
-                <div
-                  key={i}
-                  style={{
-                    display: "grid",
-                    gridTemplateColumns: variantGridCols,
-                    padding: "6px 10px",
-                    borderBottom:
-                      i < variants.length - 1 ? "1px solid var(--line)" : 0,
-                    alignItems: "center",
-                    gap: 8,
-                  }}
-                >
-                  <input
-                    className="input font-mono"
-                    value={v.code}
-                    onChange={(e) => updateVariant(i, { code: e.target.value })}
-                    placeholder={variantType === "size" ? "M" : "5X8"}
-                    maxLength={40}
-                    aria-label="Código"
-                  />
-                  <input
-                    className="input"
-                    value={v.label}
-                    onChange={(e) => updateVariant(i, { label: e.target.value })}
-                    placeholder={variantType === "size" ? "Mediana" : "5×8 cm"}
-                    maxLength={80}
-                    aria-label="Etiqueta"
-                  />
-                  <input
-                    className="input num"
-                    type="number"
-                    step="0.01"
-                    value={v.priceMod}
-                    onChange={(e) =>
-                      updateVariant(i, { priceMod: e.target.value })
-                    }
-                    style={{ textAlign: "right" }}
-                    aria-label="Modificador de precio"
-                  />
-                  <span
-                    className="num"
-                    style={{
-                      textAlign: "right",
-                      color: "var(--muted)",
-                      fontSize: 12,
-                    }}
-                  >
-                    {fmtMXN(
-                      (Number.isFinite(basePrice) ? basePrice : 0) +
-                        (Number(v.priceMod) || 0),
-                    )}
-                  </span>
-                  <button
-                    type="button"
-                    className="icon-btn"
-                    onClick={() => removeVariant(i)}
-                    style={{
-                      width: 24,
-                      height: 24,
-                      color: "var(--muted)",
-                      border: 0,
-                    }}
-                    aria-label="Eliminar variante"
-                  >
-                    {I.x}
-                  </button>
-                </div>
-              ))}
-            </div>
-            <button
-              type="button"
-              className="btn btn--ghost btn--sm mt-1.5"
-              style={{ justifySelf: "start" }}
-              onClick={addVariant}
-            >
-              {I.plus} Añadir {variantType === "size" ? "talla" : "medida"}
-            </button>
-            <div className="help">
-              El modificador se suma al precio base. El stock por variante se
-              captura después, desde el detalle del producto.
-            </div>
-          </div>
-        )}
-
-        {variantType === "dimension" && (
-          <div className="field col-span-full">
-            <span className="label">Configuración por dimensión</span>
-            <div
-              style={{
-                padding: 12,
-                border: "1px solid var(--line)",
-                borderRadius: "var(--r-md)",
-                background: "var(--surface-2)",
-                display: "grid",
-                gridTemplateColumns: "repeat(5, 1fr)",
-                gap: 10,
-              }}
-            >
-              <div className="field">
-                <span className="label">Unidad</span>
-                <select
-                  className="select"
-                  value={dimUnit}
-                  onChange={(e) =>
-                    setDimUnit(e.target.value as ApiDimensionConfig["unit"])
-                  }
-                >
-                  <option value="cm">cm</option>
-                  <option value="m">m</option>
-                  <option value="in">pulgadas (in)</option>
-                </select>
-              </div>
-              <div className="field">
-                <span className="label">Mín.</span>
-                <input
-                  className="input num"
-                  type="number"
-                  min={0}
-                  step="0.01"
-                  value={dimMin}
-                  onChange={(e) => setDimMin(e.target.value)}
-                />
-              </div>
-              <div className="field">
-                <span className="label">Máx.</span>
-                <input
-                  className="input num"
-                  type="number"
-                  min={0}
-                  step="0.01"
-                  value={dimMax}
-                  onChange={(e) => setDimMax(e.target.value)}
-                />
-              </div>
-              <div className="field">
-                <span className="label">Paso</span>
-                <input
-                  className="input num"
-                  type="number"
-                  min={0}
-                  step="0.01"
-                  value={dimStep}
-                  onChange={(e) => setDimStep(e.target.value)}
-                />
-              </div>
-              <div className="field">
-                <span className="label">Cobro</span>
-                <select
-                  className="select"
-                  value={dimPriceMode}
-                  onChange={(e) =>
-                    setDimPriceMode(
-                      e.target.value as ApiDimensionConfig["priceMode"],
-                    )
-                  }
-                >
-                  <option value="area">Por área</option>
-                  <option value="linear">Lineal</option>
-                  <option value="flat">Tarifa fija</option>
-                </select>
-              </div>
-            </div>
-            <div className="help">
-              En el POS se capturan las medidas dentro del rango y el precio se
-              calcula a partir del precio base.
-            </div>
-          </div>
-        )}
 
         {variantType === "sized_from_material" && (
           <div className="field col-span-full">

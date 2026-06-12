@@ -6,6 +6,7 @@ import { I } from "@/components/icons";
 import { Kv } from "@/components/kv";
 import { Modal } from "@/components/modal";
 import {
+  MaterialSearchPicker,
   RecipeEditor,
   recipeRowsToInput,
   validateRecipeRows,
@@ -81,6 +82,7 @@ export function ProductDetail({
   const [materials, setMaterials] = useState<Record<string, ApiMaterial>>({});
   const [editingVariants, setEditingVariants] = useState(false);
   const [editingRecipe, setEditingRecipe] = useState(false);
+  const [editingSized, setEditingSized] = useState(false);
 
   const detail: ApiProductDetail | null = isDetail(product)
     ? product
@@ -172,6 +174,12 @@ export function ProductDetail({
         onEditVariants={
           canEditVariants ? () => setEditingVariants(true) : undefined
         }
+        onConfigureSized={
+          detail.variantType === "none" ||
+          detail.variantType === "sized_from_material"
+            ? () => setEditingSized(true)
+            : undefined
+        }
       />
       <div className="divider" />
       <RecipeSection
@@ -216,6 +224,17 @@ export function ProductDetail({
           onClose={() => setEditingRecipe(false)}
           onSaved={async () => {
             setEditingRecipe(false);
+            await refreshAfterSave();
+          }}
+        />
+      )}
+      {editingSized && detail && (
+        <SizedFromMaterialEditorModal
+          product={detail}
+          materials={materials}
+          onClose={() => setEditingSized(false)}
+          onSaved={async () => {
+            setEditingSized(false);
             await refreshAfterSave();
           }}
         />
@@ -411,10 +430,13 @@ function VariantsSection({
   detail,
   materials,
   onEditVariants,
+  onConfigureSized,
 }: {
   detail: ApiProductDetail;
   materials: Record<string, ApiMaterial>;
   onEditVariants?: () => void;
+  /** Asignar/cambiar el insumo de tallas (none ↔ sized_from_material). */
+  onConfigureSized?: () => void;
 }) {
   const isPredef =
     detail.variantType === "size" || detail.variantType === "preset";
@@ -438,6 +460,14 @@ function VariantsSection({
         {isPredef && onEditVariants && (
           <button className="btn btn--sm" onClick={onEditVariants}>
             {I.edit} Editar variantes
+          </button>
+        )}
+        {onConfigureSized && (
+          <button className="btn btn--sm" onClick={onConfigureSized}>
+            {I.edit}{" "}
+            {detail.variantType === "sized_from_material"
+              ? "Cambiar insumo de tallas"
+              : "Asignar tallas desde insumo"}
           </button>
         )}
       </div>
@@ -564,7 +594,8 @@ function VariantsSection({
         </div>
       ) : (
         <div className="empty p-4">
-          Este producto se vende sin opciones de talla o medida.
+          Este producto se vende sin tallas. Usa “Asignar tallas desde insumo”
+          para que herede las tallas y el stock de un insumo.
         </div>
       )}
     </div>
@@ -967,6 +998,259 @@ function RecipeEditorModal({
     >
       <form id="product-recipe-form" onSubmit={submit} className="grid gap-3">
         <RecipeEditor rows={rows} onChange={setRows} />
+        {error && (
+          <div
+            className="rounded-md text-xs"
+            style={{
+              padding: "10px 12px",
+              border: "1px solid var(--danger)",
+              color: "var(--danger)",
+              background: "var(--danger-soft)",
+            }}
+            role="alert"
+          >
+            {error}
+          </div>
+        )}
+      </form>
+    </Modal>
+  );
+}
+
+type SizeSurchargeDraft = { code: string; label: string; amount: string };
+
+/** Filas de sobreprecio a partir de las tallas del insumo (prefill con los actuales). */
+function buildSurchargeRows(
+  material: ApiMaterial | undefined,
+  current: Record<string, number> | null,
+): SizeSurchargeDraft[] {
+  if (!material) return [];
+  return [...material.variants]
+    .sort((a, b) => a.sortOrder - b.sortOrder)
+    .map((mv) => ({
+      code: mv.code,
+      label: mv.label,
+      amount: current && current[mv.code] ? String(current[mv.code]) : "0",
+    }));
+}
+
+/**
+ * Asigna/cambia el insumo de tallas de un producto (none ↔ sized_from_material)
+ * vía PATCH /products/:id. Las tallas y su stock viven en el insumo; aquí sólo
+ * se define el sobreprecio por talla.
+ */
+function SizedFromMaterialEditorModal({
+  product,
+  materials,
+  onClose,
+  onSaved,
+}: {
+  product: ApiProductDetail;
+  materials: Record<string, ApiMaterial>;
+  onClose: () => void;
+  onSaved: () => void | Promise<void>;
+}) {
+  const [material, setMaterial] = useState<ApiMaterial | null>(
+    product.sizedFromMaterialId
+      ? (materials[product.sizedFromMaterialId] ?? null)
+      : null,
+  );
+  const [surcharges, setSurcharges] = useState<SizeSurchargeDraft[]>(() =>
+    buildSurchargeRows(
+      product.sizedFromMaterialId
+        ? materials[product.sizedFromMaterialId]
+        : undefined,
+      product.sizeSurcharges,
+    ),
+  );
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  // Si el insumo enlazado aún no está en el mapa, cárgalo para prellenar.
+  useEffect(() => {
+    if (material || !product.sizedFromMaterialId) return;
+    const id = product.sizedFromMaterialId;
+    let cancelled = false;
+    void (async () => {
+      try {
+        const m = await inventoryApi.get(id);
+        if (cancelled) return;
+        setMaterial(m);
+        setSurcharges(buildSurchargeRows(m, product.sizeSurcharges));
+      } catch {
+        // el usuario puede elegir el insumo manualmente
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [material, product.sizedFromMaterialId, product.sizeSurcharges]);
+
+  const pickMaterial = (m: ApiMaterial) => {
+    setMaterial(m);
+    setSurcharges(buildSurchargeRows(m, product.sizeSurcharges));
+  };
+
+  const save = async (e: FormEvent) => {
+    e.preventDefault();
+    if (submitting) return;
+    setError(null);
+    if (!material) {
+      setError("Elige el insumo del que vienen las tallas.");
+      return;
+    }
+    const rec: Record<string, number> = {};
+    for (const s of surcharges) {
+      const amount = s.amount.trim() === "" ? 0 : Number(s.amount);
+      if (!Number.isFinite(amount) || amount < 0) {
+        setError(`Sobreprecio inválido para la talla ${s.label}.`);
+        return;
+      }
+      if (amount > 0) rec[s.code] = amount;
+    }
+    setSubmitting(true);
+    try {
+      await catalogApi.update(product.id, {
+        variantType: "sized_from_material",
+        sizedFromMaterialId: material.id,
+        sizeSurcharges: Object.keys(rec).length > 0 ? rec : null,
+      });
+      await onSaved();
+    } catch (err) {
+      setError(
+        err instanceof ApiError
+          ? err.message
+          : "No se pudo guardar la configuración de tallas.",
+      );
+      setSubmitting(false);
+    }
+  };
+
+  const removeSizing = async () => {
+    if (submitting) return;
+    setError(null);
+    setSubmitting(true);
+    try {
+      await catalogApi.update(product.id, { variantType: "none" });
+      await onSaved();
+    } catch (err) {
+      setError(
+        err instanceof ApiError
+          ? err.message
+          : "No se pudo quitar la configuración de tallas.",
+      );
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <Modal
+      title={`Tallas desde insumo — ${product.name}`}
+      onClose={onClose}
+      width={620}
+      footer={
+        <>
+          <button className="btn btn--ghost" type="button" onClick={onClose}>
+            Cancelar
+          </button>
+          {product.variantType === "sized_from_material" && (
+            <button
+              className="btn btn--danger"
+              type="button"
+              onClick={removeSizing}
+              disabled={submitting}
+            >
+              Quitar tallas
+            </button>
+          )}
+          <button
+            className="btn btn--accent"
+            type="submit"
+            form="sized-material-form"
+            disabled={submitting || !material}
+          >
+            {submitting ? "Guardando…" : "Guardar"}
+          </button>
+        </>
+      }
+    >
+      <form id="sized-material-form" onSubmit={save} className="grid gap-3.5">
+        <div className="field">
+          <span className="label">Insumo con tallas</span>
+          {material ? (
+            <div
+              className="flex items-center gap-2"
+              style={{
+                padding: "8px 10px",
+                border: "1px solid var(--line)",
+                borderRadius: "var(--r-md)",
+                background: "var(--surface-2)",
+              }}
+            >
+              <span className="text-[13px] font-medium">{material.name}</span>
+              <span className="text-muted text-[11px] font-mono">
+                {material.sku}
+              </span>
+              <span className="tag">{material.variants.length} tallas</span>
+              <div className="spacer" />
+              <button
+                type="button"
+                className="btn btn--sm btn--ghost"
+                onClick={() => {
+                  setMaterial(null);
+                  setSurcharges([]);
+                }}
+              >
+                Cambiar
+              </button>
+            </div>
+          ) : (
+            <MaterialSearchPicker
+              onlyWithVariants
+              placeholder="Buscar insumo con variantes (tallas)…"
+              onSelect={pickMaterial}
+            />
+          )}
+          <div className="help">
+            Las tallas y su stock viven en el insumo; aquí sólo se define el
+            sobreprecio por talla.
+          </div>
+        </div>
+
+        {material && surcharges.length > 0 && (
+          <div className="field">
+            <span className="label">Sobreprecio por talla (MXN)</span>
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "repeat(auto-fill, minmax(110px, 1fr))",
+                gap: 8,
+              }}
+            >
+              {surcharges.map((s, i) => (
+                <div key={s.code} className="field">
+                  <span className="label">{s.label}</span>
+                  <input
+                    className="input num"
+                    type="number"
+                    min={0}
+                    step="0.01"
+                    value={s.amount}
+                    onChange={(e) =>
+                      setSurcharges(
+                        surcharges.map((x, j) =>
+                          j === i ? { ...x, amount: e.target.value } : x,
+                        ),
+                      )
+                    }
+                  />
+                </div>
+              ))}
+            </div>
+            <div className="help">Deja 0 si la talla no tiene cargo extra.</div>
+          </div>
+        )}
+
         {error && (
           <div
             className="rounded-md text-xs"
