@@ -153,6 +153,16 @@ export const ordersApi = {
     );
   },
 
+  /** Envía el comprobante (ticket carta PDF) al correo del cliente. */
+  sendReceipt(
+    orderId: string,
+  ): Promise<{ orderId: string; folio: string; sentTo: string }> {
+    return apiFetch<{ orderId: string; folio: string; sentTo: string }>(
+      `/orders/${orderId}/receipt-email`,
+      { method: "POST" },
+    );
+  },
+
   /** Devolución de dinero (DEV-). SOLO dinero — no revierte stock. */
   refund(orderId: string, input: RefundInput): Promise<RefundResult> {
     return apiFetch<RefundResult>(`/orders/${orderId}/refunds`, {

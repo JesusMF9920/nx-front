@@ -60,6 +60,7 @@ export function buildCashCutTicketHtml(
   <div class="row total"><span>${escapeHtml(diffLabel)}</span><span>${escapeHtml(fmtSigned(difference))}</span></div>
   <div class="div"></div>
   <div class="row sm"><span>Terminal (informativo, ${cut.terminalCount ?? 0})</span><span>${fmtMXN(cut.terminalTotal ?? 0)}</span></div>
+  <div class="row sm"><span>Transferencia (informativo, ${cut.transferCount ?? 0})</span><span>${fmtMXN(cut.transferTotal ?? 0)}</span></div>
   ${cut.closingNotes ? `<div class="sm">Notas: ${escapeHtml(cut.closingNotes)}</div>` : ""}
 </body>
 </html>`;

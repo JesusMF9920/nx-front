@@ -675,6 +675,12 @@ export default function CashPage() {
               </span>
               <span className="num">{fmtMXN(detail.terminalTotal ?? 0)}</span>
             </div>
+            <div className="flex justify-between text-[13px]">
+              <span className="text-muted">
+                Transferencia (informativo, {detail.transferCount ?? 0})
+              </span>
+              <span className="num">{fmtMXN(detail.transferTotal ?? 0)}</span>
+            </div>
             {detail.closingNotes && (
               <div className="text-muted text-xs">
                 Notas: {detail.closingNotes}

@@ -51,6 +51,8 @@ const cut = (over: Partial<ApiCashSessionDetail> = {}): ApiCashSessionDetail => 
   refundsCount: 0,
   terminalTotal: 116,
   terminalCount: 1,
+  transferTotal: 0,
+  transferCount: 0,
   ...over,
 });
 
@@ -70,6 +72,15 @@ describe("buildCashCutTicketHtml", () => {
     expect(html).toContain("−$82.00");
     expect(html).toContain("Terminal (informativo, 1)");
     expect(html).toContain("Notas: turno tarde");
+  });
+
+  it("incluye la línea informativa de transferencia/SPEI", () => {
+    const html = buildCashCutTicketHtml(
+      cut({ transferTotal: 250, transferCount: 2 }),
+      business,
+    );
+    expect(html).toContain("Transferencia (informativo, 2)");
+    expect(html).toContain("$250.00");
   });
 
   it("sobrante y cuadre exacto se etiquetan distinto", () => {

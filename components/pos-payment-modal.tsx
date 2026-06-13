@@ -22,10 +22,17 @@ import type { PaymentMethod } from "@/lib/types";
 /** Métodos que tocan EFECTIVO (requieren caja abierta con el feature on). */
 const CASH_METHODS: PaymentMethod[] = ["Efectivo", "Mixto"];
 
-/** Qué tickets imprimir tras el cobro — lo ejecuta la página (no el modal). */
+/**
+ * Acciones de comprobante tras el cobro — las ejecuta la página (no el modal),
+ * porque dependen de la orden ya creada (impresión, correo, WhatsApp).
+ */
 export type TicketPrintPrefs = {
   printThermal: boolean;
   printLetter: boolean;
+  /** Enviar el comprobante por correo al cliente (POST /orders/:id/receipt-email). */
+  emailReceipt: boolean;
+  /** Abrir wa.me con el comprobante prellenado para el cliente. */
+  whatsapp: boolean;
 };
 
 type Props = {
@@ -35,14 +42,16 @@ type Props = {
   deliverAt?: string;
   notes?: string;
   customerEmail?: string;
+  customerPhone?: string;
   onClose: () => void;
   onPaid: (result: CheckoutResult, prints: TicketPrintPrefs) => void;
 };
 
 const METHOD_OPTIONS: { id: PaymentMethod; icon: ReactNode; sub: string }[] = [
-  { id: "Efectivo", icon: I.cash,   sub: "Calcular cambio" },
-  { id: "Terminal", icon: I.card,   sub: "Mercado Libre" },
-  { id: "Mixto",    icon: I.layers, sub: "Efectivo + tarjeta" },
+  { id: "Efectivo",      icon: I.cash,   sub: "Calcular cambio" },
+  { id: "Terminal",      icon: I.card,   sub: "Tarjeta" },
+  { id: "Transferencia", icon: I.send,   sub: "SPEI / depósito" },
+  { id: "Mixto",         icon: I.layers, sub: "Efectivo + tarjeta" },
 ];
 
 /** Cuánto se cobra AHORA; el resto queda como saldo (se liquida al entregar). */
@@ -66,6 +75,7 @@ export function PosPaymentModal({
   deliverAt,
   notes,
   customerEmail,
+  customerPhone,
   onClose,
   onPaid,
 }: Props) {
@@ -79,7 +89,10 @@ export function PosPaymentModal({
   const ticketsEnabled = useFeature("tickets");
   const [printTicket, setPrintTicket] = useState(true);
   const [printLetter, setPrintLetter] = useState(false);
-  const [emailTicket, setEmailTicket] = useState(true);
+  // El correo arranca activo solo si el cliente tiene email registrado.
+  const [emailTicket, setEmailTicket] = useState(!!customerEmail);
+  const whatsappEnabled = useFeature("whatsapp");
+  const [whatsappTicket, setWhatsappTicket] = useState(false);
 
   // Corte de caja: con el feature ON y sin sesión abierta, Efectivo/Mixto se
   // bloquean (el backend igual lo rechaza con 409 — esto es UX). Si el fetch
@@ -185,6 +198,12 @@ export function PosPaymentModal({
           { method: "terminal", amount: chargeNow, ...(ref ? { reference: ref } : {}) },
         ];
       }
+      case "Transferencia": {
+        const ref = reference.trim();
+        return [
+          { method: "transfer", amount: chargeNow, ...(ref ? { reference: ref } : {}) },
+        ];
+      }
       case "Mixto": {
         const out: CheckoutPaymentInput[] = [];
         if (mixedCashNum > 0) out.push({ method: "cash", amount: round2(mixedCashNum) });
@@ -236,9 +255,17 @@ export function PosPaymentModal({
       onPaid(res, {
         printThermal: ticketsEnabled && printTicket,
         printLetter: ticketsEnabled && printLetter,
+        emailReceipt: !!customerEmail && emailTicket,
+        whatsapp: whatsappEnabled && !!customerPhone && whatsappTicket,
       });
     } catch (err) {
-      if (err instanceof ApiError && err.status === 409) {
+      if (
+        err instanceof ApiError &&
+        err.status === 403 &&
+        err.body?.error === "DiscountNotAllowedError"
+      ) {
+        setSubmitError("No tienes permiso para aplicar descuentos.");
+      } else if (err instanceof ApiError && err.status === 409) {
         if (err.body?.error === "InsufficientStockForSaleError") {
           setShortages(err.body.shortages ?? []);
           setStockBlocked(true);
@@ -248,6 +275,8 @@ export function PosPaymentModal({
           void loadPreview();
         } else if (err.body?.error === "PaymentExceedsTotalError") {
           setSubmitError("El monto de los pagos excede el total de la venta.");
+        } else if (err.body?.error === "DiscountExceedsLimitError") {
+          setSubmitError("El descuento excede el máximo permitido.");
         } else {
           setSubmitError(err.message);
         }
@@ -433,15 +462,12 @@ export function PosPaymentModal({
 
           {method === "Terminal" && (
             <div className="mt-3.5 p-3.5 border border-line rounded-md bg-surface-2">
-              <div className="flex gap-2.5 items-center mb-2">
+              <div className="flex gap-2.5 items-center mb-2.5">
                 <span className="text-accent">{I.card}</span>
-                <strong className="text-[13px]">Terminal Mercado Libre</strong>
+                <strong className="text-[13px]">Pago con tarjeta (terminal)</strong>
               </div>
-              <div className="text-xs text-muted mb-2.5">
-                Conectada · Point Mini W · estado <span className="pill pill--ok">Listo</span>
-              </div>
-              <label className="field mb-2.5">
-                <span className="label">Referencia (opcional)</span>
+              <label className="field">
+                <span className="label">Referencia / voucher (opcional)</span>
                 <input
                   className="input"
                   placeholder="Núm. de operación"
@@ -449,9 +475,24 @@ export function PosPaymentModal({
                   onChange={(e) => setReference(e.target.value)}
                 />
               </label>
-              <button className="btn btn--primary w-full justify-center" type="button">
-                {I.send} Enviar {fmtMXN(chargeNow)} a la terminal
-              </button>
+            </div>
+          )}
+
+          {method === "Transferencia" && (
+            <div className="mt-3.5 p-3.5 border border-line rounded-md bg-surface-2">
+              <div className="flex gap-2.5 items-center mb-2.5">
+                <span className="text-accent">{I.send}</span>
+                <strong className="text-[13px]">Transferencia / SPEI</strong>
+              </div>
+              <label className="field">
+                <span className="label">Referencia / clave de rastreo (opcional)</span>
+                <input
+                  className="input"
+                  placeholder="Núm. de operación o folio SPEI"
+                  value={reference}
+                  onChange={(e) => setReference(e.target.value)}
+                />
+              </label>
             </div>
           )}
 
@@ -566,19 +607,31 @@ export function PosPaymentModal({
                 </label>
               </>
             )}
-            <label className="flex items-center gap-2 text-[13px]">
-              <input
-                type="checkbox"
-                checked={emailTicket}
-                onChange={(e) => setEmailTicket(e.target.checked)}
-              />
-              {I.mail} Enviar por correo a{" "}
-              <strong className="text-accent-ink">{customerEmail ?? "cliente@nexum.mx"}</strong>
-            </label>
-            <label className="flex items-center gap-2 text-[13px]">
-              <input type="checkbox" />
-              {I.whatsapp} Enviar link de portal por WhatsApp
-            </label>
+            {customerEmail ? (
+              <label className="flex items-center gap-2 text-[13px]">
+                <input
+                  type="checkbox"
+                  checked={emailTicket}
+                  onChange={(e) => setEmailTicket(e.target.checked)}
+                />
+                {I.mail} Enviar por correo a{" "}
+                <strong className="text-accent-ink">{customerEmail}</strong>
+              </label>
+            ) : (
+              <div className="flex items-center gap-2 text-[13px] text-muted">
+                {I.mail} Sin correo del cliente para enviar el comprobante
+              </div>
+            )}
+            {whatsappEnabled && customerPhone && (
+              <label className="flex items-center gap-2 text-[13px]">
+                <input
+                  type="checkbox"
+                  checked={whatsappTicket}
+                  onChange={(e) => setWhatsappTicket(e.target.checked)}
+                />
+                {I.whatsapp} Enviar comprobante por WhatsApp
+              </label>
+            )}
           </div>
 
           {shortages.length > 0 && (

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  buildOrderReceiptWhatsappMessage,
   buildProofWhatsappMessage,
   buildQuoteWhatsappMessage,
   buildWaMeUrl,
@@ -80,6 +81,27 @@ describe("mensajes", () => {
       validUntil: null,
     });
     expect(msg).not.toContain("Vigente hasta");
+  });
+
+  it("comprobante de orden: incluye cliente, folio y total; muestra saldo si hay", () => {
+    const conSaldo = buildOrderReceiptWhatsappMessage({
+      clientName: "Café Aurora",
+      folio: "ORD-1011",
+      total: 1067.2,
+      balance: 533.6,
+    });
+    expect(conSaldo).toContain("Café Aurora");
+    expect(conSaldo).toContain("ORD-1011");
+    expect(conSaldo).toContain("$1,067.20");
+    expect(conSaldo).toContain("Saldo pendiente: $533.60");
+
+    const liquidado = buildOrderReceiptWhatsappMessage({
+      clientName: "Café Aurora",
+      folio: "ORD-1011",
+      total: 1067.2,
+      balance: 0,
+    });
+    expect(liquidado).not.toContain("Saldo pendiente");
   });
 
   it("aprobación: incluye versión, URL pública y vencimiento", () => {

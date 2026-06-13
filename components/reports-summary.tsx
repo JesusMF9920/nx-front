@@ -17,6 +17,7 @@ type Hover = ApiReportDaily & { i: number };
 const PAYMENT_META: Record<string, { label: string; color: string }> = {
   cash: { label: "Efectivo", color: "var(--ok)" },
   terminal: { label: "Terminal", color: "var(--accent)" },
+  transfer: { label: "Transferencia", color: "var(--info)" },
   credit: { label: "Crédito", color: "var(--warn)" },
 };
 
