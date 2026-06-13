@@ -431,22 +431,28 @@ export default function ProductsPage() {
             product={selected}
             compact
             onChanged={refreshSelected}
-            onEdit={() => setEditTarget(selected)}
-            onDeactivate={() => setDeactivateTarget(selected)}
-            onActivate={async () => {
-              setActionError(null);
-              try {
-                await catalogApi.activate(selected.id);
-                await reload(page);
-                await refreshSelected();
-              } catch (err) {
-                setActionError(
-                  err instanceof ApiError
-                    ? err.message
-                    : "No se pudo activar el producto.",
-                );
-              }
-            }}
+            onEdit={canWrite ? () => setEditTarget(selected) : undefined}
+            onDeactivate={
+              canDeactivate ? () => setDeactivateTarget(selected) : undefined
+            }
+            onActivate={
+              canDeactivate
+                ? async () => {
+                    setActionError(null);
+                    try {
+                      await catalogApi.activate(selected.id);
+                      await reload(page);
+                      await refreshSelected();
+                    } catch (err) {
+                      setActionError(
+                        err instanceof ApiError
+                          ? err.message
+                          : "No se pudo activar el producto.",
+                      );
+                    }
+                  }
+                : undefined
+            }
           />
         ) : (
           <div className="card self-start">

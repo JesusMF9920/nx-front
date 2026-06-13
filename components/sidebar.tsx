@@ -40,17 +40,17 @@ const NAV_GROUPS: NavGroup[] = [
   {
     title: "Catálogo",
     items: [
-      { href: "/products",  label: "Productos",   icon: I.box },
-      { href: "/inventory", label: "Inventario",  icon: I.layers, badge: "3" },
-      { href: "/suppliers", label: "Proveedores", icon: I.factory },
+      { href: "/products",  label: "Productos",   icon: I.box,     perm: "catalog.products.read" },
+      { href: "/inventory", label: "Inventario",  icon: I.layers,  perm: "inventory.materials.read", badge: "3" },
+      { href: "/suppliers", label: "Proveedores", icon: I.factory, perm: "suppliers.read" },
     ],
   },
   {
     title: "Personas",
     items: [
-      { href: "/clients", label: "Clientes",         icon: I.users },
-      { href: "/users",   label: "Usuarios",         icon: I.user },
-      { href: "/roles",   label: "Roles y permisos", icon: I.shield },
+      { href: "/clients", label: "Clientes",         icon: I.users,  perm: "clients.read" },
+      { href: "/users",   label: "Usuarios",         icon: I.user,   perm: "iam.users.read" },
+      { href: "/roles",   label: "Roles y permisos", icon: I.shield, perm: "iam.roles.read" },
     ],
   },
   {
