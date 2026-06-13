@@ -12,7 +12,7 @@ import { ApiError } from "@/lib/api/errors";
 import { rolesApi } from "@/lib/api/roles";
 import type { ApiRole, ApiUser } from "@/lib/api/types";
 import { usersApi } from "@/lib/api/users";
-import { useAuth } from "@/lib/auth/auth-context";
+import { useAuth, usePermission } from "@/lib/auth/auth-context";
 import { generateTempPassword } from "@/lib/auth/generate-password";
 
 const dateFmt = new Intl.DateTimeFormat("es-MX", {
@@ -54,6 +54,8 @@ export default function UsersPage() {
   const [query, setQuery] = useState("");
 
   const { user: currentUser } = useAuth();
+  const canWrite = usePermission("iam.users.write");
+  const canDeactivate = usePermission("iam.users.deactivate");
   const isSelf = (u: ApiUser) => !!currentUser && currentUser.id === u.id;
 
   const activateUser = async (u: ApiUser) => {
@@ -71,30 +73,33 @@ export default function UsersPage() {
   };
 
   const buildRowMenu = (u: ApiUser): MenuItem[] => {
-    const items: MenuItem[] = [
-      {
+    const items: MenuItem[] = [];
+    if (canWrite) {
+      items.push({
         label: "Editar usuario",
         icon: I.edit,
         onClick: () => setEditTarget(u),
-      },
-    ];
+      });
+    }
     if (u.isActive) {
       // Pendiente de verificar el correo = no ha aceptado la invitación;
       // permite reenviar el correo (p.ej. si el token venció).
-      if (!u.emailVerifiedAt) {
+      if (canWrite && !u.emailVerifiedAt) {
         items.push({
           label: "Reenviar invitación",
           icon: I.mail,
           onClick: () => setResendTarget(u),
         });
       }
-      items.push({
-        label: "Restablecer contraseña",
-        icon: I.lock,
-        onClick: () => setResetTarget(u),
-      });
+      if (canWrite) {
+        items.push({
+          label: "Restablecer contraseña",
+          icon: I.lock,
+          onClick: () => setResetTarget(u),
+        });
+      }
       // No permitir desactivarse a uno mismo (backend también lo rechaza).
-      if (!isSelf(u)) {
+      if (canDeactivate && !isSelf(u)) {
         items.push({
           label: "Desactivar",
           icon: I.x,
@@ -102,7 +107,7 @@ export default function UsersPage() {
           onClick: () => setDeactivateTarget(u),
         });
       }
-    } else {
+    } else if (canDeactivate) {
       items.push({
         label: "Activar",
         icon: I.check,
@@ -194,13 +199,15 @@ export default function UsersPage() {
         actions={
           <>
             <button className="btn">{I.shield} Configurar roles</button>
-            <button
-              className="btn btn--accent"
-              onClick={() => setShowNew(true)}
-              disabled={visibleRoles.length === 0}
-            >
-              {I.plus} Crear usuario
-            </button>
+            {canWrite && (
+              <button
+                className="btn btn--accent"
+                onClick={() => setShowNew(true)}
+                disabled={visibleRoles.length === 0}
+              >
+                {I.plus} Crear usuario
+              </button>
+            )}
           </>
         }
       />
@@ -269,7 +276,7 @@ export default function UsersPage() {
         ))}
       </div>
 
-      <div className="grid gap-5" style={{ gridTemplateColumns: "1.6fr 1fr" }}>
+      <div className="grid gap-5 grid-cols-1 lg:grid-cols-[1.6fr_1fr]">
         <div className="card">
           <div className="card__head">
             <div className="card__title">Todos los usuarios</div>
@@ -286,7 +293,8 @@ export default function UsersPage() {
           {loading ? (
             <div className="card__body text-muted text-sm">Cargando…</div>
           ) : (
-            <table className="tbl">
+            <div className="overflow-x-auto">
+              <table className="tbl min-w-[760px]">
               <thead>
                 <tr>
                   <th>Usuario</th>
@@ -348,6 +356,7 @@ export default function UsersPage() {
                 })}
               </tbody>
             </table>
+            </div>
           )}
           <div
             className="flex items-center gap-3 text-xs text-muted"
@@ -458,13 +467,15 @@ export default function UsersPage() {
               <div className="divider" />
 
               <div className="flex gap-1.5 flex-wrap">
-                <button
-                  className="btn btn--sm"
-                  onClick={() => setEditTarget(selected)}
-                >
-                  {I.edit} Editar usuario
-                </button>
-                {selected.isActive && !selected.emailVerifiedAt && (
+                {canWrite && (
+                  <button
+                    className="btn btn--sm"
+                    onClick={() => setEditTarget(selected)}
+                  >
+                    {I.edit} Editar usuario
+                  </button>
+                )}
+                {canWrite && selected.isActive && !selected.emailVerifiedAt && (
                   <button
                     className="btn btn--sm"
                     onClick={() => setResendTarget(selected)}
@@ -473,7 +484,7 @@ export default function UsersPage() {
                     {I.mail} Reenviar invitación
                   </button>
                 )}
-                {selected.isActive && (
+                {canWrite && selected.isActive && (
                   <button
                     className="btn btn--sm"
                     onClick={() => setResetTarget(selected)}
@@ -481,30 +492,31 @@ export default function UsersPage() {
                     {I.lock} Restablecer contraseña
                   </button>
                 )}
-                {selected.isActive ? (
-                  isSelf(selected) ? (
-                    <span
-                      className="text-muted text-[11px] self-center ml-1"
-                      title="No puedes desactivar tu propia cuenta."
-                    >
-                      No puedes desactivarte a ti mismo
-                    </span>
-                  ) : (
-                    <button
-                      className="btn btn--sm btn--danger"
-                      onClick={() => setDeactivateTarget(selected)}
-                    >
-                      {I.x} Desactivar
-                    </button>
-                  )
-                ) : (
-                  <button
-                    className="btn btn--sm btn--accent"
-                    onClick={() => activateUser(selected)}
-                  >
-                    {I.check} Activar
-                  </button>
-                )}
+                {selected.isActive
+                  ? canDeactivate &&
+                    (isSelf(selected) ? (
+                      <span
+                        className="text-muted text-[11px] self-center ml-1"
+                        title="No puedes desactivar tu propia cuenta."
+                      >
+                        No puedes desactivarte a ti mismo
+                      </span>
+                    ) : (
+                      <button
+                        className="btn btn--sm btn--danger"
+                        onClick={() => setDeactivateTarget(selected)}
+                      >
+                        {I.x} Desactivar
+                      </button>
+                    ))
+                  : canDeactivate && (
+                      <button
+                        className="btn btn--sm btn--accent"
+                        onClick={() => activateUser(selected)}
+                      >
+                        {I.check} Activar
+                      </button>
+                    )}
               </div>
             </div>
           </div>

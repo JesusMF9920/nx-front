@@ -8,6 +8,7 @@ import { Modal } from "@/components/modal";
 import { NewProductForm } from "@/components/new-product-form";
 import { PageHeader } from "@/components/page-header";
 import { ProductDetail } from "@/components/product-detail";
+import { usePermission } from "@/lib/auth/auth-context";
 import { catalogApi } from "@/lib/api/catalog";
 import { ApiError } from "@/lib/api/errors";
 import type {
@@ -47,6 +48,8 @@ function sourceLabel(s: ApiProductSource): string {
 }
 
 export default function ProductsPage() {
+  const canWrite = usePermission("catalog.products.write");
+  const canDeactivate = usePermission("catalog.products.deactivate");
   const [products, setProducts] = useState<ApiProduct[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
@@ -158,34 +161,41 @@ export default function ProductsPage() {
   };
 
   const buildRowMenu = (p: ApiProduct): MenuItem[] => {
-    const items: MenuItem[] = [
-      { label: "Editar", icon: I.edit, onClick: () => setEditTarget(p) },
-    ];
-    if (p.isActive) {
+    const items: MenuItem[] = [];
+    if (canWrite) {
       items.push({
-        label: "Desactivar",
-        icon: I.x,
-        kind: "danger",
-        onClick: () => setDeactivateTarget(p),
+        label: "Editar",
+        icon: I.edit,
+        onClick: () => setEditTarget(p),
       });
-    } else {
-      items.push({
-        label: "Activar",
-        icon: I.check,
-        onClick: async () => {
-          setActionError(null);
-          try {
-            await catalogApi.activate(p.id);
-            await reload(page);
-          } catch (err) {
-            setActionError(
-              err instanceof ApiError
-                ? err.message
-                : "No se pudo activar el producto.",
-            );
-          }
-        },
-      });
+    }
+    if (canDeactivate) {
+      if (p.isActive) {
+        items.push({
+          label: "Desactivar",
+          icon: I.x,
+          kind: "danger",
+          onClick: () => setDeactivateTarget(p),
+        });
+      } else {
+        items.push({
+          label: "Activar",
+          icon: I.check,
+          onClick: async () => {
+            setActionError(null);
+            try {
+              await catalogApi.activate(p.id);
+              await reload(page);
+            } catch (err) {
+              setActionError(
+                err instanceof ApiError
+                  ? err.message
+                  : "No se pudo activar el producto.",
+              );
+            }
+          },
+        });
+      }
     }
     return items;
   };
@@ -200,9 +210,14 @@ export default function ProductsPage() {
         title="Productos"
         sub={subText}
         actions={
-          <button className="btn btn--accent" onClick={() => setShowNew(true)}>
-            <span>{I.plus}</span>Nuevo producto
-          </button>
+          canWrite ? (
+            <button
+              className="btn btn--accent"
+              onClick={() => setShowNew(true)}
+            >
+              <span>{I.plus}</span>Nuevo producto
+            </button>
+          ) : undefined
         }
       />
 
@@ -231,7 +246,7 @@ export default function ProductsPage() {
         </div>
       )}
 
-      <div className="grid gap-5" style={{ gridTemplateColumns: "1.6fr 1fr" }}>
+      <div className="grid gap-5 grid-cols-1 lg:grid-cols-[1.6fr_1fr]">
         <div className="card">
           <div className="card__head gap-2 flex-wrap">
             <div className="topbar__search m-0 relative" style={{ width: 240 }}>
@@ -303,7 +318,8 @@ export default function ProductsPage() {
                 : "Sin productos. Crea uno con el botón de arriba."}
             </div>
           ) : (
-            <table className="tbl">
+            <div className="overflow-x-auto">
+              <table className="tbl min-w-[820px]">
               <thead>
                 <tr>
                   <th>Producto</th>
@@ -359,12 +375,15 @@ export default function ProductsPage() {
                       {p.source === "supplier" ? "—" : fmtInt(p.stock)}
                     </td>
                     <td>
-                      <MenuButton trigger={I.more} items={buildRowMenu(p)} />
+                      {(canWrite || canDeactivate) && (
+                        <MenuButton trigger={I.more} items={buildRowMenu(p)} />
+                      )}
                     </td>
                   </tr>
                 ))}
               </tbody>
-            </table>
+              </table>
+            </div>
           )}
 
           <div

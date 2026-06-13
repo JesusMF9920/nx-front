@@ -36,6 +36,9 @@ function moveTone(t: ApiStockMoveType): string {
 export function InventoryMaterialDetail({
   material,
   moves,
+  canWrite,
+  canStock,
+  canDeactivate,
   onEdit,
   onMove,
   onDeactivate,
@@ -44,6 +47,9 @@ export function InventoryMaterialDetail({
 }: {
   material: ApiMaterial;
   moves: ApiStockMove[];
+  canWrite: boolean;
+  canStock: boolean;
+  canDeactivate: boolean;
   onEdit: () => void;
   onMove: (type: ApiStockMoveType) => void;
   onDeactivate: () => void;
@@ -113,7 +119,7 @@ export function InventoryMaterialDetail({
       <div className="card__head" style={{ borderTop: 0 }}>
         <div className="card__title">Tallas</div>
         <div className="spacer" />
-        {material.isActive && (
+        {material.isActive && canWrite && (
           <button
             className="btn btn--sm btn--ghost"
             type="button"
@@ -153,7 +159,7 @@ export function InventoryMaterialDetail({
 
       <div className="divider m-0" />
 
-      {material.isActive && (
+      {material.isActive && canStock && (
         <div className="px-4 py-3 flex gap-2 flex-wrap">
           <button
             className="btn btn--sm btn--accent"
@@ -224,20 +230,25 @@ export function InventoryMaterialDetail({
 
       <div className="divider m-0" />
 
-      <div className="px-4 py-3 flex gap-2 flex-wrap">
-        <button className="btn btn--sm" onClick={onEdit}>
-          {I.edit} Editar
-        </button>
-        {material.isActive ? (
-          <button className="btn btn--sm btn--danger" onClick={onDeactivate}>
-            {I.x} Desactivar
-          </button>
-        ) : (
-          <button className="btn btn--sm btn--accent" onClick={onActivate}>
-            {I.check} Activar
-          </button>
-        )}
-      </div>
+      {(canWrite || canDeactivate) && (
+        <div className="px-4 py-3 flex gap-2 flex-wrap">
+          {canWrite && (
+            <button className="btn btn--sm" onClick={onEdit}>
+              {I.edit} Editar
+            </button>
+          )}
+          {canDeactivate &&
+            (material.isActive ? (
+              <button className="btn btn--sm btn--danger" onClick={onDeactivate}>
+                {I.x} Desactivar
+              </button>
+            ) : (
+              <button className="btn btn--sm btn--accent" onClick={onActivate}>
+                {I.check} Activar
+              </button>
+            ))}
+        </div>
+      )}
 
       {showVariants && (
         <VariantsManagerModal

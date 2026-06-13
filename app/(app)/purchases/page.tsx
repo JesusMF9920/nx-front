@@ -150,7 +150,8 @@ export default function PurchasesPage() {
           />
         ) : (
           <>
-        <table className="tbl">
+        <div className="overflow-x-auto">
+        <table className="tbl min-w-[820px]">
           <thead>
             <tr>
               <th>Folio</th>
@@ -201,6 +202,7 @@ export default function PurchasesPage() {
             )}
           </tbody>
         </table>
+        </div>
         <div
           className="flex items-center gap-3 text-xs text-muted"
           style={{ padding: "10px 14px", borderTop: "1px solid var(--line)" }}

@@ -7,6 +7,7 @@ import { I } from "@/components/icons";
 import { MenuButton, type MenuItem } from "@/components/menu-button";
 import { Modal } from "@/components/modal";
 import { PageHeader } from "@/components/page-header";
+import { usePermission } from "@/lib/auth/auth-context";
 import { ApiError } from "@/lib/api/errors";
 import { auditApi, type ApiAuditEntry } from "@/lib/api/audit";
 import {
@@ -45,6 +46,7 @@ function actionLabel(action: string): string {
 }
 
 export default function RolesPage() {
+  const canWrite = usePermission("iam.roles.write");
   const [roles, setRoles] = useState<ApiRole[]>([]);
   const [permissions, setPermissions] = useState<ApiPermission[]>([]);
   const [allUsers, setAllUsers] = useState<ApiUser[]>([]);
@@ -285,9 +287,11 @@ export default function RolesPage() {
         title="Roles y permisos"
         sub={`${roles.length} roles · ${permissions.length} permisos disponibles`}
         actions={
-          <button className="btn btn--accent" onClick={() => setShowNew(true)}>
-            {I.plus} Nuevo rol
-          </button>
+          canWrite && (
+            <button className="btn btn--accent" onClick={() => setShowNew(true)}>
+              {I.plus} Nuevo rol
+            </button>
+          )
         }
       />
 
@@ -375,7 +379,9 @@ export default function RolesPage() {
                         {count === 1 ? "usuario" : "usuarios"}
                       </div>
                     </div>
-                    <MenuButton trigger={I.more} items={buildRoleMenu(r)} />
+                    {canWrite && (
+                      <MenuButton trigger={I.more} items={buildRoleMenu(r)} />
+                    )}
                   </div>
                 );
               })
@@ -408,18 +414,22 @@ export default function RolesPage() {
                   )}
                 </div>
                 <div className="spacer" />
-                <button
-                  className="btn btn--sm"
-                  onClick={() => setEditTarget(selected)}
-                >
-                  {I.edit} Editar
-                </button>
-                <button
-                  className="btn btn--sm btn--danger"
-                  onClick={() => setDeleteTarget(selected)}
-                >
-                  {I.x} Eliminar
-                </button>
+                {canWrite && (
+                  <>
+                    <button
+                      className="btn btn--sm"
+                      onClick={() => setEditTarget(selected)}
+                    >
+                      {I.edit} Editar
+                    </button>
+                    <button
+                      className="btn btn--sm btn--danger"
+                      onClick={() => setDeleteTarget(selected)}
+                    >
+                      {I.x} Eliminar
+                    </button>
+                  </>
+                )}
               </div>
 
               <div className="p-2">
@@ -500,12 +510,14 @@ export default function RolesPage() {
                   </span>
                 </div>
                 <div className="spacer" />
-                <button
-                  className="btn btn--sm btn--accent"
-                  onClick={() => setAssignTarget(selected)}
-                >
-                  {I.plus} Asignar usuario
-                </button>
+                {canWrite && (
+                  <button
+                    className="btn btn--sm btn--accent"
+                    onClick={() => setAssignTarget(selected)}
+                  >
+                    {I.plus} Asignar usuario
+                  </button>
+                )}
               </div>
               {detailLoading ? (
                 <div className="card__body text-muted text-sm">Cargando…</div>
@@ -529,12 +541,14 @@ export default function RolesPage() {
                       {!u.isActive && (
                         <span className="pill pill--neutral">Inactivo</span>
                       )}
-                      <button
-                        className="btn btn--sm btn--ghost"
-                        onClick={() => revokeUser(selected, u)}
-                      >
-                        Revocar
-                      </button>
+                      {canWrite && (
+                        <button
+                          className="btn btn--sm btn--ghost"
+                          onClick={() => revokeUser(selected, u)}
+                        >
+                          Revocar
+                        </button>
+                      )}
                     </div>
                   ))}
                 </div>

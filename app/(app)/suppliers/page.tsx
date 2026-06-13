@@ -6,6 +6,7 @@ import { I } from "@/components/icons";
 import { MenuButton, type MenuItem } from "@/components/menu-button";
 import { Modal } from "@/components/modal";
 import { PageHeader } from "@/components/page-header";
+import { usePermission } from "@/lib/auth/auth-context";
 import { ApiError } from "@/lib/api/errors";
 import { suppliersApi } from "@/lib/api/suppliers";
 import type { ApiSupplier } from "@/lib/api/types";
@@ -28,6 +29,8 @@ function reliabilityColor(r: number): string {
 }
 
 export default function SuppliersPage() {
+  const canWrite = usePermission("suppliers.write");
+  const canDeactivate = usePermission("suppliers.deactivate");
   const [suppliers, setSuppliers] = useState<ApiSupplier[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
@@ -134,34 +137,41 @@ export default function SuppliersPage() {
   };
 
   const buildRowMenu = (s: ApiSupplier): MenuItem[] => {
-    const items: MenuItem[] = [
-      { label: "Editar", icon: I.edit, onClick: () => setEditTarget(s) },
-    ];
-    if (s.isActive) {
+    const items: MenuItem[] = [];
+    if (canWrite) {
       items.push({
-        label: "Desactivar",
-        icon: I.x,
-        kind: "danger",
-        onClick: () => setDeactivateTarget(s),
+        label: "Editar",
+        icon: I.edit,
+        onClick: () => setEditTarget(s),
       });
-    } else {
-      items.push({
-        label: "Activar",
-        icon: I.check,
-        onClick: async () => {
-          setActionError(null);
-          try {
-            await suppliersApi.activate(s.id);
-            await reload(page);
-          } catch (err) {
-            setActionError(
-              err instanceof ApiError
-                ? err.message
-                : "No se pudo activar el proveedor.",
-            );
-          }
-        },
-      });
+    }
+    if (canDeactivate) {
+      if (s.isActive) {
+        items.push({
+          label: "Desactivar",
+          icon: I.x,
+          kind: "danger",
+          onClick: () => setDeactivateTarget(s),
+        });
+      } else {
+        items.push({
+          label: "Activar",
+          icon: I.check,
+          onClick: async () => {
+            setActionError(null);
+            try {
+              await suppliersApi.activate(s.id);
+              await reload(page);
+            } catch (err) {
+              setActionError(
+                err instanceof ApiError
+                  ? err.message
+                  : "No se pudo activar el proveedor.",
+              );
+            }
+          },
+        });
+      }
     }
     return items;
   };
@@ -176,9 +186,11 @@ export default function SuppliersPage() {
         title="Proveedores"
         sub={subText}
         actions={
-          <button className="btn btn--accent" onClick={() => setShowNew(true)}>
-            <span>{I.plus}</span>Nuevo proveedor
-          </button>
+          canWrite && (
+            <button className="btn btn--accent" onClick={() => setShowNew(true)}>
+              <span>{I.plus}</span>Nuevo proveedor
+            </button>
+          )
         }
       />
 
@@ -313,7 +325,9 @@ export default function SuppliersPage() {
                       </div>
                     </td>
                     <td>
-                      <MenuButton trigger={I.more} items={buildRowMenu(s)} />
+                      {(canWrite || canDeactivate) && (
+                        <MenuButton trigger={I.more} items={buildRowMenu(s)} />
+                      )}
                     </td>
                   </tr>
                 ))}
@@ -364,6 +378,8 @@ export default function SuppliersPage() {
         {selected ? (
           <SupplierDetailPanel
             supplier={selected}
+            canWrite={canWrite}
+            canDeactivate={canDeactivate}
             onEdit={() => setEditTarget(selected)}
             onDeactivate={() => setDeactivateTarget(selected)}
             onActivate={async () => {
@@ -455,11 +471,15 @@ export default function SuppliersPage() {
 
 function SupplierDetailPanel({
   supplier,
+  canWrite,
+  canDeactivate,
   onEdit,
   onDeactivate,
   onActivate,
 }: {
   supplier: ApiSupplier;
+  canWrite: boolean;
+  canDeactivate: boolean;
   onEdit: () => void;
   onDeactivate: () => void;
   onActivate: () => void;
@@ -524,22 +544,32 @@ function SupplierDetailPanel({
         )}
       </div>
 
-      <div className="divider m-0 mt-3" />
+      {(canWrite || canDeactivate) && (
+        <>
+          <div className="divider m-0 mt-3" />
 
-      <div className="px-4 py-3 flex gap-2 flex-wrap">
-        <button className="btn btn--sm" onClick={onEdit}>
-          {I.edit} Editar
-        </button>
-        {supplier.isActive ? (
-          <button className="btn btn--sm btn--danger" onClick={onDeactivate}>
-            {I.x} Desactivar
-          </button>
-        ) : (
-          <button className="btn btn--sm btn--accent" onClick={onActivate}>
-            {I.check} Activar
-          </button>
-        )}
-      </div>
+          <div className="px-4 py-3 flex gap-2 flex-wrap">
+            {canWrite && (
+              <button className="btn btn--sm" onClick={onEdit}>
+                {I.edit} Editar
+              </button>
+            )}
+            {canDeactivate &&
+              (supplier.isActive ? (
+                <button
+                  className="btn btn--sm btn--danger"
+                  onClick={onDeactivate}
+                >
+                  {I.x} Desactivar
+                </button>
+              ) : (
+                <button className="btn btn--sm btn--accent" onClick={onActivate}>
+                  {I.check} Activar
+                </button>
+              ))}
+          </div>
+        </>
+      )}
     </div>
   );
 }

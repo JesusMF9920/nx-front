@@ -24,6 +24,7 @@ import type {
   ApiOrder,
   ApiUser,
 } from "@/lib/api/types";
+import { usePermission } from "@/lib/auth/auth-context";
 import { tokenStorage } from "@/lib/auth/tokens";
 import { usersApi } from "@/lib/api/users";
 import { fmtDate, fmtMXN } from "@/lib/format";
@@ -132,6 +133,8 @@ function typeLabel(t: ApiClientType): string {
 }
 
 export default function ClientsPage() {
+  const canWrite = usePermission("clients.write");
+  const canDeactivate = usePermission("clients.deactivate");
   const [clients, setClients] = useState<ApiClient[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
@@ -318,34 +321,41 @@ export default function ClientsPage() {
   };
 
   const buildRowMenu = (c: ApiClient): MenuItem[] => {
-    const items: MenuItem[] = [
-      { label: "Editar", icon: I.edit, onClick: () => setEditTarget(c) },
-    ];
-    if (c.isActive) {
+    const items: MenuItem[] = [];
+    if (canWrite) {
       items.push({
-        label: "Desactivar",
-        icon: I.x,
-        kind: "danger",
-        onClick: () => setDeactivateTarget(c),
+        label: "Editar",
+        icon: I.edit,
+        onClick: () => setEditTarget(c),
       });
-    } else {
-      items.push({
-        label: "Activar",
-        icon: I.check,
-        onClick: async () => {
-          setActionError(null);
-          try {
-            await clientsApi.activate(c.id);
-            await reload(page);
-          } catch (err) {
-            setActionError(
-              err instanceof ApiError
-                ? err.message
-                : "No se pudo activar el cliente.",
-            );
-          }
-        },
-      });
+    }
+    if (canDeactivate) {
+      if (c.isActive) {
+        items.push({
+          label: "Desactivar",
+          icon: I.x,
+          kind: "danger",
+          onClick: () => setDeactivateTarget(c),
+        });
+      } else {
+        items.push({
+          label: "Activar",
+          icon: I.check,
+          onClick: async () => {
+            setActionError(null);
+            try {
+              await clientsApi.activate(c.id);
+              await reload(page);
+            } catch (err) {
+              setActionError(
+                err instanceof ApiError
+                  ? err.message
+                  : "No se pudo activar el cliente.",
+              );
+            }
+          },
+        });
+      }
     }
     return items;
   };
@@ -378,9 +388,11 @@ export default function ClientsPage() {
             >
               <span>{I.download}</span>Exportar CSV
             </button>
-            <button className="btn btn--accent" onClick={() => setShowNew(true)}>
-              <span>{I.plus}</span>Nuevo cliente
-            </button>
+            {canWrite && (
+              <button className="btn btn--accent" onClick={() => setShowNew(true)}>
+                <span>{I.plus}</span>Nuevo cliente
+              </button>
+            )}
           </>
         }
       />
@@ -410,7 +422,7 @@ export default function ClientsPage() {
         </div>
       )}
 
-      <div className="grid gap-5" style={{ gridTemplateColumns: "1.6fr 1fr" }}>
+      <div className="grid gap-5 grid-cols-1 lg:grid-cols-[1.6fr_1fr]">
         <div className="card">
           <div className="card__head gap-2 flex-wrap">
             <div className="topbar__search m-0 relative" style={{ width: 260 }}>
@@ -502,7 +514,8 @@ export default function ClientsPage() {
                 : "No hay clientes. Crea uno con el botón de arriba."}
             </div>
           ) : (
-            <table className="tbl">
+            <div className="overflow-x-auto">
+            <table className="tbl min-w-[760px]">
               <thead>
                 <tr>
                   <th>Cliente</th>
@@ -557,12 +570,15 @@ export default function ClientsPage() {
                     </td>
                     <td className="num text-muted">{fmtDate(c.createdAt)}</td>
                     <td>
-                      <MenuButton trigger={I.more} items={buildRowMenu(c)} />
+                      {(canWrite || canDeactivate) && (
+                        <MenuButton trigger={I.more} items={buildRowMenu(c)} />
+                      )}
                     </td>
                   </tr>
                 ))}
               </tbody>
             </table>
+            </div>
           )}
 
           <div
@@ -611,6 +627,8 @@ export default function ClientsPage() {
             audit={selectedAudit}
             history={selectedHistory}
             actorById={actorById}
+            canWrite={canWrite}
+            canDeactivate={canDeactivate}
             onEdit={() => setEditTarget(selected)}
             onDeactivate={() => setDeactivateTarget(selected)}
             onAddAddress={() =>
@@ -758,6 +776,8 @@ function ClientDetailPanel({
   audit,
   history,
   actorById,
+  canWrite,
+  canDeactivate,
   onEdit,
   onDeactivate,
   onActivate,
@@ -769,6 +789,8 @@ function ClientDetailPanel({
   audit: ApiAuditEntry | null;
   history: ApiAuditEntry[];
   actorById: Map<string, ApiUser>;
+  canWrite: boolean;
+  canDeactivate: boolean;
   onEdit: () => void;
   onDeactivate: () => void;
   onActivate: () => void;
@@ -932,9 +954,11 @@ function ClientDetailPanel({
           </span>
         </div>
         <div className="spacer" />
-        <button className="btn btn--sm" onClick={onAddAddress}>
-          {I.plus} Agregar
-        </button>
+        {canWrite && (
+          <button className="btn btn--sm" onClick={onAddAddress}>
+            {I.plus} Agregar
+          </button>
+        )}
       </div>
       {client.addresses.length === 0 ? (
         <div className="card__body text-muted text-sm py-2">
@@ -965,22 +989,24 @@ function ClientDetailPanel({
                     .join(", ")}
                 </div>
               </div>
-              <MenuButton
-                trigger={I.more}
-                items={[
-                  {
-                    label: "Editar dirección",
-                    icon: I.edit,
-                    onClick: () => onEditAddress(addr),
-                  },
-                  {
-                    label: "Eliminar",
-                    icon: I.x,
-                    kind: "danger",
-                    onClick: () => onRemoveAddress(addr),
-                  },
-                ]}
-              />
+              {canWrite && (
+                <MenuButton
+                  trigger={I.more}
+                  items={[
+                    {
+                      label: "Editar dirección",
+                      icon: I.edit,
+                      onClick: () => onEditAddress(addr),
+                    },
+                    {
+                      label: "Eliminar",
+                      icon: I.x,
+                      kind: "danger",
+                      onClick: () => onRemoveAddress(addr),
+                    },
+                  ]}
+                />
+              )}
             </div>
           ))}
         </div>
@@ -1088,18 +1114,21 @@ function ClientDetailPanel({
       <div className="divider m-0" />
 
       <div className="px-4 py-3 flex gap-2 flex-wrap">
-        <button className="btn btn--sm" onClick={onEdit}>
-          {I.edit} Editar
-        </button>
-        {client.isActive ? (
-          <button className="btn btn--sm btn--danger" onClick={onDeactivate}>
-            {I.x} Desactivar
-          </button>
-        ) : (
-          <button className="btn btn--sm btn--accent" onClick={onActivate}>
-            {I.check} Activar
+        {canWrite && (
+          <button className="btn btn--sm" onClick={onEdit}>
+            {I.edit} Editar
           </button>
         )}
+        {canDeactivate &&
+          (client.isActive ? (
+            <button className="btn btn--sm btn--danger" onClick={onDeactivate}>
+              {I.x} Desactivar
+            </button>
+          ) : (
+            <button className="btn btn--sm btn--accent" onClick={onActivate}>
+              {I.check} Activar
+            </button>
+          ))}
       </div>
     </div>
   );

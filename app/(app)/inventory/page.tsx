@@ -10,6 +10,7 @@ import { InventoryStockEntryModal } from "@/components/inventory-stock-entry-mod
 import { MenuButton, type MenuItem } from "@/components/menu-button";
 import { Modal } from "@/components/modal";
 import { PageHeader } from "@/components/page-header";
+import { usePermission } from "@/lib/auth/auth-context";
 import { ApiError } from "@/lib/api/errors";
 import { inventoryApi } from "@/lib/api/inventory";
 import type {
@@ -31,6 +32,9 @@ const ORDER_OPTIONS: { key: OrderByKey; label: string }[] = [
 ];
 
 export default function InventoryPage() {
+  const canWrite = usePermission("inventory.materials.write");
+  const canDeactivate = usePermission("inventory.materials.deactivate");
+  const canStock = usePermission("inventory.stock.write");
   const [materials, setMaterials] = useState<ApiMaterial[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
@@ -148,32 +152,41 @@ export default function InventoryPage() {
   const totalValue = materials.reduce((s, m) => s + m.stock * m.cost, 0);
 
   const buildRowMenu = (m: ApiMaterial): MenuItem[] => {
-    const items: MenuItem[] = [
-      { label: "Editar", icon: I.edit, onClick: () => setEditTarget(m) },
-    ];
-    if (m.isActive) {
+    const items: MenuItem[] = [];
+    if (canWrite) {
       items.push({
-        label: "Registrar entrada",
-        icon: I.plus,
-        onClick: () => setMoveTarget({ material: m, type: "entry" }),
-      });
-      items.push({
-        label: "Registrar salida",
-        icon: I.x,
-        onClick: () => setMoveTarget({ material: m, type: "exit" }),
-      });
-      items.push({
-        label: "Ajustar stock",
+        label: "Editar",
         icon: I.edit,
-        onClick: () => setMoveTarget({ material: m, type: "adjust" }),
+        onClick: () => setEditTarget(m),
       });
-      items.push({
-        label: "Desactivar",
-        icon: I.x,
-        kind: "danger",
-        onClick: () => setDeactivateTarget(m),
-      });
-    } else {
+    }
+    if (m.isActive) {
+      if (canStock) {
+        items.push({
+          label: "Registrar entrada",
+          icon: I.plus,
+          onClick: () => setMoveTarget({ material: m, type: "entry" }),
+        });
+        items.push({
+          label: "Registrar salida",
+          icon: I.x,
+          onClick: () => setMoveTarget({ material: m, type: "exit" }),
+        });
+        items.push({
+          label: "Ajustar stock",
+          icon: I.edit,
+          onClick: () => setMoveTarget({ material: m, type: "adjust" }),
+        });
+      }
+      if (canDeactivate) {
+        items.push({
+          label: "Desactivar",
+          icon: I.x,
+          kind: "danger",
+          onClick: () => setDeactivateTarget(m),
+        });
+      }
+    } else if (canDeactivate) {
       items.push({
         label: "Activar",
         icon: I.check,
@@ -201,9 +214,11 @@ export default function InventoryPage() {
         title="Inventario"
         sub={`${total} insumos · ${lowStockCount} bajo stock (en página actual) · ${fmtMXN(totalValue)} valor en página`}
         actions={
-          <button className="btn btn--accent" onClick={() => setShowNew(true)}>
-            <span>{I.plus}</span>Nuevo material
-          </button>
+          canWrite && (
+            <button className="btn btn--accent" onClick={() => setShowNew(true)}>
+              <span>{I.plus}</span>Nuevo material
+            </button>
+          )
         }
       />
 
@@ -232,7 +247,7 @@ export default function InventoryPage() {
         </div>
       )}
 
-      <div className="grid gap-5" style={{ gridTemplateColumns: "1.6fr 1fr" }}>
+      <div className="grid gap-5 grid-cols-1 lg:grid-cols-[1.6fr_1fr]">
         <div className="card">
           <div className="card__head gap-2 flex-wrap">
             <div className="topbar__search m-0 relative" style={{ width: 240 }}>
@@ -296,7 +311,8 @@ export default function InventoryPage() {
                 : "Sin materiales. Crea uno con el botón de arriba."}
             </div>
           ) : (
-            <table className="tbl">
+            <div className="overflow-x-auto">
+              <table className="tbl min-w-[820px]">
               <thead>
                 <tr>
                   <th>Material</th>
@@ -310,6 +326,7 @@ export default function InventoryPage() {
               <tbody>
                 {materials.map((m) => {
                   const low = m.stock <= m.reorderPoint;
+                  const rowMenu = buildRowMenu(m);
                   return (
                     <tr
                       key={m.id}
@@ -340,13 +357,16 @@ export default function InventoryPage() {
                       </td>
                       <td className="text-xs text-muted">{m.location ?? "—"}</td>
                       <td>
-                        <MenuButton trigger={I.more} items={buildRowMenu(m)} />
+                        {rowMenu.length > 0 && (
+                          <MenuButton trigger={I.more} items={rowMenu} />
+                        )}
                       </td>
                     </tr>
                   );
                 })}
               </tbody>
-            </table>
+              </table>
+            </div>
           )}
 
           <div
@@ -393,6 +413,9 @@ export default function InventoryPage() {
           <InventoryMaterialDetail
             material={selected}
             moves={selectedMoves}
+            canWrite={canWrite}
+            canStock={canStock}
+            canDeactivate={canDeactivate}
             onEdit={() => setEditTarget(selected)}
             onMove={(type) => setMoveTarget({ material: selected, type })}
             onDeactivate={() => setDeactivateTarget(selected)}
