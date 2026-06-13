@@ -7,10 +7,15 @@ export default defineConfig({
     alias: { "@": path.resolve(__dirname) },
   },
   test: {
-    // Tests unitarios de lib/ (mappers, format, pos-cart, client). Entorno
-    // node por default; el spec de client.ts pide happy-dom por archivo con
-    // `// @vitest-environment happy-dom` (necesita window/location).
-    include: ["lib/**/*.test.ts"],
+    // Tests unitarios de lib/ (mappers, format, pos-cart, client) y tests de
+    // componente en components/ y app/. Entorno node por default; los specs que
+    // necesitan DOM (client.ts y los .test.tsx) piden happy-dom por archivo con
+    // `// @vitest-environment happy-dom`.
+    include: [
+      "lib/**/*.test.{ts,tsx}",
+      "components/**/*.test.tsx",
+      "app/**/*.test.tsx",
+    ],
     environment: "node",
   },
 });

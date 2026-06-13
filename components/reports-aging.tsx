@@ -1,4 +1,3 @@
-import { I } from "@/components/icons";
 import { fmtDate, fmtMXN } from "@/lib/format";
 import type { ApiAgingRow } from "@/lib/api/types";
 
@@ -35,8 +34,6 @@ export function ReportsAging({ items }: { items: ApiAgingRow[] }) {
       <div className="card">
         <div className="card__head">
           <div className="card__title">Cuentas por cobrar abiertas</div>
-          <div className="spacer" />
-          <button className="btn btn--sm">{I.whatsapp} Enviar recordatorios</button>
         </div>
         {items.length === 0 ? (
           <div className="empty m-3.5">Sin cuentas por cobrar abiertas.</div>

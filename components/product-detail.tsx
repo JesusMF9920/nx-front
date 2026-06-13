@@ -12,6 +12,7 @@ import {
   validateRecipeRows,
   type RecipeRow,
 } from "@/components/recipe-editor";
+import { usePermission } from "@/lib/auth/auth-context";
 import { catalogApi, type ProductVariantInput } from "@/lib/api/catalog";
 import { ApiError } from "@/lib/api/errors";
 import { inventoryApi } from "@/lib/api/inventory";
@@ -83,6 +84,7 @@ export function ProductDetail({
   const [editingVariants, setEditingVariants] = useState(false);
   const [editingRecipe, setEditingRecipe] = useState(false);
   const [editingSized, setEditingSized] = useState(false);
+  const canWrite = usePermission("catalog.products.write");
 
   const detail: ApiProductDetail | null = isDetail(product)
     ? product
@@ -172,11 +174,14 @@ export function ProductDetail({
         detail={detail}
         materials={materials}
         onEditVariants={
-          canEditVariants ? () => setEditingVariants(true) : undefined
+          canWrite && canEditVariants
+            ? () => setEditingVariants(true)
+            : undefined
         }
         onConfigureSized={
-          detail.variantType === "none" ||
-          detail.variantType === "sized_from_material"
+          canWrite &&
+          (detail.variantType === "none" ||
+            detail.variantType === "sized_from_material")
             ? () => setEditingSized(true)
             : undefined
         }
@@ -185,7 +190,7 @@ export function ProductDetail({
       <RecipeSection
         detail={detail}
         materials={materials}
-        onEdit={() => setEditingRecipe(true)}
+        onEdit={canWrite ? () => setEditingRecipe(true) : undefined}
       />
     </>
   ) : detailError && detailError.id === base.id ? (
@@ -609,7 +614,7 @@ function RecipeSection({
 }: {
   detail: ApiProductDetail;
   materials: Record<string, ApiMaterial>;
-  onEdit: () => void;
+  onEdit?: () => void;
 }) {
   const items = detail.recipeItems;
   return (
@@ -623,9 +628,11 @@ function RecipeSection({
           </span>
         )}
         <div className="spacer" />
-        <button className="btn btn--sm" onClick={onEdit}>
-          {I.edit} Editar receta
-        </button>
+        {onEdit && (
+          <button className="btn btn--sm" onClick={onEdit}>
+            {I.edit} Editar receta
+          </button>
+        )}
       </div>
       {items.length === 0 ? (
         <div className="empty p-4">
