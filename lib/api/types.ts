@@ -423,9 +423,17 @@ export type ApiProductionItem = {
   needsApproval: boolean;
   status: ApiOrderStatus;
   designVersion: number;
+  /** Estación del taller; null = "Sin asignar". */
+  station: ApiProductionStation | null;
   deliverAt: string | null;
   orderCreatedAt: string;
 };
+
+export type ApiProductionStation =
+  | "offset"
+  | "screen_printing"
+  | "large_format"
+  | "finishing";
 
 /** Forma del GET /orders (lista). */
 export type ApiOrder = {

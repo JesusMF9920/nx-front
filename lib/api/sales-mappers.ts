@@ -1,9 +1,23 @@
 import type {
   ApiOrderStatus,
   ApiPaymentMethod,
+  ApiProductionStation,
   ApiQuoteChannel,
   ApiQuoteStatus,
 } from "./types";
+
+/** Estaciones/centros de trabajo del taller (EN → ES). */
+export const PRODUCTION_STATION_ES: Record<ApiProductionStation, string> = {
+  offset: "Offset",
+  screen_printing: "Serigrafía",
+  large_format: "Gran formato",
+  finishing: "Acabados",
+};
+
+/** Etiqueta de estación con fallback a "Sin asignar" para null. */
+export function stationLabel(s: ApiProductionStation | null): string {
+  return s ? PRODUCTION_STATION_ES[s] : "Sin asignar";
+}
 
 /**
  * Mapeo EN (API) → ES (UI). `Record` exhaustivo a propósito: si el backend

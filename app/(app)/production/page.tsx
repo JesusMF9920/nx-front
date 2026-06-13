@@ -9,8 +9,16 @@ import { usePermission } from "@/lib/auth/auth-context";
 import { ApiError } from "@/lib/api/errors";
 import { ordersApi } from "@/lib/api/orders";
 import { productionApi } from "@/lib/api/production";
-import { ORDER_STATUS_ES } from "@/lib/api/sales-mappers";
-import type { ApiOrderStatus, ApiProductionItem } from "@/lib/api/types";
+import {
+  ORDER_STATUS_ES,
+  PRODUCTION_STATION_ES,
+  stationLabel,
+} from "@/lib/api/sales-mappers";
+import type {
+  ApiOrderStatus,
+  ApiProductionItem,
+  ApiProductionStation,
+} from "@/lib/api/types";
 import { fmtDate, fmtInt } from "@/lib/format";
 
 /** Etapas del taller en orden de avance (los entregados no entran a la cola). */
@@ -22,9 +30,14 @@ const PIPELINE: ApiOrderStatus[] = [
   "ready_for_delivery",
 ];
 
+const STATIONS = Object.keys(PRODUCTION_STATION_ES) as ApiProductionStation[];
+type StationFilter = ApiProductionStation | "all" | "unassigned";
+
 export default function ProductionPage() {
   const canAdvance = usePermission("sales.production.advance");
+  const canAssign = usePermission("sales.production.assign");
   const [items, setItems] = useState<ApiProductionItem[]>([]);
+  const [stationFilter, setStationFilter] = useState<StationFilter>("all");
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [itemBusy, setItemBusy] = useState<string | null>(null);
@@ -63,6 +76,33 @@ export default function ProductionPage() {
       setItemBusy(null);
     }
   };
+
+  const assign = async (
+    item: ApiProductionItem,
+    station: ApiProductionStation | null,
+  ) => {
+    if (station === item.station) return;
+    setItemBusy(item.itemId);
+    setActionError(null);
+    try {
+      await productionApi.assignStation(item.orderId, item.itemId, station);
+      await load();
+    } catch (err) {
+      setActionError(
+        err instanceof ApiError ? err.message : "No se pudo asignar la estación.",
+      );
+    } finally {
+      setItemBusy(null);
+    }
+  };
+
+  const filteredItems = items.filter((i) =>
+    stationFilter === "all"
+      ? true
+      : stationFilter === "unassigned"
+        ? i.station === null
+        : i.station === stationFilter,
+  );
 
   return (
     <>
@@ -104,6 +144,43 @@ export default function ProductionPage() {
         </div>
       )}
 
+      {!loading && items.length > 0 && (
+        <div
+          className="flex flex-wrap gap-1.5 mb-3"
+          role="group"
+          aria-label="Filtrar por estación"
+        >
+          {(
+            [
+              ["all", "Todas"],
+              ["unassigned", "Sin asignar"],
+              ...STATIONS.map(
+                (s) => [s, PRODUCTION_STATION_ES[s]] as [StationFilter, string],
+              ),
+            ] as [StationFilter, string][]
+          ).map(([key, label]) => {
+            const count =
+              key === "all"
+                ? items.length
+                : items.filter((i) =>
+                    key === "unassigned"
+                      ? i.station === null
+                      : i.station === key,
+                  ).length;
+            return (
+              <button
+                key={key}
+                type="button"
+                className={`btn btn--sm ${stationFilter === key ? "btn--primary" : ""}`}
+                onClick={() => setStationFilter(key)}
+              >
+                {label} ({count})
+              </button>
+            );
+          })}
+        </div>
+      )}
+
       {loading ? (
         <div className="card">
           <div className="card__body text-muted">Cargando cola…</div>
@@ -117,7 +194,7 @@ export default function ProductionPage() {
       ) : (
         <div className="grid gap-4">
           {PIPELINE.map((stage) => {
-            const stageItems = items.filter((i) => i.status === stage);
+            const stageItems = filteredItems.filter((i) => i.status === stage);
             if (stageItems.length === 0) return null;
             return (
               <div className="card" key={stage}>
@@ -138,6 +215,7 @@ export default function ProductionPage() {
                         <th style={{ textAlign: "right" }}>Cant.</th>
                         <th>Origen</th>
                         <th>Entrega</th>
+                        <th>Estación</th>
                         {canAdvance && <th>Avanzar</th>}
                       </tr>
                     </thead>
@@ -170,6 +248,35 @@ export default function ProductionPage() {
                           </td>
                           <td className="num">
                             {item.deliverAt ? fmtDate(item.deliverAt) : "Sin fecha"}
+                          </td>
+                          <td>
+                            {canAssign ? (
+                              <select
+                                className="select"
+                                style={{ fontSize: 12, padding: "2px 6px" }}
+                                value={item.station ?? ""}
+                                disabled={itemBusy !== null}
+                                onChange={(e) =>
+                                  void assign(
+                                    item,
+                                    (e.target.value ||
+                                      null) as ApiProductionStation | null,
+                                  )
+                                }
+                                aria-label={`Estación de ${item.productName} del pedido ${item.orderFolio}`}
+                              >
+                                <option value="">Sin asignar</option>
+                                {STATIONS.map((s) => (
+                                  <option key={s} value={s}>
+                                    {PRODUCTION_STATION_ES[s]}
+                                  </option>
+                                ))}
+                              </select>
+                            ) : (
+                              <span className="tag text-[11px]">
+                                {stationLabel(item.station)}
+                              </span>
+                            )}
                           </td>
                           {canAdvance && (
                             <td>
