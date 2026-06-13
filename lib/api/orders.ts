@@ -211,4 +211,25 @@ export const ordersApi = {
       body: JSON.stringify(patch),
     });
   },
+
+  /**
+   * Reemplaza las líneas de un pedido (corrección temprana). El backend
+   * re-cotiza, recalcula totales y valida el gating y total ≥ pagado (409).
+   */
+  editLines(
+    orderId: string,
+    input: { lines: CheckoutLineInput[]; discount?: number },
+  ): Promise<EditOrderLinesResult> {
+    return apiFetch<EditOrderLinesResult>(`/orders/${orderId}/lines`, {
+      method: "PATCH",
+      body: JSON.stringify(input),
+    });
+  },
+};
+
+export type EditOrderLinesResult = {
+  orderId: string;
+  folio: string;
+  total: number;
+  editSeq: number;
 };
