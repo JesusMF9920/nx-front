@@ -21,6 +21,7 @@ type Props = {
 const METHOD_OPTIONS: { id: PaymentMethod; icon: ReactNode; sub: string }[] = [
   { id: "Efectivo", icon: I.cash, sub: "Pago de contado" },
   { id: "Terminal", icon: I.card, sub: "Tarjeta" },
+  { id: "Transferencia", icon: I.send, sub: "SPEI / depósito" },
   { id: "Mixto", icon: I.layers, sub: "Efectivo + tarjeta" },
 ];
 
@@ -281,9 +282,13 @@ export function QuoteConvertModal({ quote, onClose, onConverted }: Props) {
         ))}
       </div>
 
-      {method === "Terminal" && (
+      {(method === "Terminal" || method === "Transferencia") && (
         <label className="field mt-3">
-          <span className="label">Referencia (opcional)</span>
+          <span className="label">
+            {method === "Transferencia"
+              ? "Referencia / clave de rastreo (opcional)"
+              : "Referencia (opcional)"}
+          </span>
           <input
             className="input"
             placeholder="Núm. de operación"
