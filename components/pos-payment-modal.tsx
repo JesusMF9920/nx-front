@@ -259,7 +259,13 @@ export function PosPaymentModal({
         whatsapp: whatsappEnabled && !!customerPhone && whatsappTicket,
       });
     } catch (err) {
-      if (err instanceof ApiError && err.status === 409) {
+      if (
+        err instanceof ApiError &&
+        err.status === 403 &&
+        err.body?.error === "DiscountNotAllowedError"
+      ) {
+        setSubmitError("No tienes permiso para aplicar descuentos.");
+      } else if (err instanceof ApiError && err.status === 409) {
         if (err.body?.error === "InsufficientStockForSaleError") {
           setShortages(err.body.shortages ?? []);
           setStockBlocked(true);
@@ -269,6 +275,8 @@ export function PosPaymentModal({
           void loadPreview();
         } else if (err.body?.error === "PaymentExceedsTotalError") {
           setSubmitError("El monto de los pagos excede el total de la venta.");
+        } else if (err.body?.error === "DiscountExceedsLimitError") {
+          setSubmitError("El descuento excede el máximo permitido.");
         } else {
           setSubmitError(err.message);
         }

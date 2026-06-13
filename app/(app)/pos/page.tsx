@@ -66,6 +66,7 @@ export default function POSPage() {
   const [page, setPage] = useState(1);
   const [productsTotal, setProductsTotal] = useState(0);
   const canSell = usePermission("sales.pos.sell");
+  const canDiscount = usePermission("sales.discount.apply");
   const PAGE_SIZE = 24;
   const [discount, setDiscount] = useState(0);
   const [discountDraft, setDiscountDraft] = useState("");
@@ -599,16 +600,22 @@ export default function POSPage() {
           <div className="bg-line my-2.5" style={{ height: 1 }} />
           <SummaryRow label="Total" value={fmtMXN(total)} big />
 
-          <div className="grid grid-cols-2 gap-2 mt-3">
-            <button
-              className="btn"
-              onClick={() => {
-                setDiscountDraft(discount > 0 ? String(discount) : "");
-                setShowDiscount(true);
-              }}
-            >
-              {I.tag} {discount > 0 ? `Descuento · ${fmtMXN(discount)}` : "Descuento"}
-            </button>
+          <div
+            className={`grid gap-2 mt-3 ${canDiscount ? "grid-cols-2" : "grid-cols-1"}`}
+          >
+            {/* Descuento gateado: solo con sales.discount.apply (el backend
+                igual revalida y rechaza con 403). */}
+            {canDiscount && (
+              <button
+                className="btn"
+                onClick={() => {
+                  setDiscountDraft(discount > 0 ? String(discount) : "");
+                  setShowDiscount(true);
+                }}
+              >
+                {I.tag} {discount > 0 ? `Descuento · ${fmtMXN(discount)}` : "Descuento"}
+              </button>
+            )}
             <button
               className="btn"
               onClick={() => {
