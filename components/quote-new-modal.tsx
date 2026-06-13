@@ -165,6 +165,9 @@ export function QuoteNewModal({ onClose, onSaved, editQuote }: Props) {
         const note = line.lineNote?.trim()
           ? { lineNote: line.lineNote.trim() }
           : {};
+        // Decisión de diseño por línea: se manda siempre (default del catálogo
+        // o lo que se haya prendido/apagado con el toggle); sobrevive a la conversión.
+        const design = { needsApproval: line.needsApproval };
         if (line.isAdHoc) {
           // Línea ad-hoc (producto libre): nombre + precio a mano, sin productId.
           return [
@@ -175,6 +178,7 @@ export function QuoteNewModal({ onClose, onSaved, editQuote }: Props) {
                 ? { adHocCost: line.adHocCost }
                 : {}),
               qty: line.qty,
+              ...design,
               ...note,
             },
           ];
@@ -187,6 +191,7 @@ export function QuoteNewModal({ onClose, onSaved, editQuote }: Props) {
                 .filter((b) => b.qty > 0)
                 .map((b) => ({ sizeId: b.sizeId, qty: b.qty })),
               ...ov,
+              ...design,
               ...note,
             },
           ];
@@ -196,6 +201,7 @@ export function QuoteNewModal({ onClose, onSaved, editQuote }: Props) {
             productId: line.id,
             dimension: { ...line.dimension! },
             ...ov,
+            ...design,
             ...note,
           }));
         }
@@ -206,11 +212,14 @@ export function QuoteNewModal({ onClose, onSaved, editQuote }: Props) {
               qty: line.qty,
               variantCode: line.variantCode,
               ...ov,
+              ...design,
               ...note,
             },
           ];
         }
-        return [{ productId: line.id, qty: line.qty, ...ov, ...note }];
+        return [
+          { productId: line.id, qty: line.qty, ...ov, ...design, ...note },
+        ];
       }),
     [cart],
   );
@@ -753,14 +762,33 @@ export function QuoteNewModal({ onClose, onSaved, editQuote }: Props) {
                       </label>
                     )}
                   </div>
-                  <input
-                    className="w-full text-[11px] bg-transparent border border-line rounded px-2 py-1 mt-1.5 outline-none"
-                    placeholder="Nota para producción (opcional)"
-                    value={line.lineNote ?? ""}
-                    onChange={(e) =>
-                      patchLine(line.lineId, { lineNote: e.target.value })
-                    }
-                  />
+                  <div className="flex items-center gap-2 mt-1.5">
+                    <button
+                      type="button"
+                      aria-pressed={line.needsApproval}
+                      title="¿Requiere diseño?"
+                      className={`pill text-[10px] border-0 cursor-pointer shrink-0 ${
+                        line.needsApproval
+                          ? "pill--warn"
+                          : "pill--neutral opacity-60"
+                      }`}
+                      onClick={() =>
+                        patchLine(line.lineId, {
+                          needsApproval: !line.needsApproval,
+                        })
+                      }
+                    >
+                      {I.paint} Diseño
+                    </button>
+                    <input
+                      className="flex-1 min-w-0 text-[11px] bg-transparent border border-line rounded px-2 py-1 outline-none"
+                      placeholder="Nota para producción (opcional)"
+                      value={line.lineNote ?? ""}
+                      onChange={(e) =>
+                        patchLine(line.lineId, { lineNote: e.target.value })
+                      }
+                    />
+                  </div>
                 </div>
               ))
             )}

@@ -308,6 +308,9 @@ export default function POSPage() {
         const note = line.lineNote?.trim()
           ? { lineNote: line.lineNote.trim() }
           : {};
+        // Decisión de diseño por línea: se manda siempre (default del catálogo
+        // o lo que el cajero haya prendido/apagado con el toggle).
+        const design = { needsApproval: line.needsApproval };
         if (line.isAdHoc) {
           // Línea ad-hoc (producto libre): nombre + precio a mano, sin productId.
           return [
@@ -318,6 +321,7 @@ export default function POSPage() {
                 ? { adHocCost: line.adHocCost }
                 : {}),
               qty: line.qty,
+              ...design,
               ...note,
             },
           ];
@@ -329,6 +333,7 @@ export default function POSPage() {
               sizeBreakdown: line.sizeBreakdown
                 .filter((b) => b.qty > 0)
                 .map((b) => ({ sizeId: b.sizeId, qty: b.qty })),
+              ...design,
               ...note,
             },
           ];
@@ -339,6 +344,7 @@ export default function POSPage() {
           return Array.from({ length: Math.max(1, line.qty) }, () => ({
             productId: line.id,
             dimension: { ...line.dimension! },
+            ...design,
             ...note,
           }));
         }
@@ -348,11 +354,12 @@ export default function POSPage() {
               productId: line.id,
               qty: line.qty,
               variantCode: line.variantCode,
+              ...design,
               ...note,
             },
           ];
         }
-        return [{ productId: line.id, qty: line.qty, ...note }];
+        return [{ productId: line.id, qty: line.qty, ...design, ...note }];
       }),
     [cart],
   );
@@ -673,9 +680,21 @@ export default function POSPage() {
                 {line.source === "Proveedor" && line.supplier && (
                   <span className="pill pill--supplier text-[10px]">{line.supplier}</span>
                 )}
-                {line.needsApproval && (
-                  <span className="pill pill--warn text-[10px]">{I.paint} Diseño</span>
-                )}
+                <button
+                  type="button"
+                  aria-pressed={line.needsApproval}
+                  title="¿Requiere diseño?"
+                  className={`pill text-[10px] border-0 cursor-pointer ${
+                    line.needsApproval ? "pill--warn" : "pill--neutral opacity-60"
+                  }`}
+                  onClick={() =>
+                    patchLine(line.lineId, {
+                      needsApproval: !line.needsApproval,
+                    })
+                  }
+                >
+                  {I.paint} Diseño
+                </button>
               </div>
 
               <div className="flex items-center gap-2 mt-2">
