@@ -144,6 +144,11 @@ export default function POSPage() {
   // Totales client-side SOLO orientativos — el total autoritativo lo da posApi.preview.
   const { subtotal, discountApplied, tax, total } = cartTotals(cart, discount);
 
+  // Una línea ad-hoc exige nombre y precio > 0 (el backend igual lo revalida).
+  const hasInvalidAdHoc = cart.some(
+    (l) => l.isAdHoc && (l.name.trim() === "" || l.price <= 0),
+  );
+
   const totalPages = Math.max(1, Math.ceil(productsTotal / PAGE_SIZE));
 
   const ensureDetail = async (productId: string): Promise<ApiProductDetail> => {
@@ -263,6 +268,32 @@ export default function POSPage() {
     );
   };
 
+  /** Parche puntual de una línea (nombre/precio ad-hoc, nota). */
+  const patchLine = (lineId: string, patch: Partial<CartLine>) =>
+    setCart((cs) =>
+      cs.map((c) => (c.lineId === lineId ? { ...c, ...patch } : c)),
+    );
+
+  const removeLine = (lineId: string) =>
+    setCart((cs) => cs.filter((c) => c.lineId !== lineId));
+
+  /** Agrega una línea ad-hoc (producto libre) en blanco para capturar a mano. */
+  const addAdHocLine = () =>
+    setCart((cs) => [
+      ...cs,
+      {
+        lineId: `A${Date.now()}`,
+        id: "",
+        isAdHoc: true,
+        name: "",
+        sku: "LIBRE",
+        source: "Interno",
+        needsApproval: false,
+        qty: 1,
+        price: 0,
+      },
+    ]);
+
   const editBreakdown = (line: CartLine) => {
     void openPicker(line.id, {
       lineId: line.lineId,
@@ -274,6 +305,23 @@ export default function POSPage() {
   const checkoutLines = useMemo<CheckoutLineInput[]>(
     () =>
       cart.flatMap<CheckoutLineInput>((line) => {
+        const note = line.lineNote?.trim()
+          ? { lineNote: line.lineNote.trim() }
+          : {};
+        if (line.isAdHoc) {
+          // Línea ad-hoc (producto libre): nombre + precio a mano, sin productId.
+          return [
+            {
+              adHocName: line.name,
+              adHocPrice: line.price,
+              ...(line.adHocCost !== undefined
+                ? { adHocCost: line.adHocCost }
+                : {}),
+              qty: line.qty,
+              ...note,
+            },
+          ];
+        }
         if (line.sizeBreakdown) {
           return [
             {
@@ -281,6 +329,7 @@ export default function POSPage() {
               sizeBreakdown: line.sizeBreakdown
                 .filter((b) => b.qty > 0)
                 .map((b) => ({ sizeId: b.sizeId, qty: b.qty })),
+              ...note,
             },
           ];
         }
@@ -290,12 +339,20 @@ export default function POSPage() {
           return Array.from({ length: Math.max(1, line.qty) }, () => ({
             productId: line.id,
             dimension: { ...line.dimension! },
+            ...note,
           }));
         }
         if (line.variantCode) {
-          return [{ productId: line.id, qty: line.qty, variantCode: line.variantCode }];
+          return [
+            {
+              productId: line.id,
+              qty: line.qty,
+              variantCode: line.variantCode,
+              ...note,
+            },
+          ];
         }
-        return [{ productId: line.id, qty: line.qty }];
+        return [{ productId: line.id, qty: line.qty, ...note }];
       }),
     [cart],
   );
@@ -499,6 +556,9 @@ export default function POSPage() {
               {cart.length} productos
             </div>
             <div className="spacer" />
+            <button className="btn btn--ghost btn--sm" onClick={addAdHocLine}>
+              + Línea libre
+            </button>
             <button className="btn btn--ghost btn--sm" onClick={() => setCart([])}>
               {I.trash} Vaciar
             </button>
@@ -518,7 +578,18 @@ export default function POSPage() {
                   <span className="tag text-[9px]" style={{ padding: "1px 4px" }}>JOB-{idx + 1}</span>
                 </div>
                 <div className="flex-1 min-w-0">
-                  <div className="font-medium text-[13px]">{line.name}</div>
+                  {line.isAdHoc ? (
+                    <input
+                      className="font-medium text-[13px] bg-transparent border-b border-line w-full outline-none"
+                      placeholder="Producto libre…"
+                      value={line.name}
+                      onChange={(e) =>
+                        patchLine(line.lineId, { name: e.target.value })
+                      }
+                    />
+                  ) : (
+                    <div className="font-medium text-[13px]">{line.name}</div>
+                  )}
                   <div className="text-muted text-[11px] font-mono">
                     {line.sku}
                     {line.variantLabel ? ` · ${line.variantLabel}` : ""}
@@ -575,8 +646,28 @@ export default function POSPage() {
                     </button>
                   </div>
                 )}
-                {!line.sizeBreakdown && (
-                  <span className="num text-muted text-[11px]">× {fmtMXN(line.price)}</span>
+                {line.isAdHoc ? (
+                  <label className="flex items-center gap-1 num text-muted text-[11px]">
+                    × $
+                    <input
+                      className="num bg-transparent border border-line rounded px-1"
+                      style={{ width: 72 }}
+                      type="number"
+                      min={0}
+                      step="0.01"
+                      value={line.price || ""}
+                      placeholder="0.00"
+                      onChange={(e) =>
+                        patchLine(line.lineId, {
+                          price: parseFloat(e.target.value || "0") || 0,
+                        })
+                      }
+                    />
+                  </label>
+                ) : (
+                  !line.sizeBreakdown && (
+                    <span className="num text-muted text-[11px]">× {fmtMXN(line.price)}</span>
+                  )
                 )}
                 <div className="spacer" />
                 {line.source === "Proveedor" && line.supplier && (
@@ -585,6 +676,25 @@ export default function POSPage() {
                 {line.needsApproval && (
                   <span className="pill pill--warn text-[10px]">{I.paint} Diseño</span>
                 )}
+              </div>
+
+              <div className="flex items-center gap-2 mt-2">
+                <input
+                  className="flex-1 min-w-0 text-[11px] bg-transparent border border-line rounded px-2 py-1 outline-none"
+                  placeholder="Nota para producción (opcional)"
+                  value={line.lineNote ?? ""}
+                  onChange={(e) =>
+                    patchLine(line.lineId, { lineNote: e.target.value })
+                  }
+                />
+                <button
+                  type="button"
+                  className="btn btn--ghost btn--sm"
+                  title="Quitar línea"
+                  onClick={() => removeLine(line.lineId)}
+                >
+                  {I.trash}
+                </button>
               </div>
             </div>
           ))}
@@ -629,8 +739,14 @@ export default function POSPage() {
           <button
             className="btn btn--accent btn--lg w-full justify-center mt-2"
             onClick={() => setShowPay(true)}
-            disabled={cart.length === 0 || !client || !canSell}
-            title={!canSell ? "No tienes permiso para cobrar (sales.pos.sell)" : undefined}
+            disabled={cart.length === 0 || !client || !canSell || hasInvalidAdHoc}
+            title={
+              !canSell
+                ? "No tienes permiso para cobrar (sales.pos.sell)"
+                : hasInvalidAdHoc
+                  ? "Completa el nombre y precio (> 0) de las líneas libres"
+                  : undefined
+            }
           >
             {I.cash} Cobrar {fmtMXN(total)}
             <span

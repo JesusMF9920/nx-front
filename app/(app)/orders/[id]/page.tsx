@@ -522,6 +522,11 @@ export default function OrderDetailPage() {
                             {j.variantLabel ? ` — ${j.variantLabel}` : ""}
                           </div>
                           <div className="text-muted text-[11px] font-mono">{j.sku}</div>
+                          {j.lineNote && (
+                            <div className="text-[11px] mt-0.5 italic text-muted">
+                              📝 {j.lineNote}
+                            </div>
+                          )}
                           {j.sizeBreakdown && j.sizeBreakdown.length > 0 && (
                             <div className="text-muted text-[11px]">
                               {j.sizeBreakdown

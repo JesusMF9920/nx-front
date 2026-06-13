@@ -56,7 +56,10 @@ function sourceLabel(s: ApiProductSource): ProductSource {
 function linesFromQuote(quote: ApiQuoteDetail): BuilderLine[] {
   return quote.items.map((it, idx) => ({
     lineId: `E${idx}-${it.id}`,
-    id: it.productId,
+    id: it.productId ?? "",
+    isAdHoc: it.productId === null,
+    adHocCost: undefined,
+    lineNote: it.lineNote ?? undefined,
     name: it.productName,
     sku: it.sku,
     source: sourceLabel(it.source),
@@ -159,6 +162,23 @@ export function QuoteNewModal({ onClose, onSaved, editQuote }: Props) {
           line.unitPriceOverride !== undefined
             ? { unitPriceOverride: line.unitPriceOverride }
             : {};
+        const note = line.lineNote?.trim()
+          ? { lineNote: line.lineNote.trim() }
+          : {};
+        if (line.isAdHoc) {
+          // Línea ad-hoc (producto libre): nombre + precio a mano, sin productId.
+          return [
+            {
+              adHocName: line.name,
+              adHocPrice: line.price,
+              ...(line.adHocCost !== undefined
+                ? { adHocCost: line.adHocCost }
+                : {}),
+              qty: line.qty,
+              ...note,
+            },
+          ];
+        }
         if (line.sizeBreakdown) {
           return [
             {
@@ -167,6 +187,7 @@ export function QuoteNewModal({ onClose, onSaved, editQuote }: Props) {
                 .filter((b) => b.qty > 0)
                 .map((b) => ({ sizeId: b.sizeId, qty: b.qty })),
               ...ov,
+              ...note,
             },
           ];
         }
@@ -175,6 +196,7 @@ export function QuoteNewModal({ onClose, onSaved, editQuote }: Props) {
             productId: line.id,
             dimension: { ...line.dimension! },
             ...ov,
+            ...note,
           }));
         }
         if (line.variantCode) {
@@ -184,10 +206,11 @@ export function QuoteNewModal({ onClose, onSaved, editQuote }: Props) {
               qty: line.qty,
               variantCode: line.variantCode,
               ...ov,
+              ...note,
             },
           ];
         }
-        return [{ productId: line.id, qty: line.qty, ...ov }];
+        return [{ productId: line.id, qty: line.qty, ...ov, ...note }];
       }),
     [cart],
   );
@@ -364,6 +387,34 @@ export function QuoteNewModal({ onClose, onSaved, editQuote }: Props) {
   const removeLine = (lineId: string) =>
     setCart((cs) => cs.filter((c) => c.lineId !== lineId));
 
+  /** Parche puntual de una línea (nombre/precio ad-hoc, nota). */
+  const patchLine = (lineId: string, patch: Partial<BuilderLine>) =>
+    setCart((cs) =>
+      cs.map((c) => (c.lineId === lineId ? { ...c, ...patch } : c)),
+    );
+
+  /** Agrega una línea ad-hoc (producto libre) en blanco para capturar a mano. */
+  const addAdHocLine = () =>
+    setCart((cs) => [
+      ...cs,
+      {
+        lineId: `A${Date.now()}`,
+        id: "",
+        isAdHoc: true,
+        name: "",
+        sku: "LIBRE",
+        source: "Interno",
+        needsApproval: false,
+        qty: 1,
+        price: 0,
+      },
+    ]);
+
+  // Una línea ad-hoc exige nombre y precio > 0 (el backend igual lo revalida).
+  const hasInvalidAdHoc = cart.some(
+    (l) => l.isAdHoc && (l.name.trim() === "" || l.price <= 0),
+  );
+
   const totalPages = Math.max(1, Math.ceil(productsTotal / PAGE_SIZE));
   // Al editar (PATCH requiere sólo 'manage') no exigimos preview: POST
   // /quotes/preview requiere 'create', así que un rol manage-sin-create no debe
@@ -372,6 +423,7 @@ export function QuoteNewModal({ onClose, onSaved, editQuote }: Props) {
     !!client &&
     cart.length > 0 &&
     !saving &&
+    !hasInvalidAdHoc &&
     (isEdit || (!!preview && !previewError));
   // El error de preview no bloquea ni se muestra al editar (es best-effort).
   const shownError = saveError ?? (isEdit ? null : previewError);
@@ -570,7 +622,20 @@ export function QuoteNewModal({ onClose, onSaved, editQuote }: Props) {
                 >
                   <div className="flex items-start gap-2">
                     <div className="flex-1 min-w-0">
-                      <div className="text-[13px] font-medium">{line.name}</div>
+                      {line.isAdHoc ? (
+                        <input
+                          className="text-[13px] font-medium bg-transparent border-b border-line w-full outline-none"
+                          placeholder="Producto libre…"
+                          value={line.name}
+                          onChange={(e) =>
+                            patchLine(line.lineId, { name: e.target.value })
+                          }
+                        />
+                      ) : (
+                        <div className="text-[13px] font-medium">
+                          {line.name}
+                        </div>
+                      )}
                       <div className="text-muted text-[10px] font-mono">
                         {line.sku}
                         {line.variantLabel ? ` · ${line.variantLabel}` : ""}
@@ -652,24 +717,62 @@ export function QuoteNewModal({ onClose, onSaved, editQuote }: Props) {
                       </div>
                     )}
                     <div className="spacer" />
-                    <label className="flex items-center gap-1 text-[10px] text-muted">
-                      Precio neg.
-                      <input
-                        className="input num"
-                        type="number"
-                        min={0}
-                        step="0.01"
-                        placeholder={String(line.price)}
-                        value={line.unitPriceOverride ?? ""}
-                        onChange={(e) => setOverride(line.lineId, e.target.value)}
-                        style={{ width: 80, height: 24, padding: "0 6px" }}
-                      />
-                    </label>
+                    {line.isAdHoc ? (
+                      <label className="flex items-center gap-1 text-[10px] text-muted">
+                        Precio $
+                        <input
+                          className="input num"
+                          type="number"
+                          min={0}
+                          step="0.01"
+                          placeholder="0.00"
+                          value={line.price || ""}
+                          onChange={(e) =>
+                            patchLine(line.lineId, {
+                              price: parseFloat(e.target.value || "0") || 0,
+                            })
+                          }
+                          style={{ width: 80, height: 24, padding: "0 6px" }}
+                        />
+                      </label>
+                    ) : (
+                      <label className="flex items-center gap-1 text-[10px] text-muted">
+                        Precio neg.
+                        <input
+                          className="input num"
+                          type="number"
+                          min={0}
+                          step="0.01"
+                          placeholder={String(line.price)}
+                          value={line.unitPriceOverride ?? ""}
+                          onChange={(e) =>
+                            setOverride(line.lineId, e.target.value)
+                          }
+                          style={{ width: 80, height: 24, padding: "0 6px" }}
+                        />
+                      </label>
+                    )}
                   </div>
+                  <input
+                    className="w-full text-[11px] bg-transparent border border-line rounded px-2 py-1 mt-1.5 outline-none"
+                    placeholder="Nota para producción (opcional)"
+                    value={line.lineNote ?? ""}
+                    onChange={(e) =>
+                      patchLine(line.lineId, { lineNote: e.target.value })
+                    }
+                  />
                 </div>
               ))
             )}
           </div>
+
+          <button
+            type="button"
+            className="btn btn--ghost btn--sm self-start"
+            onClick={addAdHocLine}
+          >
+            + Línea libre
+          </button>
 
           <div className="grid grid-cols-2 gap-2">
             <label className="field">
