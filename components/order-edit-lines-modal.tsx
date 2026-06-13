@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { I } from "@/components/icons";
 import { Modal } from "@/components/modal";
 import { SummaryRow } from "@/components/summary-row";
 import { ApiError } from "@/lib/api/errors";
@@ -50,8 +51,16 @@ function lineFromItem(it: ApiOrderItem): CartLine {
 /** CartLine → CheckoutLineInput (mismo shape que el POS). */
 function toInput(line: CartLine): CheckoutLineInput {
   const note = line.lineNote?.trim() ? { lineNote: line.lineNote.trim() } : {};
+  // Decisión de diseño por línea: se manda siempre (re-rutea a in_design al editar).
+  const design = { needsApproval: line.needsApproval };
   if (line.isAdHoc) {
-    return { adHocName: line.name, adHocPrice: line.price, qty: line.qty, ...note };
+    return {
+      adHocName: line.name,
+      adHocPrice: line.price,
+      qty: line.qty,
+      ...design,
+      ...note,
+    };
   }
   if (line.sizeBreakdown) {
     return {
@@ -59,16 +68,28 @@ function toInput(line: CartLine): CheckoutLineInput {
       sizeBreakdown: line.sizeBreakdown
         .filter((b) => b.qty > 0)
         .map((b) => ({ sizeId: b.sizeId, qty: b.qty })),
+      ...design,
       ...note,
     };
   }
   if (line.dimension) {
-    return { productId: line.id, dimension: { ...line.dimension }, ...note };
+    return {
+      productId: line.id,
+      dimension: { ...line.dimension },
+      ...design,
+      ...note,
+    };
   }
   if (line.variantCode) {
-    return { productId: line.id, qty: line.qty, variantCode: line.variantCode, ...note };
+    return {
+      productId: line.id,
+      qty: line.qty,
+      variantCode: line.variantCode,
+      ...design,
+      ...note,
+    };
   }
-  return { productId: line.id, qty: line.qty, ...note };
+  return { productId: line.id, qty: line.qty, ...design, ...note };
 }
 
 export function OrderEditLinesModal({ order, onClose, onDone }: Props) {
@@ -278,12 +299,33 @@ export function OrderEditLinesModal({ order, onClose, onDone }: Props) {
                   )}
                 </div>
 
-                <input
-                  className="w-full text-[11px] bg-transparent border border-line rounded px-2 py-1 mt-1.5 outline-none"
-                  placeholder="Nota para producción (opcional)"
-                  value={line.lineNote ?? ""}
-                  onChange={(e) => patch(line.lineId, { lineNote: e.target.value })}
-                />
+                <div className="flex items-center gap-2 mt-1.5">
+                  <button
+                    type="button"
+                    aria-pressed={line.needsApproval}
+                    title="¿Requiere diseño?"
+                    className={`pill text-[10px] border-0 cursor-pointer shrink-0 ${
+                      line.needsApproval
+                        ? "pill--warn"
+                        : "pill--neutral opacity-60"
+                    }`}
+                    onClick={() =>
+                      patch(line.lineId, {
+                        needsApproval: !line.needsApproval,
+                      })
+                    }
+                  >
+                    {I.paint} Diseño
+                  </button>
+                  <input
+                    className="flex-1 min-w-0 text-[11px] bg-transparent border border-line rounded px-2 py-1 outline-none"
+                    placeholder="Nota para producción (opcional)"
+                    value={line.lineNote ?? ""}
+                    onChange={(e) =>
+                      patch(line.lineId, { lineNote: e.target.value })
+                    }
+                  />
+                </div>
               </div>
             ))
           )}

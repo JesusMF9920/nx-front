@@ -22,6 +22,11 @@ export type CheckoutLineInput = {
   adHocCost?: number;
   /** Nota libre por línea (instrucciones de producción). */
   lineNote?: string;
+  /**
+   * Override de "requiere diseño" decidido al vender. Si se omite, el backend
+   * usa el default del catálogo (o false en ad-hoc). El front lo manda siempre.
+   */
+  needsApproval?: boolean;
   /** Requerida para none/preset/size; ignorada para sized_from_material; para dimension se deriva. */
   qty?: number;
   /** Requerido para variantType preset/size. */
