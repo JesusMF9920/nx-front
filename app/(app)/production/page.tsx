@@ -32,12 +32,16 @@ const PIPELINE: ApiOrderStatus[] = [
 
 const STATIONS = Object.keys(PRODUCTION_STATION_ES) as ApiProductionStation[];
 type StationFilter = ApiProductionStation | "all" | "unassigned";
+const PAGE_SIZE = 50;
 
 export default function ProductionPage() {
   const canAdvance = usePermission("sales.production.advance");
   const canAssign = usePermission("sales.production.assign");
   const [items, setItems] = useState<ApiProductionItem[]>([]);
+  const [total, setTotal] = useState(0);
+  const [page, setPage] = useState(0);
   const [stationFilter, setStationFilter] = useState<StationFilter>("all");
+  const [overdue, setOverdue] = useState(false);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [itemBusy, setItemBusy] = useState<string | null>(null);
@@ -47,19 +51,35 @@ export default function ProductionPage() {
     setLoading(true);
     setLoadError(null);
     try {
-      const res = await productionApi.queue();
+      const res = await productionApi.queue({
+        station: stationFilter === "all" ? undefined : stationFilter,
+        overdue: overdue || undefined,
+        skip: page * PAGE_SIZE,
+        take: PAGE_SIZE,
+      });
       setItems(res.items);
+      setTotal(res.total);
     } catch {
       setLoadError("No se pudo cargar la cola de producción.");
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [stationFilter, overdue, page]);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     void load();
   }, [load]);
+
+  /** Cambia un filtro y vuelve a la primera página. */
+  const applyStation = (key: StationFilter) => {
+    setPage(0);
+    setStationFilter(key);
+  };
+  const toggleOverdue = () => {
+    setPage(0);
+    setOverdue((v) => !v);
+  };
 
   const advance = async (item: ApiProductionItem, status: ApiOrderStatus) => {
     if (status === item.status) return;
@@ -96,13 +116,8 @@ export default function ProductionPage() {
     }
   };
 
-  const filteredItems = items.filter((i) =>
-    stationFilter === "all"
-      ? true
-      : stationFilter === "unassigned"
-        ? i.station === null
-        : i.station === stationFilter,
-  );
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  const hasFilter = stationFilter !== "all" || overdue;
 
   return (
     <>
@@ -111,7 +126,7 @@ export default function ProductionPage() {
         sub={
           loading
             ? "Cargando…"
-            : `${fmtInt(items.length)} job${items.length === 1 ? "" : "s"} en cola`
+            : `${fmtInt(total)} job${total === 1 ? "" : "s"} en cola${hasFilter ? " (filtrado)" : ""}`
         }
         actions={
           <button className="btn" type="button" onClick={() => void load()}>
@@ -144,42 +159,39 @@ export default function ProductionPage() {
         </div>
       )}
 
-      {!loading && items.length > 0 && (
-        <div
-          className="flex flex-wrap gap-1.5 mb-3"
-          role="group"
-          aria-label="Filtrar por estación"
+      <div
+        className="flex flex-wrap items-center gap-1.5 mb-3"
+        role="group"
+        aria-label="Filtrar la cola"
+      >
+        {(
+          [
+            ["all", "Todas"],
+            ["unassigned", "Sin asignar"],
+            ...STATIONS.map(
+              (s) => [s, PRODUCTION_STATION_ES[s]] as [StationFilter, string],
+            ),
+          ] as [StationFilter, string][]
+        ).map(([key, label]) => (
+          <button
+            key={key}
+            type="button"
+            className={`btn btn--sm ${stationFilter === key ? "btn--primary" : ""}`}
+            onClick={() => applyStation(key)}
+          >
+            {label}
+          </button>
+        ))}
+        <span className="mx-1 text-muted">|</span>
+        <button
+          type="button"
+          className={`btn btn--sm ${overdue ? "btn--primary" : ""}`}
+          aria-pressed={overdue}
+          onClick={toggleOverdue}
         >
-          {(
-            [
-              ["all", "Todas"],
-              ["unassigned", "Sin asignar"],
-              ...STATIONS.map(
-                (s) => [s, PRODUCTION_STATION_ES[s]] as [StationFilter, string],
-              ),
-            ] as [StationFilter, string][]
-          ).map(([key, label]) => {
-            const count =
-              key === "all"
-                ? items.length
-                : items.filter((i) =>
-                    key === "unassigned"
-                      ? i.station === null
-                      : i.station === key,
-                  ).length;
-            return (
-              <button
-                key={key}
-                type="button"
-                className={`btn btn--sm ${stationFilter === key ? "btn--primary" : ""}`}
-                onClick={() => setStationFilter(key)}
-              >
-                {label} ({count})
-              </button>
-            );
-          })}
-        </div>
-      )}
+          {I.clock} Vencidos
+        </button>
+      </div>
 
       {loading ? (
         <div className="card">
@@ -188,13 +200,15 @@ export default function ProductionPage() {
       ) : items.length === 0 ? (
         <div className="card">
           <div className="card__body text-muted">
-            No hay jobs en producción. Las ventas nuevas aparecerán aquí.
+            {hasFilter
+              ? "Ningún job coincide con el filtro."
+              : "No hay jobs en producción. Las ventas nuevas aparecerán aquí."}
           </div>
         </div>
       ) : (
         <div className="grid gap-4">
           {PIPELINE.map((stage) => {
-            const stageItems = filteredItems.filter((i) => i.status === stage);
+            const stageItems = items.filter((i) => i.status === stage);
             if (stageItems.length === 0) return null;
             return (
               <div className="card" key={stage}>
@@ -317,6 +331,30 @@ export default function ProductionPage() {
               </div>
             );
           })}
+        </div>
+      )}
+
+      {!loading && total > PAGE_SIZE && (
+        <div className="flex items-center justify-center gap-3 mt-4">
+          <button
+            className="btn btn--sm"
+            type="button"
+            disabled={page === 0}
+            onClick={() => setPage((p) => Math.max(0, p - 1))}
+          >
+            Anterior
+          </button>
+          <span className="text-muted text-xs">
+            Página {page + 1} de {totalPages}
+          </span>
+          <button
+            className="btn btn--sm"
+            type="button"
+            disabled={page + 1 >= totalPages}
+            onClick={() => setPage((p) => p + 1)}
+          >
+            Siguiente
+          </button>
         </div>
       )}
     </>
