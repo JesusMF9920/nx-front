@@ -23,6 +23,7 @@ export const ORDER_STATUS_ES: Record<ApiOrderStatus, string> = {
 export const PAYMENT_METHOD_ES: Record<ApiPaymentMethod, string> = {
   cash: "Efectivo",
   terminal: "Terminal",
+  transfer: "Transferencia",
 };
 
 /**
@@ -31,10 +32,13 @@ export const PAYMENT_METHOD_ES: Record<ApiPaymentMethod, string> = {
  */
 export function paymentLabel(order: {
   paymentMethods: ApiPaymentMethod[];
-}): "Efectivo" | "Terminal" | "Mixto" | "Pendiente" {
+}): "Efectivo" | "Terminal" | "Transferencia" | "Mixto" | "Pendiente" {
   if (order.paymentMethods.length === 0) return "Pendiente";
   if (order.paymentMethods.length > 1) return "Mixto";
-  return order.paymentMethods[0] === "cash" ? "Efectivo" : "Terminal";
+  return PAYMENT_METHOD_ES[order.paymentMethods[0]] as
+    | "Efectivo"
+    | "Terminal"
+    | "Transferencia";
 }
 
 /** Status que la UI ofrece como transición manual (sin pending/cancelled). */

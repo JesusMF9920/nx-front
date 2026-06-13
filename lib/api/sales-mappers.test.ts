@@ -35,6 +35,7 @@ describe("paymentLabel", () => {
   it("un método → su etiqueta", () => {
     expect(paymentLabel({ paymentMethods: ["cash"] })).toBe("Efectivo");
     expect(paymentLabel({ paymentMethods: ["terminal"] })).toBe("Terminal");
+    expect(paymentLabel({ paymentMethods: ["transfer"] })).toBe("Transferencia");
   });
 
   it("más de un método → Mixto (nunca almacenado, siempre derivado)", () => {
@@ -88,10 +89,11 @@ describe("mapas exhaustivos y fallbacks", () => {
     expect(QUOTE_CHANNEL_ES.in_person).toBe("Presencial");
   });
 
-  it("PAYMENT_METHOD_ES cubre cash y terminal", () => {
+  it("PAYMENT_METHOD_ES cubre cash, terminal y transfer", () => {
     expect(PAYMENT_METHOD_ES).toEqual({
       cash: "Efectivo",
       terminal: "Terminal",
+      transfer: "Transferencia",
     });
   });
 

@@ -6,10 +6,11 @@ import type { paymentLabel } from "@/lib/api/sales-mappers";
 type PaymentLabel = ReturnType<typeof paymentLabel>;
 
 const MAP: Record<PaymentLabel, { cls: string; icon: ReactNode; label: string }> = {
-  Efectivo:  { cls: "pill--neutral", icon: I.cash,   label: "Efectivo" },
-  Terminal:  { cls: "pill--info",    icon: I.card,   label: "Terminal" },
-  Mixto:     { cls: "pill--accent",  icon: I.layers, label: "Mixto" },
-  Pendiente: { cls: "pill--danger",  icon: I.clock,  label: "Pendiente" },
+  Efectivo:      { cls: "pill--neutral", icon: I.cash,   label: "Efectivo" },
+  Terminal:      { cls: "pill--info",    icon: I.card,   label: "Terminal" },
+  Transferencia: { cls: "pill--info",    icon: I.card,   label: "Transferencia" },
+  Mixto:         { cls: "pill--accent",  icon: I.layers, label: "Mixto" },
+  Pendiente:     { cls: "pill--danger",  icon: I.clock,  label: "Pendiente" },
 };
 
 export function PaymentPill({ method }: { method: PaymentLabel }) {

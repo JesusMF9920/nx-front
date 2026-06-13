@@ -87,6 +87,12 @@ export function QuoteConvertModal({ quote, onClose, onConverted }: Props) {
           { method: "terminal", amount: chargeNow, ...(ref ? { reference: ref } : {}) },
         ];
       }
+      case "Transferencia": {
+        const ref = reference.trim();
+        return [
+          { method: "transfer", amount: chargeNow, ...(ref ? { reference: ref } : {}) },
+        ];
+      }
       case "Mixto": {
         const out: CheckoutPaymentInput[] = [];
         if (mixedCashNum > 0) out.push({ method: "cash", amount: round2(mixedCashNum) });

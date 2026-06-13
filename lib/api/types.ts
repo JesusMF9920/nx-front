@@ -343,7 +343,7 @@ export type ApiOrderStatus =
   | "delivered"
   | "cancelled";
 
-export type ApiPaymentMethod = "cash" | "terminal";
+export type ApiPaymentMethod = "cash" | "terminal" | "transfer";
 
 export type ApiPayment = {
   id: string;

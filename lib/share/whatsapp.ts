@@ -62,6 +62,25 @@ export function buildQuoteWhatsappMessage(args: {
   );
 }
 
+export function buildOrderReceiptWhatsappMessage(args: {
+  clientName: string;
+  folio: string;
+  total: number;
+  /** Saldo pendiente tras el cobro (0 si quedó liquidado). */
+  balance: number;
+}): string {
+  const saldo =
+    args.balance > 0
+      ? `\nSaldo pendiente: ${fmtMXN(args.balance)} (se liquida en la entrega).`
+      : "";
+  // Sin emojis: el redirect de wa.me corrompe caracteres de 4 bytes (U+FFFD).
+  return (
+    `Hola ${args.clientName}:\n` +
+    `Gracias por tu compra. Tu pedido ${args.folio} quedó registrado ` +
+    `por un total de ${fmtMXN(args.total)}.${saldo}`
+  );
+}
+
 export function buildProofWhatsappMessage(args: {
   businessName: string;
   clientName: string;

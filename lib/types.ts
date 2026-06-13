@@ -20,7 +20,12 @@ export type SizeBreakdownEntry = {
   surcharge: number;
 };
 
-export type PaymentMethod = "Efectivo" | "Terminal" | "Mixto" | "Crédito";
+export type PaymentMethod =
+  | "Efectivo"
+  | "Terminal"
+  | "Transferencia"
+  | "Mixto"
+  | "Crédito";
 
 export type CartLine = {
   lineId: string;

@@ -23,6 +23,10 @@ import { ApiError } from "@/lib/api/errors";
 import { inventoryApi } from "@/lib/api/inventory";
 import { ordersApi, type CheckoutLineInput } from "@/lib/api/orders";
 import { openLetterTicket, printThermalTicket } from "@/lib/print/order-ticket";
+import {
+  buildOrderReceiptWhatsappMessage,
+  buildWaMeUrl,
+} from "@/lib/share/whatsapp";
 import type {
   ApiClient,
   ApiMaterial,
@@ -733,23 +737,37 @@ export default function POSPage() {
           discount={discount}
           deliverAt={deliverAt || undefined}
           customerEmail={client.email ?? undefined}
+          customerPhone={client.phone ?? undefined}
           onClose={() => setShowPay(false)}
           onPaid={(res, prints) => {
             setShowPay(false);
             setCart([]);
             setDiscount(0);
             setDeliverAt("");
+            // WhatsApp: abrir wa.me lo antes posible (mejor chance frente al
+            // bloqueo de pop-ups, antes de navegar fuera del POS).
+            if (prints.whatsapp && client.phone) {
+              const balance = Math.round((res.total - res.paid) * 100) / 100;
+              const msg = buildOrderReceiptWhatsappMessage({
+                clientName: client.name,
+                folio: res.folio,
+                total: res.total,
+                balance,
+              });
+              window.open(buildWaMeUrl(client.phone, msg), "_blank", "noopener");
+            }
             void (async () => {
-              // La venta YA existe: si la impresión falla, avisar en consola
-              // y navegar igual — nunca bloquear el flujo de cobro.
+              // La venta YA existe: si una acción de comprobante falla, avisar
+              // en consola y navegar igual — nunca bloquear el flujo de cobro.
               try {
                 if (prints.printThermal) {
                   const order = await ordersApi.get(res.folio);
                   await printThermalTicket(order);
                 }
                 if (prints.printLetter) await openLetterTicket(res.folio);
+                if (prints.emailReceipt) await ordersApi.sendReceipt(res.orderId);
               } catch (err) {
-                console.warn("No se pudo imprimir el ticket:", err);
+                console.warn("No se pudo completar una acción de comprobante:", err);
               }
               router.push(`/orders/${res.folio}`);
             })();
