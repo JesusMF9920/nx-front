@@ -13,6 +13,11 @@ const business = (
   email: null,
   logoKey: null,
   logoUrl: null,
+  taxRegimen: null,
+  postalCode: null,
+  defaultClaveProdServ: null,
+  defaultClaveUnidad: null,
+  defaultObjetoImpuesto: null,
   updatedAt: null,
   ...over,
 });

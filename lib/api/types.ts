@@ -188,6 +188,10 @@ export type ApiClient = {
   email: string | null;
   rfc: string | null;
   taxRegimen: string | null;
+  /** CFDI — razón social fiscal si difiere del nombre comercial. */
+  fiscalName: string | null;
+  /** CFDI — uso del CFDI por defecto (c_UsoCFDI). */
+  usoCFDI: string | null;
   notes: string | null;
   tags: string[];
   additionalPhones: string[];
@@ -245,6 +249,10 @@ export type ApiProduct = {
   unit: string;
   needsApproval: boolean;
   isActive: boolean;
+  /** CFDI — códigos SAT del concepto (null = hereda el default del negocio). */
+  claveProdServ: string | null;
+  claveUnidad: string | null;
+  objetoImpuesto: string | null;
   variantType: ApiVariantType;
   createdAt: string;
   updatedAt: string;
@@ -775,6 +783,14 @@ export type ApiBusinessSettings = {
   logoKey: string | null;
   /** GET presignada temporal (TTL 10 min); null sin logo o sin storage. */
   logoUrl: string | null;
+  /** CFDI — régimen fiscal SAT del emisor (c_RegimenFiscal). */
+  taxRegimen: string | null;
+  /** CFDI — CP del domicilio fiscal / lugar de expedición. */
+  postalCode: string | null;
+  /** CFDI — defaults SAT de conceptos (override por producto). */
+  defaultClaveProdServ: string | null;
+  defaultClaveUnidad: string | null;
+  defaultObjetoImpuesto: string | null;
   updatedAt: string | null;
 };
 

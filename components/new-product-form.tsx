@@ -12,6 +12,7 @@ import {
 } from "@/components/recipe-editor";
 import { catalogApi, type CreateProductInput } from "@/lib/api/catalog";
 import { ApiError } from "@/lib/api/errors";
+import { CLAVE_UNIDAD, OBJETO_IMPUESTO } from "@/lib/sat-catalogs";
 import type {
   ApiMaterial,
   ApiProductSource,
@@ -50,6 +51,10 @@ export function NewProductForm({
   const [stock, setStock] = useState("0");
   const [unit, setUnit] = useState("pieza");
   const [needsApproval, setNeedsApproval] = useState(false);
+  // CFDI — códigos SAT del concepto (vacío = hereda el default del negocio).
+  const [claveProdServ, setClaveProdServ] = useState("");
+  const [claveUnidad, setClaveUnidad] = useState("");
+  const [objetoImpuesto, setObjetoImpuesto] = useState("");
 
   const [variantType, setVariantType] = useState<ApiVariantType>("none");
   const [sizedMaterial, setSizedMaterial] = useState<ApiMaterial | null>(null);
@@ -136,6 +141,9 @@ export function NewProductForm({
       stock: stockDisabled ? 0 : stockNum,
       unit: unit.trim() || "pieza",
       needsApproval,
+      claveProdServ: claveProdServ.trim() || null,
+      claveUnidad: claveUnidad.trim() || null,
+      objetoImpuesto: objetoImpuesto.trim() || null,
       variantType,
       sizeSurcharges,
       sizedFromMaterialId,
@@ -349,6 +357,53 @@ export function NewProductForm({
             />
             Requiere aprobación del cliente
           </label>
+        </div>
+
+        <div className="field col-span-full mt-1">
+          <span className="label">Códigos SAT (CFDI) — opcional</span>
+          <small className="help mb-1.5 block">
+            Déjalos vacíos para heredar el default del negocio (Configuración →
+            Datos fiscales).
+          </small>
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(3, 1fr)",
+              gap: 8,
+            }}
+          >
+            <input
+              className="input"
+              value={claveProdServ}
+              onChange={(e) => setClaveProdServ(e.target.value)}
+              placeholder="ClaveProdServ"
+              maxLength={8}
+            />
+            <select
+              className="input"
+              value={claveUnidad}
+              onChange={(e) => setClaveUnidad(e.target.value)}
+            >
+              <option value="">ClaveUnidad…</option>
+              {CLAVE_UNIDAD.map((u) => (
+                <option key={u.code} value={u.code}>
+                  {u.label}
+                </option>
+              ))}
+            </select>
+            <select
+              className="input"
+              value={objetoImpuesto}
+              onChange={(e) => setObjetoImpuesto(e.target.value)}
+            >
+              <option value="">Objeto imp…</option>
+              {OBJETO_IMPUESTO.map((o) => (
+                <option key={o.code} value={o.code}>
+                  {o.label}
+                </option>
+              ))}
+            </select>
+          </div>
         </div>
 
         <div className="field col-span-full mt-1">

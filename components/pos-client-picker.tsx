@@ -179,6 +179,8 @@ export function PosClientPicker({ onClose, onSelect }: Props) {
         email: email.trim() || null,
         rfc: null,
         taxRegimen: null,
+        fiscalName: null,
+        usoCFDI: null,
         notes: null,
         tags: [],
         additionalPhones: [],

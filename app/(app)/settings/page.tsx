@@ -11,6 +11,11 @@ import {
 import { storageApi } from "@/lib/api/storage";
 import type { ApiBusinessSettings, ApiFeatureFlag } from "@/lib/api/types";
 import { useAuth, usePermission } from "@/lib/auth/auth-context";
+import {
+  CLAVE_UNIDAD,
+  OBJETO_IMPUESTO,
+  REGIMEN_FISCAL,
+} from "@/lib/sat-catalogs";
 
 function errMsg(err: unknown): string {
   if (err instanceof ApiError) return err.message;
@@ -36,6 +41,16 @@ export default function SettingsPage() {
   const [saved, setSaved] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
 
+  // Datos fiscales (CFDI): emisor + defaults de conceptos.
+  const [taxRegimen, setTaxRegimen] = useState("");
+  const [postalCode, setPostalCode] = useState("");
+  const [defClaveProdServ, setDefClaveProdServ] = useState("");
+  const [defClaveUnidad, setDefClaveUnidad] = useState("");
+  const [defObjetoImpuesto, setDefObjetoImpuesto] = useState("");
+  const [fiscalSaving, setFiscalSaving] = useState(false);
+  const [fiscalSaved, setFiscalSaved] = useState(false);
+  const [fiscalError, setFiscalError] = useState<string | null>(null);
+
   const [logoBusy, setLogoBusy] = useState(false);
   const [logoError, setLogoError] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -60,6 +75,11 @@ export default function SettingsPage() {
         setPhone(biz.phone ?? "");
         setRfc(biz.rfc ?? "");
         setEmail(biz.email ?? "");
+        setTaxRegimen(biz.taxRegimen ?? "");
+        setPostalCode(biz.postalCode ?? "");
+        setDefClaveProdServ(biz.defaultClaveProdServ ?? "");
+        setDefClaveUnidad(biz.defaultClaveUnidad ?? "");
+        setDefObjetoImpuesto(biz.defaultObjetoImpuesto ?? "");
         setError(null);
       } catch (err) {
         if (!cancelled) setError(errMsg(err));
@@ -111,6 +131,33 @@ export default function SettingsPage() {
       setFormError(errMsg(err));
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function saveFiscal(e: React.FormEvent) {
+    e.preventDefault();
+    if (fiscalSaving) return;
+    setFiscalSaving(true);
+    setFiscalSaved(false);
+    setFiscalError(null);
+    const norm = (v: string) => {
+      const t = v.trim();
+      return t.length > 0 ? t : null;
+    };
+    try {
+      const updated = await settingsApi.updateBusiness({
+        taxRegimen: norm(taxRegimen),
+        postalCode: norm(postalCode),
+        defaultClaveProdServ: norm(defClaveProdServ),
+        defaultClaveUnidad: norm(defClaveUnidad),
+        defaultObjetoImpuesto: norm(defObjetoImpuesto),
+      });
+      setBusiness(updated);
+      setFiscalSaved(true);
+    } catch (err) {
+      setFiscalError(errMsg(err));
+    } finally {
+      setFiscalSaving(false);
     }
   }
 
@@ -258,6 +305,119 @@ export default function SettingsPage() {
                 {saving ? "Guardando…" : "Guardar cambios"}
               </button>
               {saved && (
+                <span className="text-xs" style={{ color: "var(--ok)" }}>
+                  Guardado ✓
+                </span>
+              )}
+            </div>
+          </form>
+        </div>
+
+        {/* ── Datos fiscales (CFDI) ─────────────────────────────────── */}
+        <div className="card" style={{ padding: 16 }}>
+          <h2 className="text-sm font-semibold mb-1">Datos fiscales (CFDI)</h2>
+          <p className="text-muted text-xs mb-4">
+            Necesarios para emitir facturas (CFDI 4.0). El régimen y el código
+            postal son los del emisor; las claves SAT son el default de los
+            conceptos cuando un producto no define las suyas.
+          </p>
+
+          <form onSubmit={saveFiscal} className="grid" style={{ gap: 14 }}>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="field">
+                <span className="label">Régimen fiscal</span>
+                <select
+                  className="input"
+                  value={taxRegimen}
+                  onChange={(e) => setTaxRegimen(e.target.value)}
+                  disabled={loading || fiscalSaving}
+                >
+                  <option value="">— Selecciona —</option>
+                  {REGIMEN_FISCAL.map((r) => (
+                    <option key={r.code} value={r.code}>
+                      {r.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="field">
+                <span className="label">Código postal (lugar de expedición)</span>
+                <input
+                  className="input"
+                  value={postalCode}
+                  onChange={(e) => setPostalCode(e.target.value)}
+                  disabled={loading || fiscalSaving}
+                  inputMode="numeric"
+                  maxLength={5}
+                  placeholder="00000"
+                />
+              </div>
+            </div>
+
+            <div className="text-muted text-xs -mb-1 mt-1">
+              Defaults de conceptos (override por producto)
+            </div>
+            <div className="grid grid-cols-3 gap-3">
+              <div className="field">
+                <span className="label">ClaveProdServ</span>
+                <input
+                  className="input"
+                  value={defClaveProdServ}
+                  onChange={(e) => setDefClaveProdServ(e.target.value)}
+                  disabled={loading || fiscalSaving}
+                  maxLength={8}
+                  placeholder="82121500"
+                />
+              </div>
+              <div className="field">
+                <span className="label">ClaveUnidad</span>
+                <select
+                  className="input"
+                  value={defClaveUnidad}
+                  onChange={(e) => setDefClaveUnidad(e.target.value)}
+                  disabled={loading || fiscalSaving}
+                >
+                  <option value="">— Selecciona —</option>
+                  {CLAVE_UNIDAD.map((u) => (
+                    <option key={u.code} value={u.code}>
+                      {u.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="field">
+                <span className="label">Objeto de impuesto</span>
+                <select
+                  className="input"
+                  value={defObjetoImpuesto}
+                  onChange={(e) => setDefObjetoImpuesto(e.target.value)}
+                  disabled={loading || fiscalSaving}
+                >
+                  <option value="">— Selecciona —</option>
+                  {OBJETO_IMPUESTO.map((o) => (
+                    <option key={o.code} value={o.code}>
+                      {o.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            {fiscalError && (
+              <div className="text-xs" style={{ color: "var(--danger)" }}>
+                {fiscalError}
+              </div>
+            )}
+
+            <div className="flex items-center gap-2">
+              <button
+                className="btn btn--accent"
+                type="submit"
+                disabled={loading || fiscalSaving}
+              >
+                {fiscalSaving ? "Guardando…" : "Guardar datos fiscales"}
+              </button>
+              {fiscalSaved && (
                 <span className="text-xs" style={{ color: "var(--ok)" }}>
                   Guardado ✓
                 </span>
