@@ -7,6 +7,7 @@ import { Avatar } from "@/components/avatar";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { I } from "@/components/icons";
 import { Modal } from "@/components/modal";
+import { OrderEditLinesModal } from "@/components/order-edit-lines-modal";
 import { OrderPaymentModal } from "@/components/order-payment-modal";
 import { OrderRefundModal } from "@/components/order-refund-modal";
 import { OrderStatusBanner } from "@/components/order-status-banner";
@@ -133,6 +134,7 @@ export default function OrderDetailPage() {
   const [deliverAfterPay, setDeliverAfterPay] = useState(false);
   const [showRefund, setShowRefund] = useState(false);
   const [showCancel, setShowCancel] = useState(false);
+  const [showEditLines, setShowEditLines] = useState(false);
   const [transitioning, setTransitioning] = useState(false);
   const [itemBusy, setItemBusy] = useState<string | null>(null);
   const [deliverDraft, setDeliverDraft] = useState("");
@@ -211,6 +213,18 @@ export default function OrderDetailPage() {
   }, [users]);
 
   const isCancelled = detail?.status === "cancelled";
+  // Editable mientras ningún job salió de la cola (ready_for_delivery/delivered)
+  // y no esté cancelado. El backend revalida (incl. pruebas de diseño) y devuelve
+  // 409 si ya no aplica.
+  const isEditable =
+    !!detail &&
+    canManage &&
+    !isCancelled &&
+    detail.status !== "delivered" &&
+    detail.items.every(
+      (it) =>
+        it.status !== "ready_for_delivery" && it.status !== "delivered",
+    );
   const pending = detail ? Math.max(0, +(detail.total - detail.paid).toFixed(2)) : 0;
   const metaDirty = detail
     ? deliverDraft !== toDateInput(detail.deliverAt) ||
@@ -427,6 +441,15 @@ export default function OrderDetailPage() {
             )}
             <button className="btn">{I.mail} Enviar comprobante</button>
             <button className="btn btn--accent">{I.send} Notificar al cliente</button>
+            {isEditable && (
+              <button
+                className="btn"
+                type="button"
+                onClick={() => setShowEditLines(true)}
+              >
+                {I.edit} Editar líneas
+              </button>
+            )}
             {canCancel && !isCancelled && detail.status !== "delivered" && (
               <button
                 className="btn btn--danger"
@@ -522,6 +545,11 @@ export default function OrderDetailPage() {
                             {j.variantLabel ? ` — ${j.variantLabel}` : ""}
                           </div>
                           <div className="text-muted text-[11px] font-mono">{j.sku}</div>
+                          {j.lineNote && (
+                            <div className="text-[11px] mt-0.5 italic text-muted">
+                              📝 {j.lineNote}
+                            </div>
+                          )}
                           {j.sizeBreakdown && j.sizeBreakdown.length > 0 && (
                             <div className="text-muted text-[11px]">
                               {j.sizeBreakdown
@@ -860,6 +888,14 @@ export default function OrderDetailPage() {
         <OrderRefundModal
           order={detail}
           onClose={() => setShowRefund(false)}
+          onDone={load}
+        />
+      )}
+
+      {showEditLines && (
+        <OrderEditLinesModal
+          order={detail}
+          onClose={() => setShowEditLines(false)}
           onDone={load}
         />
       )}

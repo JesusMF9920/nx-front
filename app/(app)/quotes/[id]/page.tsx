@@ -467,6 +467,11 @@ export default function QuoteDetailPage() {
                       <div className="text-muted text-[11px] font-mono">
                         {it.sku}
                       </div>
+                      {it.lineNote && (
+                        <div className="text-[11px] mt-0.5 italic text-muted">
+                          📝 {it.lineNote}
+                        </div>
+                      )}
                       {it.sizeBreakdown && it.sizeBreakdown.length > 0 && (
                         <div className="text-muted text-[11px]">
                           {it.sizeBreakdown

@@ -29,7 +29,14 @@ export type PaymentMethod =
 
 export type CartLine = {
   lineId: string;
+  /** productId de catálogo, o '' en líneas ad-hoc (producto libre). */
   id: string;
+  /** true ⇒ línea ad-hoc: name/price capturados a mano, sin productId. */
+  isAdHoc?: boolean;
+  /** Costo unitario opcional de la línea ad-hoc (margen de reportes). */
+  adHocCost?: number;
+  /** Nota libre por línea (instrucciones de producción). */
+  lineNote?: string;
   name: string;
   sku: string;
   source: ProductSource;

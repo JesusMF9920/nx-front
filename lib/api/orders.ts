@@ -12,7 +12,16 @@ import type {
 } from "./types";
 
 export type CheckoutLineInput = {
-  productId: string;
+  /** Opcional: una línea ad-hoc (producto libre) no lo trae y manda adHocName + adHocPrice. */
+  productId?: string;
+  /** Línea ad-hoc: nombre del producto libre (sin productId). */
+  adHocName?: string;
+  /** Línea ad-hoc: precio unitario capturado a mano (> 0). */
+  adHocPrice?: number;
+  /** Línea ad-hoc: costo unitario opcional (margen de reportes); default 0. */
+  adHocCost?: number;
+  /** Nota libre por línea (instrucciones de producción). */
+  lineNote?: string;
   /** Requerida para none/preset/size; ignorada para sized_from_material; para dimension se deriva. */
   qty?: number;
   /** Requerido para variantType preset/size. */
@@ -202,4 +211,25 @@ export const ordersApi = {
       body: JSON.stringify(patch),
     });
   },
+
+  /**
+   * Reemplaza las líneas de un pedido (corrección temprana). El backend
+   * re-cotiza, recalcula totales y valida el gating y total ≥ pagado (409).
+   */
+  editLines(
+    orderId: string,
+    input: { lines: CheckoutLineInput[]; discount?: number },
+  ): Promise<EditOrderLinesResult> {
+    return apiFetch<EditOrderLinesResult>(`/orders/${orderId}/lines`, {
+      method: "PATCH",
+      body: JSON.stringify(input),
+    });
+  },
+};
+
+export type EditOrderLinesResult = {
+  orderId: string;
+  folio: string;
+  total: number;
+  editSeq: number;
 };

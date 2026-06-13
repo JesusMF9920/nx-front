@@ -386,9 +386,14 @@ export type ApiDimensionData = {
 
 export type ApiOrderItem = {
   id: string;
-  productId: string;
+  /** Null en líneas ad-hoc (producto libre). */
+  productId: string | null;
+  /** Nombre del producto libre (ad-hoc); null en líneas de catálogo. */
+  adHocName: string | null;
   productName: string;
   sku: string;
+  /** Nota libre por línea; null si no hay. */
+  lineNote: string | null;
   qty: number;
   unitPrice: number;
   variantCode: string | null;
@@ -418,9 +423,17 @@ export type ApiProductionItem = {
   needsApproval: boolean;
   status: ApiOrderStatus;
   designVersion: number;
+  /** Estación del taller; null = "Sin asignar". */
+  station: ApiProductionStation | null;
   deliverAt: string | null;
   orderCreatedAt: string;
 };
+
+export type ApiProductionStation =
+  | "offset"
+  | "screen_printing"
+  | "large_format"
+  | "finishing";
 
 /** Forma del GET /orders (lista). */
 export type ApiOrder = {
@@ -467,9 +480,14 @@ export type ApiQuoteChannel = "whatsapp" | "email" | "link" | "in_person";
 
 export type ApiQuoteItem = {
   id: string;
-  productId: string;
+  /** Null en líneas ad-hoc (producto libre). */
+  productId: string | null;
+  /** Nombre del producto libre (ad-hoc); null en líneas de catálogo. */
+  adHocName: string | null;
   productName: string;
   sku: string;
+  /** Nota libre por línea; null si no hay. */
+  lineNote: string | null;
   qty: number;
   unitPrice: number;
   /** true ⇒ el precio unitario fue negociado a mano. */
