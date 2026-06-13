@@ -15,7 +15,6 @@ import { authApi } from "@/lib/api/auth";
 import { meApi } from "@/lib/api/me";
 import { settingsApi } from "@/lib/api/settings";
 import type { ApiMe, ApiRole, ApiUser } from "@/lib/api/types";
-import { tokenStorage } from "./tokens";
 
 export type AuthStatus = "loading" | "unauthenticated" | "authenticated";
 
@@ -79,19 +78,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const hydrated = useRef(false);
 
   const refresh = useCallback(async () => {
-    const stored = tokenStorage.read();
-    if (!stored) {
-      setState({ ...initialState, status: "unauthenticated" });
-      return;
-    }
+    // La sesión vive en cookies httpOnly que el front no puede leer; en el boot
+    // probamos /me directo. Si la cookie de access expiró pero la de refresh
+    // sigue viva, apiFetch la rota de forma transparente; un 401 definitivo
+    // (sin sesión) cae al catch → unauthenticated.
     try {
-      const [me, features] = await Promise.all([
-        meApi.get(),
-        fetchFeatures(),
-      ]);
+      const [me, features] = await Promise.all([meApi.get(), fetchFeatures()]);
       setState(stateFromMe(me, features));
     } catch {
-      tokenStorage.clear();
       setState({ ...initialState, status: "unauthenticated" });
     }
   }, []);
@@ -99,18 +93,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (hydrated.current) return;
     hydrated.current = true;
+    // Limpieza única: borra el token pre-migración que pudiera quedar en
+    // localStorage. La sesión ahora vive solo en cookies httpOnly; dejar el
+    // token viejo ahí sería un secreto colgando sin uso.
+    if (typeof window !== "undefined") {
+      window.localStorage.removeItem("nxpos.auth.v1");
+    }
     void refresh();
   }, [refresh]);
 
   const login = useCallback(
     async (email: string, password: string) => {
+      // El backend setea las cookies httpOnly en la respuesta del login.
       const res = await authApi.login(email, password);
-      tokenStorage.write({
-        accessToken: res.accessToken,
-        refreshToken: res.refreshToken,
-        accessExpiresAt: res.accessExpiresAt,
-        refreshExpiresAt: res.refreshExpiresAt,
-      });
       await refresh();
       return { mustChangePassword: res.user.mustChangePassword };
     },
@@ -118,15 +113,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   );
 
   const logout = useCallback(async () => {
-    const stored = tokenStorage.read();
-    if (stored) {
-      try {
-        await authApi.logout(stored.refreshToken);
-      } catch {
-        // best-effort — we always clear local state below
-      }
+    try {
+      // Bodyless: el backend lee el refresh de la cookie, lo revoca y limpia
+      // ambas cookies. Best-effort — limpiamos el estado local pase lo que pase.
+      await authApi.logout();
+    } catch {
+      // best-effort
     }
-    tokenStorage.clear();
     setState({ ...initialState, status: "unauthenticated" });
   }, []);
 

@@ -142,9 +142,9 @@ export type ApiPublicApproval = {
   comments: ApiDesignProofComment[];
 };
 
+// Los tokens NO viajan en el body: viven solo en las cookies httpOnly que setea
+// el backend. El front usa `user` + los expiry para UX.
 export type ApiLoginResponse = {
-  accessToken: string;
-  refreshToken: string;
   accessExpiresAt: string;
   refreshExpiresAt: string;
   user: ApiLoginUser;

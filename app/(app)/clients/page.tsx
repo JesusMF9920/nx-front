@@ -25,7 +25,6 @@ import type {
   ApiUser,
 } from "@/lib/api/types";
 import { usePermission } from "@/lib/auth/auth-context";
-import { tokenStorage } from "@/lib/auth/tokens";
 import { usersApi } from "@/lib/api/users";
 import { fmtDate, fmtMXN } from "@/lib/format";
 
@@ -100,10 +99,10 @@ async function downloadCsv(
     if (typeof v === "boolean") search.set(k, v ? "true" : "false");
     else search.set(k, String(v));
   }
-  const token = tokenStorage.read()?.accessToken;
+  // GET: la cookie httpOnly de access viaja sola por SameSite=Lax + credentials.
   const res = await fetch(
     `${base}/clients/export.csv${search.toString() ? `?${search.toString()}` : ""}`,
-    { headers: token ? { Authorization: `Bearer ${token}` } : {} },
+    { credentials: "include" },
   );
   if (!res.ok) throw new Error(`Export falló: ${res.status}`);
   const blob = await res.blob();

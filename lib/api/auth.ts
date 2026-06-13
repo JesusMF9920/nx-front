@@ -10,19 +10,18 @@ export const authApi = {
     );
   },
 
-  refresh(refreshToken: string): Promise<ApiLoginResponse> {
+  /** Bodyless: el refresh token viaja en su cookie httpOnly. */
+  refresh(): Promise<ApiLoginResponse> {
     return apiFetch<ApiLoginResponse>(
       "/auth/refresh",
-      { method: "POST", body: JSON.stringify({ refreshToken }) },
+      { method: "POST" },
       { auth: false },
     );
   },
 
-  logout(refreshToken: string): Promise<void> {
-    return apiFetch<void>("/auth/logout", {
-      method: "POST",
-      body: JSON.stringify({ refreshToken }),
-    });
+  /** Bodyless: el backend lee el refresh de la cookie y limpia ambas. */
+  logout(): Promise<void> {
+    return apiFetch<void>("/auth/logout", { method: "POST" });
   },
 
   /** Anti-enumeración: el backend responde igual exista o no la cuenta. */
