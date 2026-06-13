@@ -4,38 +4,11 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { apiFetch } from "./client";
 import { ApiError } from "./errors";
-import { tokenStorage, type StoredTokens } from "@/lib/auth/tokens";
 
-// tokenStorage mockeado con estado: write actualiza lo que read devuelve —
-// el retry post-refresh debe firmar con el token NUEVO.
-vi.mock("@/lib/auth/tokens", () => {
-  let stored: StoredTokens | null = null;
-  return {
-    tokenStorage: {
-      read: vi.fn(() => stored),
-      write: vi.fn((t: StoredTokens) => {
-        stored = t;
-      }),
-      clear: vi.fn(() => {
-        stored = null;
-      }),
-    },
-  };
-});
-
-const TOKENS: StoredTokens = {
-  accessToken: "A1",
-  refreshToken: "R1",
-  accessExpiresAt: "2026-01-01T00:15:00Z",
-  refreshExpiresAt: "2026-02-01T00:00:00Z",
-};
-
-const REFRESH_OK = {
-  accessToken: "A2",
-  refreshToken: "R2",
-  accessExpiresAt: "2026-01-01T00:30:00Z",
-  refreshExpiresAt: "2026-02-01T00:00:00Z",
-};
+// La sesión vive en cookies httpOnly (invisibles a JS): el front ya no lee ni
+// firma tokens. Lo verificable es que cada request manda `credentials:"include"`
+// (para que el navegador adjunte la cookie) y NO un header Authorization, y que
+// el 401→refresh→retry y su dedupe siguen funcionando.
 
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), {
@@ -48,15 +21,10 @@ const fetchMock = vi.fn<typeof fetch>();
 beforeEach(() => {
   vi.stubGlobal("fetch", fetchMock);
   fetchMock.mockReset();
-  tokenStorage.clear();
-  vi.mocked(tokenStorage.read).mockClear();
-  vi.mocked(tokenStorage.write).mockClear();
-  vi.mocked(tokenStorage.clear).mockClear();
-  tokenStorage.write(TOKENS);
 });
 
 describe("apiFetch — camino feliz", () => {
-  it("manda Authorization Bearer y parsea el JSON", async () => {
+  it("manda credentials:include, sin Authorization, y parsea el JSON", async () => {
     fetchMock.mockResolvedValueOnce(json({ ok: true }));
 
     const result = await apiFetch<{ ok: boolean }>("/orders");
@@ -64,7 +32,8 @@ describe("apiFetch — camino feliz", () => {
     expect(result).toEqual({ ok: true });
     const [url, init] = fetchMock.mock.calls[0];
     expect(url).toBe("/orders");
-    expect(new Headers(init?.headers).get("Authorization")).toBe("Bearer A1");
+    expect(init?.credentials).toBe("include");
+    expect(new Headers(init?.headers).has("Authorization")).toBe(false);
   });
 
   it("204 → undefined", async () => {
@@ -72,15 +41,6 @@ describe("apiFetch — camino feliz", () => {
 
     await expect(apiFetch("/orders/x", { method: "PATCH" })).resolves
       .toBeUndefined();
-  });
-
-  it("auth:false no firma el request (página pública)", async () => {
-    fetchMock.mockResolvedValueOnce(json({ ok: true }));
-
-    await apiFetch("/design/approvals/public/tok", {}, { auth: false });
-
-    const [, init] = fetchMock.mock.calls[0];
-    expect(new Headers(init?.headers).has("Authorization")).toBe(false);
   });
 });
 
@@ -98,6 +58,19 @@ describe("apiFetch — errores", () => {
     expect((err as ApiError).status).toBe(409);
     expect((err as ApiError).message).toBe("Stock insuficiente");
     expect(fetchMock).toHaveBeenCalledTimes(1); // sin retry para no-401
+  });
+
+  it("auth:false NO intenta refresh en 401 (página pública)", async () => {
+    fetchMock.mockResolvedValueOnce(json({ message: "nope" }, 401));
+
+    const err = await apiFetch("/design/approvals/public/tok", {}, { auth: false })
+      .catch((e: unknown) => e);
+
+    expect(err).toBeInstanceOf(ApiError);
+    expect((err as ApiError).status).toBe(401);
+    expect(fetchMock).toHaveBeenCalledTimes(1); // ni refresh ni retry
+    const [, init] = fetchMock.mock.calls[0];
+    expect(init?.credentials).toBe("include");
   });
 });
 
@@ -118,9 +91,9 @@ describe("apiFetch — flujo 401/refresh", () => {
     });
   };
 
-  it("401 → refresh OK → retry exactamente una vez con el token nuevo", async () => {
+  it("401 → refresh OK → retry exactamente una vez (bodyless, con cookie)", async () => {
     route({
-      refresh: () => json(REFRESH_OK),
+      refresh: () => json({ ok: true }),
       other: (call) =>
         call === 1 ? json({ message: "expired" }, 401) : json({ ok: true }),
     });
@@ -129,14 +102,20 @@ describe("apiFetch — flujo 401/refresh", () => {
 
     expect(result).toEqual({ ok: true });
     expect(fetchMock).toHaveBeenCalledTimes(3); // orders(401) + refresh + orders(200)
-    const lastInit = fetchMock.mock.calls[2][1];
-    expect(new Headers(lastInit?.headers).get("Authorization")).toBe(
-      "Bearer A2",
-    );
-    expect(tokenStorage.write).toHaveBeenCalledWith(REFRESH_OK);
+
+    // El refresh es bodyless y manda la cookie (credentials:include).
+    const refreshInit = fetchMock.mock.calls[1][1];
+    expect(refreshInit?.method).toBe("POST");
+    expect(refreshInit?.body).toBeUndefined();
+    expect(refreshInit?.credentials).toBe("include");
+
+    // El retry re-dispara el request original con credentials:include.
+    const retryInit = fetchMock.mock.calls[2][1];
+    expect(retryInit?.credentials).toBe("include");
+    expect(new Headers(retryInit?.headers).has("Authorization")).toBe(false);
   });
 
-  it("401 → refresh falla → clear + redirect a /login + ApiError 401", async () => {
+  it("401 → refresh falla → redirect a /login + ApiError 401", async () => {
     route({
       refresh: () => json({ message: "nope" }, 401),
       other: () => json({ message: "expired" }, 401),
@@ -146,7 +125,6 @@ describe("apiFetch — flujo 401/refresh", () => {
 
     expect(err).toBeInstanceOf(ApiError);
     expect((err as ApiError).status).toBe(401);
-    expect(tokenStorage.clear).toHaveBeenCalled();
     expect(window.location.href).toContain("/login");
   });
 
@@ -155,7 +133,7 @@ describe("apiFetch — flujo 401/refresh", () => {
     route({
       refresh: () => {
         refreshCalls += 1;
-        return json(REFRESH_OK);
+        return json({ ok: true });
       },
       other: () => json({ message: "expired" }, 401),
     });
@@ -176,7 +154,7 @@ describe("apiFetch — flujo 401/refresh", () => {
         refreshCalls += 1;
         // Pequeña espera para que ambos 401 lleguen ANTES de resolver.
         await new Promise((r) => setTimeout(r, 10));
-        return json(REFRESH_OK);
+        return json({ ok: true });
       }
       otherCalls += 1;
       return otherCalls <= 2
