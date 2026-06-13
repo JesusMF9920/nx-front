@@ -48,7 +48,9 @@ export default function UsersPage() {
   const [deactivateTarget, setDeactivateTarget] = useState<ApiUser | null>(
     null,
   );
+  const [resendTarget, setResendTarget] = useState<ApiUser | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
+  const [actionNotice, setActionNotice] = useState<string | null>(null);
   const [query, setQuery] = useState("");
 
   const { user: currentUser } = useAuth();
@@ -77,6 +79,15 @@ export default function UsersPage() {
       },
     ];
     if (u.isActive) {
+      // Pendiente de verificar el correo = no ha aceptado la invitación;
+      // permite reenviar el correo (p.ej. si el token venció).
+      if (!u.emailVerifiedAt) {
+        items.push({
+          label: "Reenviar invitación",
+          icon: I.mail,
+          onClick: () => setResendTarget(u),
+        });
+      }
       items.push({
         label: "Restablecer contraseña",
         icon: I.lock,
@@ -216,6 +227,29 @@ export default function UsersPage() {
               {I.x}
             </button>
           )}
+        </div>
+      )}
+
+      {actionNotice && (
+        <div
+          className="card mb-5 flex items-start gap-2"
+          style={{
+            padding: 12,
+            border: "1px solid var(--ok)",
+            color: "var(--ok)",
+            background: "var(--ok-soft)",
+          }}
+          role="status"
+        >
+          <span className="flex-1">{actionNotice}</span>
+          <button
+            className="icon-btn"
+            onClick={() => setActionNotice(null)}
+            aria-label="Cerrar mensaje"
+            type="button"
+          >
+            {I.x}
+          </button>
         </div>
       )}
 
@@ -430,6 +464,15 @@ export default function UsersPage() {
                 >
                   {I.edit} Editar usuario
                 </button>
+                {selected.isActive && !selected.emailVerifiedAt && (
+                  <button
+                    className="btn btn--sm"
+                    onClick={() => setResendTarget(selected)}
+                    title="Envía una nueva invitación por correo (p.ej. si el enlace venció)"
+                  >
+                    {I.mail} Reenviar invitación
+                  </button>
+                )}
                 {selected.isActive && (
                   <button
                     className="btn btn--sm"
@@ -545,6 +588,38 @@ export default function UsersPage() {
                 err instanceof ApiError
                   ? err.message
                   : "No se pudo desactivar al usuario.",
+              );
+            }
+          }}
+        />
+      )}
+
+      {resendTarget && (
+        <ConfirmDialog
+          title="Reenviar invitación"
+          confirmLabel="Reenviar"
+          message={
+            <>
+              Se enviará una nueva invitación por correo a{" "}
+              <span className="font-medium text-ink-2">
+                {resendTarget.email}
+              </span>
+              . El enlace anterior dejará de funcionar.
+            </>
+          }
+          onClose={() => setResendTarget(null)}
+          onConfirm={async () => {
+            const email = resendTarget.email;
+            try {
+              await usersApi.resendInvite(resendTarget.id);
+              setResendTarget(null);
+              setActionError(null);
+              setActionNotice(`Invitación reenviada a ${email}.`);
+            } catch (err) {
+              throw new Error(
+                err instanceof ApiError
+                  ? err.message
+                  : "No se pudo reenviar la invitación.",
               );
             }
           }}
