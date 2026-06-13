@@ -127,6 +127,8 @@ export default function OrderDetailPage() {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [missing, setMissing] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
+  const [actionNotice, setActionNotice] = useState<string | null>(null);
+  const [resending, setResending] = useState(false);
   const [showPayment, setShowPayment] = useState(false);
   // Liquidación al entregar: si hay saldo al pasar a "Entregado", se ofrece
   // cobrarlo antes (deliverAfterPay encadena la entrega tras registrar el pago).
@@ -401,6 +403,25 @@ export default function OrderDetailPage() {
     }
   };
 
+  const resendReceipt = async () => {
+    if (resending) return;
+    setResending(true);
+    setActionError(null);
+    setActionNotice(null);
+    try {
+      await ordersApi.sendReceipt(detail.id);
+      setActionNotice("Recibo reenviado por correo.");
+    } catch (err) {
+      setActionError(
+        err instanceof ApiError
+          ? err.message
+          : "No se pudo reenviar el recibo por correo.",
+      );
+    } finally {
+      setResending(false);
+    }
+  };
+
   return (
     <>
       {breadcrumb}
@@ -436,6 +457,14 @@ export default function OrderDetailPage() {
                   onClick={() => void openLetter()}
                 >
                   {I.printer} Ticket carta (PDF)
+                </button>
+                <button
+                  className="btn"
+                  type="button"
+                  disabled={resending}
+                  onClick={() => void resendReceipt()}
+                >
+                  {I.receipt} {resending ? "Reenviando…" : "Reenviar recibo"}
                 </button>
               </>
             )}
@@ -478,6 +507,29 @@ export default function OrderDetailPage() {
           <button
             className="icon-btn"
             onClick={() => setActionError(null)}
+            aria-label="Cerrar mensaje"
+            type="button"
+          >
+            {I.x}
+          </button>
+        </div>
+      )}
+
+      {actionNotice && (
+        <div
+          className="card mb-3 flex items-start gap-2"
+          style={{
+            padding: 12,
+            border: "1px solid var(--ok)",
+            color: "var(--ok)",
+            background: "var(--surface)",
+          }}
+          role="status"
+        >
+          <span className="flex-1">{actionNotice}</span>
+          <button
+            className="icon-btn"
+            onClick={() => setActionNotice(null)}
             aria-label="Cerrar mensaje"
             type="button"
           >

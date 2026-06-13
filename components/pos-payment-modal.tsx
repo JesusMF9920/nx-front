@@ -123,6 +123,9 @@ export function PosPaymentModal({
   const [stockBlocked, setStockBlocked] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  // Key estable por apertura del modal: un reintento tras timeout de red reusa
+  // el mismo header idempotency-key y el backend no crea un pedido duplicado.
+  const [idemKey] = useState(() => crypto.randomUUID());
 
   const loadPreview = async () => {
     setPreviewLoading(true);
@@ -237,21 +240,24 @@ export function PosPaymentModal({
     setSubmitting(true);
     setSubmitError(null);
     try {
-      const res = await posApi.checkout({
-        clientId,
-        lines,
-        ...(discount > 0 ? { discount } : {}),
-        payments: buildPayments(),
-        expectedTotal: preview.total,
-        // El input date da "YYYY-MM-DD"; lo anclamos a mediodía LOCAL antes de
-        // serializar a ISO para que el backend no lo interprete como medianoche
-        // UTC y la fecha no retroceda un día al renderizar en zonas al oeste de
-        // UTC (mismo patrón que el editor de fecha en orders/[id]).
-        ...(deliverAt
-          ? { deliverAt: new Date(`${deliverAt}T12:00:00`).toISOString() }
-          : {}),
-        ...(notes ? { notes } : {}),
-      });
+      const res = await posApi.checkout(
+        {
+          clientId,
+          lines,
+          ...(discount > 0 ? { discount } : {}),
+          payments: buildPayments(),
+          expectedTotal: preview.total,
+          // El input date da "YYYY-MM-DD"; lo anclamos a mediodía LOCAL antes de
+          // serializar a ISO para que el backend no lo interprete como medianoche
+          // UTC y la fecha no retroceda un día al renderizar en zonas al oeste de
+          // UTC (mismo patrón que el editor de fecha en orders/[id]).
+          ...(deliverAt
+            ? { deliverAt: new Date(`${deliverAt}T12:00:00`).toISOString() }
+            : {}),
+          ...(notes ? { notes } : {}),
+        },
+        idemKey,
+      );
       onPaid(res, {
         printThermal: ticketsEnabled && printTicket,
         printLetter: ticketsEnabled && printLetter,
