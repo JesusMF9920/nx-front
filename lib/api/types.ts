@@ -673,7 +673,7 @@ export type ApiDashboard = {
   recentOrders: ApiDashboardOrder[];
 };
 
-export type ApiPaymentMixMethod = "cash" | "terminal" | "credit";
+export type ApiPaymentMixMethod = "cash" | "terminal" | "transfer" | "credit";
 
 export type ApiPaymentMixEntry = {
   method: ApiPaymentMixMethod;
@@ -816,6 +816,8 @@ export type ApiCashSessionDetail = ApiCashSession & {
   refundsCount: number | null;
   terminalTotal: number | null;
   terminalCount: number | null;
+  transferTotal: number | null;
+  transferCount: number | null;
 };
 
 export type ApiCashCloseResult = {
