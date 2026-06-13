@@ -25,6 +25,9 @@ export function OrderPaymentModal({ order, onClose, onDone }: OrderPaymentModalP
   const [reference, setReference] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Key estable por apertura del modal: un reintento tras timeout de red reusa
+  // el mismo header idempotency-key y el backend no duplica el cobro.
+  const [idemKey] = useState(() => crypto.randomUUID());
 
   const parsed = Number(amount);
   const valid = !blocked && Number.isFinite(parsed) && parsed > 0;
@@ -35,11 +38,15 @@ export function OrderPaymentModal({ order, onClose, onDone }: OrderPaymentModalP
     setSubmitting(true);
     setError(null);
     try {
-      await ordersApi.addPayment(order.id, {
-        method,
-        amount: +parsed.toFixed(2),
-        reference: reference.trim() || undefined,
-      });
+      await ordersApi.addPayment(
+        order.id,
+        {
+          method,
+          amount: +parsed.toFixed(2),
+          reference: reference.trim() || undefined,
+        },
+        idemKey,
+      );
       await onDone();
       onClose();
     } catch (err) {

@@ -118,10 +118,21 @@ export type ListOrdersParams = {
 };
 
 export const posApi = {
-  checkout(input: CheckoutInput): Promise<CheckoutResult> {
+  /**
+   * `idempotencyKey` (opcional, header `idempotency-key`): el backend deduplica
+   * cobros repetidos (reintento tras timeout de red) sin crear un pedido doble
+   * ni reconsumir stock. Debe ser ESTABLE para un mismo intento de cobro.
+   */
+  checkout(
+    input: CheckoutInput,
+    idempotencyKey?: string,
+  ): Promise<CheckoutResult> {
     return apiFetch<CheckoutResult>("/pos/checkout", {
       method: "POST",
       body: JSON.stringify(input),
+      ...(idempotencyKey
+        ? { headers: { "idempotency-key": idempotencyKey } }
+        : {}),
     });
   },
 
@@ -146,6 +157,19 @@ export const ordersApi = {
     return apiFetch<ApiList<ApiOrder>>(`/orders${qs ? `?${qs}` : ""}`);
   },
 
+  /** URL absoluta del CSV para `<a download>` (usa la cookie de sesión). */
+  exportCsvUrl(params: ListOrdersParams = {}): string {
+    const base = process.env.NEXT_PUBLIC_API_URL ?? "";
+    const search = new URLSearchParams();
+    for (const [k, v] of Object.entries(params)) {
+      if (v !== undefined && v !== null && `${v}`.length > 0) {
+        search.set(k, `${v}`);
+      }
+    }
+    const qs = search.toString();
+    return `${base}/orders/export.csv${qs ? `?${qs}` : ""}`;
+  },
+
   /** Acepta UUID o folio (ORD-1001). */
   get(idOrFolio: string): Promise<ApiOrderDetail> {
     return apiFetch<ApiOrderDetail>(`/orders/${idOrFolio}`);
@@ -157,13 +181,22 @@ export const ordersApi = {
     );
   },
 
+  /** `idempotencyKey` (header `idempotency-key`): evita doble cobro tras un
+   * reintento de red. Estable por intento. */
   addPayment(
     orderId: string,
     payment: CheckoutPaymentInput,
+    idempotencyKey?: string,
   ): Promise<{ paid: number; total: number }> {
     return apiFetch<{ paid: number; total: number }>(
       `/orders/${orderId}/payments`,
-      { method: "POST", body: JSON.stringify(payment) },
+      {
+        method: "POST",
+        body: JSON.stringify(payment),
+        ...(idempotencyKey
+          ? { headers: { "idempotency-key": idempotencyKey } }
+          : {}),
+      },
     );
   },
 

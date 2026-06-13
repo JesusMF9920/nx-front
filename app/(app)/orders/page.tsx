@@ -8,7 +8,8 @@ import { PageHeader } from "@/components/page-header";
 import { PaymentPill } from "@/components/payment-pill";
 import { StatusPill } from "@/components/status-pill";
 import { usePermission } from "@/lib/auth/auth-context";
-import { ordersApi } from "@/lib/api/orders";
+import { ordersApi, type ListOrdersParams } from "@/lib/api/orders";
+import { downloadFile } from "@/lib/api/download";
 import { ORDER_STATUS_ES, paymentLabel } from "@/lib/api/sales-mappers";
 import type { ApiOrder, ApiOrderStatus } from "@/lib/api/types";
 import { fmtDate, fmtInt, fmtMXN } from "@/lib/format";
@@ -46,11 +47,22 @@ const TAB_TO_STATUS: Record<Tab, ApiOrderStatus | null> = {
   Entregados: "delivered",
 };
 
+type OrderFilters = {
+  from?: string;
+  to?: string;
+  deliverFrom?: string;
+  deliverTo?: string;
+};
+
 export default function OrdersPage() {
   const router = useRouter();
   const canSell = usePermission("sales.pos.sell");
   const [tab, setTab] = useState<Tab>("Todos");
   const [query, setQuery] = useState("");
+  const [filters, setFilters] = useState<OrderFilters>({});
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  const [actionError, setActionError] = useState<string | null>(null);
+  const [exporting, setExporting] = useState(false);
 
   const {
     items: orders,
@@ -64,8 +76,12 @@ export default function OrdersPage() {
     reload,
   } = useApiList<ApiOrder>({
     fetcher: (params) =>
-      ordersApi.list({ ...params, status: TAB_TO_STATUS[tab] ?? undefined }),
-    filterKey: tab,
+      ordersApi.list({
+        ...params,
+        status: TAB_TO_STATUS[tab] ?? undefined,
+        ...filters,
+      }),
+    filterKey: `${tab}|${filters.from ?? ""}|${filters.to ?? ""}|${filters.deliverFrom ?? ""}|${filters.deliverTo ?? ""}`,
     search: query,
     pageSize: PAGE_SIZE,
     errorMessage: "No se pudieron cargar los pedidos.",
@@ -74,6 +90,32 @@ export default function OrdersPage() {
   const changeTab = (t: Tab) => {
     setTab(t);
     setPage(1);
+  };
+
+  const activeFilterCount = Object.values(filters).filter(Boolean).length;
+
+  const setFilter = (key: keyof OrderFilters, value: string) => {
+    setFilters((f) => ({ ...f, [key]: value || undefined }));
+    setPage(1);
+  };
+
+  const handleExport = async () => {
+    setActionError(null);
+    setExporting(true);
+    try {
+      await downloadFile(
+        ordersApi.exportCsvUrl({
+          status: TAB_TO_STATUS[tab] ?? undefined,
+          search: query || undefined,
+          ...filters,
+        } satisfies ListOrdersParams),
+        "pedidos.csv",
+      );
+    } catch {
+      setActionError("No se pudo exportar el CSV. Intenta de nuevo.");
+    } finally {
+      setExporting(false);
+    }
   };
 
   return (
@@ -87,7 +129,14 @@ export default function OrdersPage() {
         }
         actions={
           <>
-            <button className="btn">{I.download} Exportar</button>
+            <button
+              className="btn"
+              type="button"
+              onClick={() => void handleExport()}
+              disabled={exporting}
+            >
+              {I.download} {exporting ? "Exportando…" : "Exportar"}
+            </button>
             {canSell && (
               <Link className="btn btn--accent" href="/pos">
                 {I.plus} Nueva venta
@@ -96,6 +145,28 @@ export default function OrdersPage() {
           </>
         }
       />
+
+      {actionError && (
+        <div
+          className="card mb-3 flex items-center gap-2"
+          style={{
+            padding: 12,
+            border: "1px solid var(--danger)",
+            color: "var(--danger)",
+            background: "var(--danger-soft)",
+          }}
+          role="alert"
+        >
+          <span className="flex-1">{actionError}</span>
+          <button
+            className="btn btn--sm"
+            type="button"
+            onClick={() => setActionError(null)}
+          >
+            Cerrar
+          </button>
+        </div>
+      )}
 
       {loadError && (
         <div
@@ -139,7 +210,99 @@ export default function OrdersPage() {
               onChange={(e) => setQuery(e.target.value)}
             />
           </div>
-          <button className="icon-btn" aria-label="Filtros">{I.filter}</button>
+          <div className="relative">
+            <button
+              className="icon-btn"
+              type="button"
+              aria-label="Filtros"
+              aria-expanded={filtersOpen}
+              onClick={() => setFiltersOpen((o) => !o)}
+            >
+              {I.filter}
+              {activeFilterCount > 0 && (
+                <span className="nav-item__badge">{activeFilterCount}</span>
+              )}
+            </button>
+            {filtersOpen && (
+              <>
+                <div
+                  className="fixed inset-0"
+                  style={{ zIndex: 19 }}
+                  onClick={() => setFiltersOpen(false)}
+                />
+                <div
+                  className="card"
+                  style={{
+                    position: "absolute",
+                    right: 0,
+                    top: "calc(100% + 6px)",
+                    zIndex: 20,
+                    width: 260,
+                    padding: 14,
+                  }}
+                >
+                  <div className="flex flex-col gap-3">
+                    <div className="text-xs font-medium text-muted">
+                      Fecha de creación
+                    </div>
+                    <label className="field text-xs">
+                      Desde
+                      <input
+                        type="date"
+                        className="input"
+                        value={filters.from ?? ""}
+                        onChange={(e) => setFilter("from", e.target.value)}
+                      />
+                    </label>
+                    <label className="field text-xs">
+                      Hasta
+                      <input
+                        type="date"
+                        className="input"
+                        value={filters.to ?? ""}
+                        onChange={(e) => setFilter("to", e.target.value)}
+                      />
+                    </label>
+                    <div className="text-xs font-medium text-muted mt-1">
+                      Fecha de entrega
+                    </div>
+                    <label className="field text-xs">
+                      Desde
+                      <input
+                        type="date"
+                        className="input"
+                        value={filters.deliverFrom ?? ""}
+                        onChange={(e) =>
+                          setFilter("deliverFrom", e.target.value)
+                        }
+                      />
+                    </label>
+                    <label className="field text-xs">
+                      Hasta
+                      <input
+                        type="date"
+                        className="input"
+                        value={filters.deliverTo ?? ""}
+                        onChange={(e) => setFilter("deliverTo", e.target.value)}
+                      />
+                    </label>
+                    {activeFilterCount > 0 && (
+                      <button
+                        className="btn btn--sm btn--ghost"
+                        type="button"
+                        onClick={() => {
+                          setFilters({});
+                          setPage(1);
+                        }}
+                      >
+                        Limpiar filtros
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
         </div>
         {/* Responsive tablet (H3): la tabla no colapsa columnas — scrollea. */}
         <div className="overflow-x-auto">

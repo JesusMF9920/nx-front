@@ -406,8 +406,6 @@ export default function SuppliersPage() {
         )}
       </div>
 
-      {/* TODO: sección "Pedidos a proveedor en curso" cuando exista el módulo de compras. */}
-
       {showNew && (
         <SupplierFormModal
           mode="create"

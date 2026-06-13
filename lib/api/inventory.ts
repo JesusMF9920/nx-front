@@ -38,6 +38,8 @@ export type ListMaterialsParams = {
   search?: string;
   category?: string;
   isActive?: boolean;
+  /** Solo insumos con stock por debajo de su punto de reorden. */
+  belowReorder?: boolean;
   orderBy?: "name" | "sku" | "stock" | "createdAt" | "updatedAt";
   order?: "asc" | "desc";
 };
@@ -68,6 +70,7 @@ export const inventoryApi = {
     if (params.isActive !== undefined) {
       search.set("isActive", params.isActive ? "true" : "false");
     }
+    if (params.belowReorder) search.set("belowReorder", "true");
     if (params.orderBy) search.set("orderBy", params.orderBy);
     if (params.order) search.set("order", params.order);
     const qs = search.toString();

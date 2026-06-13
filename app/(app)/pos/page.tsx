@@ -56,6 +56,13 @@ export default function POSPage() {
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
+  // Aviso post-venta cuando una acción de comprobante (imprimir/enviar) falla:
+  // la venta YA existe, así que NO bloqueamos ni navegamos en silencio — lo
+  // mostramos y dejamos ir al pedido.
+  const [saleNotice, setSaleNotice] = useState<{
+    folio: string;
+    failures: string[];
+  } | null>(null);
   const [cart, setCart] = useState<CartLine[]>([]);
   const [client, setClient] = useState<ApiClient | null>(null);
   const [showClientPicker, setShowClientPicker] = useState(false);
@@ -376,6 +383,48 @@ export default function POSPage() {
         margin: "-24px -28px -80px",
       }}
     >
+      {saleNotice && (
+        <div
+          className="card flex items-center gap-2"
+          style={{
+            position: "fixed",
+            top: 12,
+            left: "50%",
+            transform: "translateX(-50%)",
+            zIndex: 60,
+            maxWidth: 560,
+            padding: 12,
+            border: "1px solid var(--warn)",
+            background: "var(--surface)",
+            boxShadow: "0 8px 24px rgba(0,0,0,.15)",
+          }}
+          role="alert"
+        >
+          <span className="flex-1 text-sm">
+            Venta {saleNotice.folio} registrada, pero no se pudo{" "}
+            {saleNotice.failures.join(" ni ")}.
+          </span>
+          <button
+            className="btn btn--sm btn--accent"
+            type="button"
+            onClick={() => {
+              const folio = saleNotice.folio;
+              setSaleNotice(null);
+              router.push(`/orders/${folio}`);
+            }}
+          >
+            Ir al pedido
+          </button>
+          <button
+            className="btn btn--sm btn--ghost"
+            type="button"
+            onClick={() => setSaleNotice(null)}
+          >
+            Cerrar
+          </button>
+        </div>
+      )}
+
       <div
         className="flex flex-col overflow-hidden"
         style={{ borderRight: "1px solid var(--line)" }}
@@ -899,19 +948,39 @@ export default function POSPage() {
               window.open(buildWaMeUrl(client.phone, msg), "_blank", "noopener");
             }
             void (async () => {
-              // La venta YA existe: si una acción de comprobante falla, avisar
-              // en consola y navegar igual — nunca bloquear el flujo de cobro.
-              try {
-                if (prints.printThermal) {
+              // La venta YA existe: las acciones de comprobante NO bloquean el
+              // cobro, pero cada fallo se registra y se le avisa al usuario (no
+              // sólo a la consola). Por-acción para saber CUÁL falló.
+              const failures: string[] = [];
+              if (prints.printThermal) {
+                try {
                   const order = await ordersApi.get(res.folio);
                   await printThermalTicket(order);
+                } catch {
+                  failures.push("imprimir el ticket térmico");
                 }
-                if (prints.printLetter) await openLetterTicket(res.folio);
-                if (prints.emailReceipt) await ordersApi.sendReceipt(res.orderId);
-              } catch (err) {
-                console.warn("No se pudo completar una acción de comprobante:", err);
               }
-              router.push(`/orders/${res.folio}`);
+              if (prints.printLetter) {
+                try {
+                  await openLetterTicket(res.folio);
+                } catch {
+                  failures.push("abrir el ticket carta");
+                }
+              }
+              if (prints.emailReceipt) {
+                try {
+                  await ordersApi.sendReceipt(res.orderId);
+                } catch {
+                  failures.push("enviar el recibo por correo");
+                }
+              }
+              if (failures.length > 0) {
+                // Mostrar el aviso en el POS (carrito ya limpio) y dejar ir al
+                // pedido manualmente — no navegar en silencio ocultando el fallo.
+                setSaleNotice({ folio: res.folio, failures });
+              } else {
+                router.push(`/orders/${res.folio}`);
+              }
             })();
           }}
         />

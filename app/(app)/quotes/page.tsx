@@ -8,6 +8,7 @@ import { QuoteNewModal } from "@/components/quote-new-modal";
 import { QuoteStatusPill } from "@/components/quote-status-pill";
 import { ApiError } from "@/lib/api/errors";
 import { quotesApi } from "@/lib/api/quotes";
+import { downloadFile } from "@/lib/api/download";
 import { usePermission } from "@/lib/auth/auth-context";
 import type { ApiQuote, ApiQuoteStatus } from "@/lib/api/types";
 import { fmtDate, fmtInt, fmtMXN } from "@/lib/format";
@@ -52,6 +53,26 @@ export default function QuotesPage() {
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [showNew, setShowNew] = useState(false);
+  const [actionError, setActionError] = useState<string | null>(null);
+  const [exporting, setExporting] = useState(false);
+
+  const handleExport = async () => {
+    setActionError(null);
+    setExporting(true);
+    try {
+      await downloadFile(
+        quotesApi.exportCsvUrl({
+          status: TAB_TO_STATUS[tab] ?? undefined,
+          search: debounced || undefined,
+        }),
+        "cotizaciones.csv",
+      );
+    } catch {
+      setActionError("No se pudo exportar el CSV. Intenta de nuevo.");
+    } finally {
+      setExporting(false);
+    }
+  };
 
   useEffect(() => {
     const id = setTimeout(() => {
@@ -114,7 +135,14 @@ export default function QuotesPage() {
         }
         actions={
           <>
-            <button className="btn">{I.download} Exportar</button>
+            <button
+              className="btn"
+              type="button"
+              onClick={() => void handleExport()}
+              disabled={exporting}
+            >
+              {I.download} {exporting ? "Exportando…" : "Exportar"}
+            </button>
             {canCreate && (
               <button
                 className="btn btn--accent"
@@ -126,6 +154,28 @@ export default function QuotesPage() {
           </>
         }
       />
+
+      {actionError && (
+        <div
+          className="card mb-3 flex items-center gap-2"
+          style={{
+            padding: 12,
+            border: "1px solid var(--danger)",
+            color: "var(--danger)",
+            background: "var(--danger-soft)",
+          }}
+          role="alert"
+        >
+          <span className="flex-1">{actionError}</span>
+          <button
+            className="btn btn--sm"
+            type="button"
+            onClick={() => setActionError(null)}
+          >
+            Cerrar
+          </button>
+        </div>
+      )}
 
       {loadError && (
         <div

@@ -135,7 +135,7 @@ export default function LoginPage() {
         </div>
 
         <div className="flex justify-between text-muted text-xs">
-          <span>v1.4.2 · Mostrador 01</span>
+          <span>Nexum POS</span>
           <span>Soporte: soporte@nexum.mx</span>
         </div>
       </div>
@@ -187,19 +187,21 @@ export default function LoginPage() {
             Nexum POS.
           </p>
 
-          <div className="flex gap-6 mt-8 font-mono text-xs">
-            <div>
-              <div className="font-medium" style={{ fontSize: 22 }}>1,842</div>
-              <div style={{ color: "rgba(255,255,255,.5)" }}>pedidos / mes</div>
-            </div>
-            <div>
-              <div className="font-medium" style={{ fontSize: 22 }}>98.2%</div>
-              <div style={{ color: "rgba(255,255,255,.5)" }}>entregas a tiempo</div>
-            </div>
-            <div>
-              <div className="font-medium" style={{ fontSize: 22 }}>3</div>
-              <div style={{ color: "rgba(255,255,255,.5)" }}>sucursales</div>
-            </div>
+          <div className="flex flex-wrap gap-2 mt-8 font-mono text-xs">
+            {["Cotizaciones", "Producción", "Entregas", "Reportes"].map((m) => (
+              <span
+                key={m}
+                style={{
+                  padding: "4px 10px",
+                  borderRadius: 999,
+                  background: "rgba(255,255,255,.08)",
+                  border: "1px solid rgba(255,255,255,.15)",
+                  color: "rgba(255,255,255,.8)",
+                }}
+              >
+                {m}
+              </span>
+            ))}
           </div>
         </div>
       </div>

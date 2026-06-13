@@ -61,6 +61,19 @@ export const quotesApi = {
     return apiFetch<ApiList<ApiQuote>>(`/quotes${qs ? `?${qs}` : ""}`);
   },
 
+  /** URL absoluta del CSV para `<a download>` (usa la cookie de sesión). */
+  exportCsvUrl(params: ListQuotesParams = {}): string {
+    const base = process.env.NEXT_PUBLIC_API_URL ?? "";
+    const search = new URLSearchParams();
+    for (const [k, v] of Object.entries(params)) {
+      if (v !== undefined && v !== null && `${v}`.length > 0) {
+        search.set(k, `${v}`);
+      }
+    }
+    const qs = search.toString();
+    return `${base}/quotes/export.csv${qs ? `?${qs}` : ""}`;
+  },
+
   /** Acepta UUID o folio (COT-1001). */
   get(idOrFolio: string): Promise<ApiQuoteDetail> {
     return apiFetch<ApiQuoteDetail>(`/quotes/${idOrFolio}`);
