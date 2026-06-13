@@ -2,15 +2,17 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import type { ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { I } from "./icons";
 import { useAuth } from "@/lib/auth/auth-context";
+import { reportsApi } from "@/lib/api/reports";
+import { inventoryApi } from "@/lib/api/inventory";
+import { settingsApi } from "@/lib/api/settings";
 
 type NavItem = {
   href: string;
   label: string;
   icon: ReactNode;
-  badge?: string;
   /** Si está presente, sólo se muestra cuando el usuario tiene este permiso. */
   perm?: string;
   /** Si está presente, sólo se muestra con este feature flag encendido. */
@@ -27,21 +29,21 @@ const NAV_GROUPS: NavGroup[] = [
     title: "Operación",
     items: [
       { href: "/dashboard", label: "Dashboard",      icon: I.home,    perm: "reports.read" },
-      { href: "/pos",       label: "Punto de venta", icon: I.cart,    perm: "sales.pos.sell", badge: "F2" },
+      { href: "/pos",       label: "Punto de venta", icon: I.cart,    perm: "sales.pos.sell" },
       { href: "/cash",      label: "Caja",           icon: I.cash,    perm: "sales.cash.read", feature: "cash_sessions" },
       { href: "/quotes",    label: "Cotizaciones",   icon: I.receipt, perm: "sales.quotes.read" },
-      { href: "/orders",    label: "Pedidos",        icon: I.receipt, perm: "sales.orders.read", badge: "23" },
+      { href: "/orders",    label: "Pedidos",        icon: I.receipt, perm: "sales.orders.read" },
       { href: "/production", label: "Producción",    icon: I.printer, perm: "sales.production.advance" },
       { href: "/purchases", label: "Compras",        icon: I.truck,   perm: "inventory.purchases.read" },
-      { href: "/calendar",  label: "Entregas",       icon: I.calendar, perm: "sales.orders.read", badge: "8" },
-      { href: "/approvals", label: "Aprobaciones",   icon: I.paint,   perm: "design.proofs.read", badge: "5" },
+      { href: "/calendar",  label: "Entregas",       icon: I.calendar, perm: "sales.orders.read" },
+      { href: "/approvals", label: "Aprobaciones",   icon: I.paint,   perm: "design.proofs.read" },
     ],
   },
   {
     title: "Catálogo",
     items: [
       { href: "/products",  label: "Productos",   icon: I.box,     perm: "catalog.products.read" },
-      { href: "/inventory", label: "Inventario",  icon: I.layers,  perm: "inventory.materials.read", badge: "3" },
+      { href: "/inventory", label: "Inventario",  icon: I.layers,  perm: "inventory.materials.read" },
       { href: "/suppliers", label: "Proveedores", icon: I.factory, perm: "suppliers.read" },
     ],
   },
@@ -79,6 +81,63 @@ export function Sidebar() {
   const displayRole =
     roles.find((r) => user?.roleIds.includes(r.id))?.name ?? "Sin rol";
   const permsSet = new Set(permissions);
+
+  // Contadores reales para los badges (decorativos: si el fetch falla, sin badge).
+  const [counts, setCounts] = useState<Record<string, number>>({});
+  const [orgName, setOrgName] = useState<string | null>(null);
+  const canReports = permsSet.has("reports.read");
+  const canInventory = permsSet.has("inventory.materials.read");
+
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      const next: Record<string, number> = {};
+      if (canReports) {
+        try {
+          const d = await reportsApi.dashboard();
+          next["/orders"] = d.openOrders;
+          next["/calendar"] = d.upcomingDeliveries;
+          next["/approvals"] = d.pendingApprovals;
+        } catch {
+          /* sin badges si falla */
+        }
+      }
+      if (canInventory) {
+        try {
+          const r = await inventoryApi.list({ belowReorder: true, take: 1 });
+          next["/inventory"] = r.total;
+        } catch {
+          /* ignore */
+        }
+      }
+      if (!cancelled) setCounts(next);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [canReports, canInventory]);
+
+  useEffect(() => {
+    let cancelled = false;
+    settingsApi
+      .getBusinessCached()
+      .then((b) => {
+        if (!cancelled) setOrgName(b.name);
+      })
+      .catch(() => {
+        /* sin nombre si falla */
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const badgeFor = (href: string): string | undefined => {
+    const c = counts[href];
+    if (!c || c <= 0) return undefined;
+    return c > 99 ? "99+" : String(c);
+  };
+
   const groups = NAV_GROUPS.map((g) => ({
     ...g,
     items: g.items.filter(
@@ -103,8 +162,8 @@ export function Sidebar() {
       </div>
 
       <Link href="/settings" className="sidebar__org" style={{ textDecoration: "none", color: "inherit" }}>
-        <div className="org-avatar">IM</div>
-        <div className="org-name">Imprenta Centro</div>
+        <div className="org-avatar">{orgName ? initialsFor(orgName) : "·"}</div>
+        <div className="org-name">{orgName ?? "—"}</div>
         <span className="chev">{I.chevronDown}</span>
       </Link>
 
@@ -114,6 +173,7 @@ export function Sidebar() {
             <div className="nav-group__title">{g.title}</div>
             {g.items.map((it) => {
               const active = pathname === it.href || pathname.startsWith(it.href + "/");
+              const badge = badgeFor(it.href);
               return (
                 <Link
                   key={it.href}
@@ -122,7 +182,7 @@ export function Sidebar() {
                 >
                   <span className="nav-item__icon">{it.icon}</span>
                   {it.label}
-                  {it.badge && <span className="nav-item__badge">{it.badge}</span>}
+                  {badge && <span className="nav-item__badge">{badge}</span>}
                 </Link>
               );
             })}

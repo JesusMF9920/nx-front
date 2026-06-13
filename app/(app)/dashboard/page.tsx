@@ -8,6 +8,7 @@ import { SalesChart } from "@/components/sales-chart";
 import { StatusPill } from "@/components/status-pill";
 import { ApiError } from "@/lib/api/errors";
 import { reportsApi } from "@/lib/api/reports";
+import { settingsApi } from "@/lib/api/settings";
 import { ORDER_STATUS_ES } from "@/lib/api/sales-mappers";
 import type { ApiDashboard } from "@/lib/api/types";
 import { useAuth, usePermission } from "@/lib/auth/auth-context";
@@ -28,6 +29,22 @@ export default function DashboardPage() {
   const [data, setData] = useState<ApiDashboard | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [orgName, setOrgName] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    settingsApi
+      .getBusinessCached()
+      .then((b) => {
+        if (!cancelled) setOrgName(b.name);
+      })
+      .catch(() => {
+        /* sin nombre si falla */
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     if (!canRead) return;
@@ -54,7 +71,7 @@ export default function DashboardPage() {
   const header = (
     <PageHeader
       title={`Buen día, ${firstName}`}
-      sub="Resumen de operación · Imprenta Centro"
+      sub={orgName ? `Resumen de operación · ${orgName}` : "Resumen de operación"}
       actions={
         <Link className="btn btn--accent" href="/pos">
           <span>{I.plus}</span>Nueva venta
@@ -88,16 +105,18 @@ export default function DashboardPage() {
     );
   }
 
+  // Los deltas son etiquetas descriptivas neutras, NO tendencias: no se computa
+  // variación vs. periodo anterior, así que no se pinta flecha verde/roja.
   const stats: Stat[] = data
     ? [
-        { label: "Ventas hoy", value: fmtMXN(data.salesToday), delta: "del día", up: true },
+        { label: "Ventas hoy", value: fmtMXN(data.salesToday), delta: "del día", up: null },
         { label: "Pedidos abiertos", value: `${data.openOrders}`, delta: "en proceso", up: null },
         { label: "Entregas próximas", value: `${data.upcomingDeliveries}`, delta: "Esta semana", up: null },
         {
           label: "Por aprobar (cliente)",
           value: `${data.pendingApprovals}`,
           delta: "esperando visto bueno",
-          up: data.pendingApprovals > 0 ? false : null,
+          up: null,
         },
       ]
     : [];
