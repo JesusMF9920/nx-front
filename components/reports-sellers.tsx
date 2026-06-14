@@ -18,13 +18,13 @@ export function ReportsSellers({ items }: { items: ApiSeller[] }) {
       {items.length === 0 ? (
         <div className="empty m-3.5">Sin ventas en el periodo.</div>
       ) : (
-        <div className="p-3.5">
+        <div className="p-3.5 overflow-x-auto">
           {items.map((s) => {
             const name = s.name ?? "Sin nombre";
             return (
               <div
                 key={s.sellerId}
-                className="grid gap-4 items-center"
+                className="grid gap-4 items-center min-w-[600px]"
                 style={{
                   padding: "14px 0",
                   borderTop: "1px solid var(--line)",

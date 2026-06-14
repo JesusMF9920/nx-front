@@ -162,7 +162,7 @@ export function ApprovalDetail({
         )}
       </div>
 
-      <div className="grid" style={{ gridTemplateColumns: "1fr 220px" }}>
+      <div className="grid grid-cols-1 md:grid-cols-[1fr_220px]">
         <div
           className="p-5 bg-surface-2"
           style={{ borderRight: "1px solid var(--line)" }}

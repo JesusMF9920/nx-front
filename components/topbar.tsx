@@ -21,7 +21,7 @@ function crumbsFor(pathname: string): string[] {
 /** Señal accionable real, derivada de endpoints existentes (sin backend nuevo). */
 type Notif = { key: string; label: string; count: number; href: string };
 
-export function Topbar() {
+export function Topbar({ onMenuClick }: { onMenuClick?: () => void }) {
   const pathname = usePathname();
   const router = useRouter();
   const crumbs = crumbsFor(pathname);
@@ -118,6 +118,16 @@ export function Topbar() {
 
   return (
     <header className="topbar">
+      <button
+        className="icon-btn topbar__menu"
+        type="button"
+        title="Menú"
+        aria-label="Abrir menú"
+        onClick={onMenuClick}
+      >
+        {I.menu}
+      </button>
+
       <div className="crumbs">
         {crumbs.map((c, i) => (
           <Fragment key={i}>

@@ -38,7 +38,8 @@ export function ReportsAging({ items }: { items: ApiAgingRow[] }) {
         {items.length === 0 ? (
           <div className="empty m-3.5">Sin cuentas por cobrar abiertas.</div>
         ) : (
-          <table className="tbl">
+          <div className="overflow-x-auto">
+          <table className="tbl min-w-[820px]">
             <thead>
               <tr>
                 <th>Cliente</th>
@@ -91,6 +92,7 @@ export function ReportsAging({ items }: { items: ApiAgingRow[] }) {
               </tr>
             </tbody>
           </table>
+          </div>
         )}
       </div>
     </div>

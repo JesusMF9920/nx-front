@@ -630,4 +630,50 @@ input, select, textarea { font-family: inherit; font-size: inherit; color: inher
   font-size: 12px;
   display: flex; gap: 6px; align-items: baseline;
 }
+
+/* ============ Responsive (móvil/tablet) ============ */
+/* Por debajo de lg (1024px) el sidebar deja de ser columna fija y pasa a ser un
+   drawer off-canvas con backdrop (lo abre la hamburguesa del topbar). En lg+ se
+   mantiene el grid sticky de siempre. */
+@media (max-width: 1023px) {
+  .app { grid-template-columns: 1fr; }
+  .sidebar {
+    position: fixed;
+    inset: 0 auto 0 0;
+    width: 232px;
+    z-index: 40;
+    transform: translateX(-100%);
+    transition: transform 0.2s ease;
+  }
+  .sidebar.is-open { transform: none; box-shadow: var(--sh-lg); }
+  .app__backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 30;
+    background: var(--backdrop);
+    animation: fadeIn 0.15s ease;
+  }
+  .topbar__search { width: max(140px, 34vw); }
+}
+
+/* En desktop el sidebar siempre está visible → la hamburguesa sobra. */
+@media (min-width: 1024px) {
+  .topbar__menu { display: none; }
+}
+
+/* KPI grids (dashboard + reports): 4 → 2 → 1 columnas. */
+@media (max-width: 1024px) { .kpi-grid { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 560px)  { .kpi-grid { grid-template-columns: 1fr; } }
+
+/* Teléfono: más espacio para el contenido y la barra. */
+@media (max-width: 640px) {
+  .content { padding: 16px 14px 64px; }
+  .crumbs { display: none; } /* el PageHeader de cada pantalla ya da el contexto */
+  .topbar { padding: 0 12px; gap: 8px; }
+  .topbar__search .kbd { display: none; }
+  .modal { width: calc(100vw - 16px); max-height: 95vh; }
+  /* El encabezado de cada pantalla apila título y acciones en teléfono. */
+  .page-header { flex-direction: column; gap: 12px; }
+  .page-actions { margin-left: 0; flex-wrap: wrap; }
+}
 }

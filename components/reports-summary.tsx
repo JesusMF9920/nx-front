@@ -65,7 +65,7 @@ export function ReportsSummary({
   const ticks = Array.from({ length: yTicks + 1 }, (_, i) => (maxSales / yTicks) * i);
 
   return (
-    <div className="grid gap-[18px]" style={{ gridTemplateColumns: "1fr 320px" }}>
+    <div className="grid gap-[18px] grid-cols-1 lg:grid-cols-[1fr_320px]">
       <div className="card">
         <div className="card__head">
           <div className="card__title">Ventas y margen diarios</div>

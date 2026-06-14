@@ -145,7 +145,7 @@ export default function DashboardPage() {
         <div className="text-muted text-sm">Cargando dashboard…</div>
       ) : (
         <>
-          <div className="grid mb-5" style={{ gridTemplateColumns: "repeat(4,1fr)" }}>
+          <div className="kpi-grid mb-5">
             {stats.map((s) => (
               <div className="stat" key={s.label}>
                 <div className="stat__label">{s.label}</div>
@@ -162,7 +162,7 @@ export default function DashboardPage() {
             ))}
           </div>
 
-          <div className="grid mb-5" style={{ gridTemplateColumns: "1.4fr 1fr" }}>
+          <div className="grid grid-cols-1 lg:grid-cols-[1.4fr_1fr] mb-5">
             <div className="card">
               <div className="card__head">
                 <div>
@@ -216,7 +216,7 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          <div className="grid" style={{ gridTemplateColumns: "1.4fr 1fr" }}>
+          <div className="grid grid-cols-1 lg:grid-cols-[1.4fr_1fr]">
             <div className="card">
               <div className="card__head">
                 <div className="card__title">Pedidos recientes</div>
@@ -228,7 +228,8 @@ export default function DashboardPage() {
               {data.recentOrders.length === 0 ? (
                 <div className="empty m-3.5">Sin pedidos aún.</div>
               ) : (
-                <table className="tbl">
+                <div className="overflow-x-auto">
+                <table className="tbl min-w-[560px]">
                   <thead>
                     <tr>
                       <th>Pedido</th>
@@ -252,6 +253,7 @@ export default function DashboardPage() {
                     ))}
                   </tbody>
                 </table>
+                </div>
               )}
             </div>
 
