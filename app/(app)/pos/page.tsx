@@ -394,12 +394,8 @@ export default function POSPage() {
     // carrito; ≥1024 el layout original. Breakpoints en clases (los estilos
     // inline no admiten media queries).
     <div
-      className="grid grid-cols-1 md:grid-cols-[1fr_minmax(300px,340px)] lg:grid-cols-[1fr_420px]"
-      style={{
-        gap: 0,
-        height: "calc(100vh - 48px)",
-        margin: "-24px -28px -80px",
-      }}
+      className="grid grid-cols-1 md:grid-cols-[1fr_minmax(300px,340px)] lg:grid-cols-[1fr_420px] pos-root"
+      style={{ gap: 0 }}
     >
       {saleNotice && (
         <div
@@ -448,10 +444,10 @@ export default function POSPage() {
         style={{ borderRight: "1px solid var(--line)" }}
       >
         <div
-          className="flex items-center gap-2.5 bg-surface"
+          className="flex flex-wrap items-center gap-2.5 bg-surface"
           style={{ padding: "14px 20px", borderBottom: "1px solid var(--line)" }}
         >
-          <div className="topbar__search flex-1 m-0" style={{ width: "auto", maxWidth: 460 }}>
+          <div className="topbar__search flex-1 m-0" style={{ width: "auto", minWidth: 160, maxWidth: 460 }}>
             {I.search}
             <input
               placeholder="Buscar producto, SKU o escanear código de barras…"
@@ -462,11 +458,11 @@ export default function POSPage() {
             <span className="kbd">F3</span>
           </div>
           <PosCashIndicator />
-          <div className="row gap-1">
+          <div className="row gap-1 overflow-x-auto min-w-0">
             {categories.map((c) => (
               <button
                 key={c}
-                className={`btn btn--sm ${c === activeCategory ? "btn--primary" : "btn--ghost"}`}
+                className={`btn btn--sm shrink-0 ${c === activeCategory ? "btn--primary" : "btn--ghost"}`}
                 onClick={() => {
                   setActiveCategory(c);
                   setPage(1);

@@ -671,10 +671,21 @@ input, select, textarea { font-family: inherit; font-size: inherit; color: inher
   .crumbs { display: none; } /* el PageHeader de cada pantalla ya da el contexto */
   .topbar { padding: 0 12px; gap: 8px; }
   .topbar__search .kbd { display: none; }
-  .modal { width: calc(100vw - 16px); max-height: 95vh; }
+  .modal { max-height: 95vh; }
   /* El encabezado de cada pantalla apila título y acciones en teléfono. */
   .page-header { flex-direction: column; gap: 12px; }
   .page-actions { margin-left: 0; flex-wrap: wrap; }
+}
+
+/* POS root: sangra hacia los bordes de .content (margen negativo = padding de
+   .content). El padding de .content cambia en teléfono, así que el margen debe
+   acompañarlo o desborda la página. */
+.pos-root {
+  height: calc(100vh - 48px);
+  margin: -24px -28px -80px;
+}
+@media (max-width: 640px) {
+  .pos-root { margin: -16px -14px -64px; }
 }
 
 /* ── POS: carrito como bottom-sheet en teléfono (< md); columna del grid en md+.

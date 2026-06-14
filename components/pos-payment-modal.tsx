@@ -359,7 +359,7 @@ export function PosPaymentModal({
         </div>
       )}
 
-      <div className="grid grid-cols-2 gap-[18px]">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-[18px]">
         <div>
           <div className="label mb-2">Cobro ahora</div>
           <div className="grid grid-cols-4 gap-1.5">

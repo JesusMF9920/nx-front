@@ -104,7 +104,7 @@ export default function ApprovalsPage() {
         }
       />
 
-      <div className="grid gap-5 grid-cols-1 lg:grid-cols-[1fr_1.4fr]">
+      <div className="grid gap-5 grid-cols-1 xl:grid-cols-[1fr_1.4fr]">
         <div className="card">
           <div className="card__head gap-1 overflow-x-auto">{/* tabs scrollables en móvil */}
             {TABS.map((t) => (

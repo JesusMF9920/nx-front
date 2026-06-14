@@ -162,7 +162,7 @@ export default function DashboardPage() {
             ))}
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-[1.4fr_1fr] mb-5">
+          <div className="grid grid-cols-1 xl:grid-cols-[1.4fr_1fr] mb-5">
             <div className="card">
               <div className="card__head">
                 <div>
@@ -216,8 +216,8 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-[1.4fr_1fr]">
-            <div className="card">
+          <div className="grid grid-cols-1 xl:grid-cols-[1.4fr_1fr]">
+            <div className="card min-w-0">
               <div className="card__head">
                 <div className="card__title">Pedidos recientes</div>
                 <div className="spacer" />
