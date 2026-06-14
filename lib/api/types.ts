@@ -861,3 +861,29 @@ export type ApiCashCloseResult = {
   expectedCash: number;
   difference: number;
 };
+
+// ── Facturación (CFDI) ─────────────────────────────────────────────────────
+
+export type ApiInvoiceType = "ingreso" | "pago" | "global";
+export type ApiInvoiceStatus = "draft" | "stamped" | "sent" | "cancelled";
+
+export type ApiInvoice = {
+  id: string;
+  type: ApiInvoiceType;
+  status: ApiInvoiceStatus;
+  orderId: string | null;
+  orderFolio: string | null;
+  /** Folio fiscal (UUID); null hasta timbrar. */
+  uuid: string | null;
+  serie: string | null;
+  folio: string | null;
+  subtotal: number;
+  total: number;
+  currency: string;
+  receiverRfc: string | null;
+  receiverName: string | null;
+  cancelReason: string | null;
+  cancelledAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
