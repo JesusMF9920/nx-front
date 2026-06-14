@@ -181,6 +181,7 @@ export function PosClientPicker({ onClose, onSelect }: Props) {
         taxRegimen: null,
         fiscalName: null,
         usoCFDI: null,
+        postalCode: null,
         notes: null,
         tags: [],
         additionalPhones: [],

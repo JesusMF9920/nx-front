@@ -11,6 +11,7 @@ export type CreateClientInput = {
   taxRegimen?: string | null;
   fiscalName?: string | null;
   usoCFDI?: string | null;
+  postalCode?: string | null;
   notes?: string | null;
   tags?: string[];
   additionalPhones?: string[];

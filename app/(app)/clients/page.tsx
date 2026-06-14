@@ -896,6 +896,13 @@ function ClientDetailPanel({
               v={client.taxRegimen}
             />
           )}
+          {client.postalCode && (
+            <DetailKV
+              icon={I.receipt}
+              label="CP fiscal"
+              v={client.postalCode}
+            />
+          )}
         </div>
 
         {client.notes && (
@@ -1174,6 +1181,7 @@ function ClientFormModal({
   const [taxRegimen, setTaxRegimen] = useState(client?.taxRegimen ?? "");
   const [fiscalName, setFiscalName] = useState(client?.fiscalName ?? "");
   const [usoCFDI, setUsoCFDI] = useState(client?.usoCFDI ?? "");
+  const [postalCode, setPostalCode] = useState(client?.postalCode ?? "");
   const [notes, setNotes] = useState(client?.notes ?? "");
   const [tags, setTags] = useState<Set<string>>(
     () => new Set(client?.tags ?? []),
@@ -1230,6 +1238,7 @@ function ClientFormModal({
       taxRegimen: taxRegimen.trim() || null,
       fiscalName: fiscalName.trim() || null,
       usoCFDI: usoCFDI.trim() || null,
+      postalCode: postalCode.trim() || null,
       notes: notes.trim() || null,
       tags: [...tags],
       additionalPhones,
@@ -1382,6 +1391,19 @@ function ClientFormModal({
               </option>
             ))}
           </select>
+        </div>
+        <div className="field">
+          <span className="label">CP fiscal (CFDI)</span>
+          <input
+            className="input"
+            placeholder="Código postal del domicilio fiscal"
+            value={postalCode}
+            onChange={(e) =>
+              setPostalCode(e.target.value.replace(/\D/g, "").slice(0, 5))
+            }
+            inputMode="numeric"
+            maxLength={5}
+          />
         </div>
         <div className="field col-span-full">
           <span className="label">Razón social fiscal (si difiere del nombre)</span>

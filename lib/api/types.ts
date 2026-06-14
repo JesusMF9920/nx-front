@@ -192,6 +192,8 @@ export type ApiClient = {
   fiscalName: string | null;
   /** CFDI — uso del CFDI por defecto (c_UsoCFDI). */
   usoCFDI: string | null;
+  /** CFDI — CP del domicilio fiscal del receptor (DomicilioFiscalReceptor). */
+  postalCode: string | null;
   notes: string | null;
   tags: string[];
   additionalPhones: string[];
