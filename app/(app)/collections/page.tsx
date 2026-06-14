@@ -165,6 +165,23 @@ export default function CollectionsPage() {
 
   const colCount = view === "client" ? 5 : 8;
 
+  // `useApiList` conserva los items previos mientras refetchea al cambiar de
+  // vista; como las dos vistas tienen FORMA distinta, filtramos por la forma
+  // que toca para no renderizar campos inexistentes (p.ej. order.total sobre
+  // una fila de cliente). La ventana de transición (items viejos de la otra
+  // forma) se trata como "cargando".
+  const orderRows =
+    view === "order"
+      ? (items.filter((it) => "orderId" in it) as ApiReceivableOrder[])
+      : [];
+  const clientRows =
+    view === "client"
+      ? (items.filter((it) => "debt" in it) as ApiReceivableClient[])
+      : [];
+  const rowCount = view === "order" ? orderRows.length : clientRows.length;
+  const transitioning = !loading && items.length > 0 && rowCount === 0;
+  const showLoading = loading || transitioning;
+
   return (
     <>
       <PageHeader
@@ -173,7 +190,7 @@ export default function CollectionsPage() {
           summary
             ? `${fmtMXN(summary.totalBalance)} por cobrar · ${fmtInt(
                 summary.debtorCount,
-              )} deudores`
+              )} ${summary.debtorCount === 1 ? "deudor" : "deudores"}`
             : "Cuentas por cobrar"
         }
       />
@@ -297,13 +314,13 @@ export default function CollectionsPage() {
               )}
             </thead>
             <tbody>
-              {loading ? (
+              {showLoading ? (
                 <tr>
                   <td colSpan={colCount} className="text-muted">
                     Cargando cobranza…
                   </td>
                 </tr>
-              ) : items.length === 0 ? (
+              ) : rowCount === 0 ? (
                 <tr>
                   <td colSpan={colCount} className="text-muted">
                     {debounced
@@ -314,7 +331,7 @@ export default function CollectionsPage() {
                   </td>
                 </tr>
               ) : view === "client" ? (
-                (items as ApiReceivableClient[]).map((c) => (
+                clientRows.map((c) => (
                   <tr key={c.clientId}>
                     <td>{c.clientName}</td>
                     <td className="num" style={{ textAlign: "right" }}>
@@ -354,7 +371,7 @@ export default function CollectionsPage() {
                   </tr>
                 ))
               ) : (
-                (items as ApiReceivableOrder[]).map((o) => (
+                orderRows.map((o) => (
                   <tr key={o.orderId}>
                     <td className="num">
                       <Link href={`/orders/${o.folio}`} className="text-[13px]">
