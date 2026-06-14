@@ -140,11 +140,14 @@ export default function LoginPage() {
         </div>
       </div>
 
-      {/* Right — visual panel */}
+      {/* Right — visual panel. Splash de marca OSCURO por diseño en ambos temas
+          (texto blanco + overlays rgba blancos). Fondo oscuro FIJO, no `var(--ink)`:
+          ese token se invierte a claro en modo oscuro y dejaría el texto blanco
+          ilegible. */}
       <div
         className="relative overflow-hidden flex flex-col"
         style={{
-          background: "var(--ink)",
+          background: "#1a1a17",
           color: "white",
           padding: 32,
         }}
