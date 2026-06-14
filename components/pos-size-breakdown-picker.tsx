@@ -74,7 +74,8 @@ export function PosSizeBreakdownPicker({ product, material, editLineId, editBrea
           </div>
         </div>
 
-        <div className="border border-line rounded-md overflow-hidden">
+        <div className="overflow-x-auto">
+        <div className="border border-line rounded-md overflow-hidden min-w-[520px]">
           <div
             className="grid px-3.5 py-2.5 bg-surface-2 text-[11px] text-muted uppercase font-medium"
             style={{ gridTemplateColumns: COLS, letterSpacing: ".04em" }}
@@ -150,6 +151,7 @@ export function PosSizeBreakdownPicker({ product, material, editLineId, editBrea
               </div>
             );
           })}
+        </div>
         </div>
 
         <div className="flex items-center gap-3.5">

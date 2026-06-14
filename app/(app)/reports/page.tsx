@@ -199,17 +199,19 @@ export default function ReportsPage() {
         />
       </div>
 
-      <div className="row gap-1 mb-3.5 p-[3px] bg-surface border border-line rounded-md inline-flex">
-        {TABS.map((t) => (
-          <button
-            key={t}
-            onClick={() => setTab(t)}
-            className={`btn btn--sm ${tab === t ? "btn--primary" : "btn--ghost"}`}
-            style={{ border: "none" }}
-          >
-            {t}
-          </button>
-        ))}
+      <div className="overflow-x-auto mb-3.5">
+        <div className="row gap-1 p-[3px] bg-surface border border-line rounded-md inline-flex">
+          {TABS.map((t) => (
+            <button
+              key={t}
+              onClick={() => setTab(t)}
+              className={`btn btn--sm ${tab === t ? "btn--primary" : "btn--ghost"}`}
+              style={{ border: "none" }}
+            >
+              {t}
+            </button>
+          ))}
+        </div>
       </div>
 
       {loading ? (

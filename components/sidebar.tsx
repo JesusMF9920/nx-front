@@ -75,7 +75,15 @@ function initialsFor(name: string): string {
   return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
 }
 
-export function Sidebar() {
+export function Sidebar({
+  open = false,
+  onClose,
+}: {
+  /** Drawer abierto (< lg). En desktop el CSS lo ignora. */
+  open?: boolean;
+  /** Cierra el drawer (clic en backdrop, link de nav u org). */
+  onClose?: () => void;
+}) {
   const pathname = usePathname();
   const router = useRouter();
   const { user, roles, permissions, features, logout } = useAuth();
@@ -166,7 +174,7 @@ export function Sidebar() {
   };
 
   return (
-    <aside className="sidebar">
+    <aside className={`sidebar ${open ? "is-open" : ""}`}>
       <div className="sidebar__brand">
         <div className="brand-mark">N</div>
         <div className="brand-name">
@@ -174,7 +182,7 @@ export function Sidebar() {
         </div>
       </div>
 
-      <Link href="/settings" className="sidebar__org" style={{ textDecoration: "none", color: "inherit" }}>
+      <Link href="/settings" className="sidebar__org" style={{ textDecoration: "none", color: "inherit" }} onClick={onClose}>
         <div className="org-avatar">{orgName ? initialsFor(orgName) : "·"}</div>
         <div className="org-name">{orgName ?? "—"}</div>
         <span className="chev">{I.chevronDown}</span>
@@ -192,6 +200,7 @@ export function Sidebar() {
                   key={it.href}
                   href={it.href}
                   className={`nav-item ${active ? "is-active" : ""}`}
+                  onClick={onClose}
                 >
                   <span className="nav-item__icon">{it.icon}</span>
                   {it.label}

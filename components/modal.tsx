@@ -22,7 +22,13 @@ export function Modal({ title, onClose, children, footer, width = 720 }: ModalPr
 
   return (
     <div className="modal-backdrop" onClick={onClose}>
-      <div className="modal" style={{ width }} onClick={(e) => e.stopPropagation()}>
+      {/* Topa el ancho al viewport en teléfono (deja 8px de margen por lado);
+          en pantallas grandes usa el `width` pedido. */}
+      <div
+        className="modal"
+        style={{ width: `min(${width}px, calc(100vw - 16px))` }}
+        onClick={(e) => e.stopPropagation()}
+      >
         <div className="modal__head">
           <div className="modal__title">{title}</div>
           <div className="spacer" />

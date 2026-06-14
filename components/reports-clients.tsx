@@ -10,7 +10,8 @@ export function ReportsClients({ items }: { items: ApiTopClient[] }) {
       {items.length === 0 ? (
         <div className="empty m-3.5">Sin ventas en el periodo.</div>
       ) : (
-        <table className="tbl">
+        <div className="overflow-x-auto">
+        <table className="tbl min-w-[640px]">
           <thead>
             <tr>
               <th>Cliente</th>
@@ -37,6 +38,7 @@ export function ReportsClients({ items }: { items: ApiTopClient[] }) {
             ))}
           </tbody>
         </table>
+        </div>
       )}
     </div>
   );

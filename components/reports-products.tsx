@@ -11,7 +11,8 @@ export function ReportsProducts({ items }: { items: ApiTopProduct[] }) {
       {items.length === 0 ? (
         <div className="empty m-3.5">Sin ventas en el periodo.</div>
       ) : (
-        <table className="tbl">
+        <div className="overflow-x-auto">
+        <table className="tbl min-w-[720px]">
           <thead>
             <tr>
               <th>Producto</th>
@@ -52,6 +53,7 @@ export function ReportsProducts({ items }: { items: ApiTopProduct[] }) {
             ))}
           </tbody>
         </table>
+        </div>
       )}
     </div>
   );

@@ -630,4 +630,108 @@ input, select, textarea { font-family: inherit; font-size: inherit; color: inher
   font-size: 12px;
   display: flex; gap: 6px; align-items: baseline;
 }
+
+/* ============ Responsive (móvil/tablet) ============ */
+/* Por debajo de lg (1024px) el sidebar deja de ser columna fija y pasa a ser un
+   drawer off-canvas con backdrop (lo abre la hamburguesa del topbar). En lg+ se
+   mantiene el grid sticky de siempre. */
+@media (max-width: 1023px) {
+  .app { grid-template-columns: 1fr; }
+  .sidebar {
+    position: fixed;
+    inset: 0 auto 0 0;
+    width: 232px;
+    z-index: 40;
+    transform: translateX(-100%);
+    transition: transform 0.2s ease;
+  }
+  .sidebar.is-open { transform: none; box-shadow: var(--sh-lg); }
+  .app__backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 30;
+    background: var(--backdrop);
+    animation: fadeIn 0.15s ease;
+  }
+  .topbar__search { width: max(140px, 34vw); }
+}
+
+/* En desktop el sidebar siempre está visible → la hamburguesa sobra. */
+@media (min-width: 1024px) {
+  .topbar__menu { display: none; }
+}
+
+/* KPI grids (dashboard + reports): 4 → 2 → 1 columnas. */
+@media (max-width: 1024px) { .kpi-grid { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 560px)  { .kpi-grid { grid-template-columns: 1fr; } }
+
+/* Teléfono: más espacio para el contenido y la barra. */
+@media (max-width: 640px) {
+  .content { padding: 16px 14px 64px; }
+  .crumbs { display: none; } /* el PageHeader de cada pantalla ya da el contexto */
+  .topbar { padding: 0 12px; gap: 8px; }
+  .topbar__search .kbd { display: none; }
+  .modal { max-height: 95vh; }
+  /* El encabezado de cada pantalla apila título y acciones en teléfono. */
+  .page-header { flex-direction: column; gap: 12px; }
+  .page-actions { margin-left: 0; flex-wrap: wrap; }
+}
+
+/* POS root: sangra hacia los bordes de .content (margen negativo = padding de
+   .content). El padding de .content cambia en teléfono, así que el margen debe
+   acompañarlo o desborda la página. */
+.pos-root {
+  height: calc(100vh - 48px);
+  margin: -24px -28px -80px;
+}
+@media (max-width: 640px) {
+  .pos-root { margin: -16px -14px -64px; }
+}
+
+/* ── POS: carrito como bottom-sheet en teléfono (< md); columna del grid en md+.
+   El layout interno (peek/body) vive en CSS, NO en utilidades Tailwind, porque
+   la capa `utilities` ganaría sobre el `display:none` del colapso. */
+.pos-cart {
+  display: flex;
+  flex-direction: column;
+  background: var(--surface);
+  height: calc(100vh - 48px);
+}
+.pos-cart__body {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+.pos-cart__peek {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--line);
+  cursor: pointer;
+}
+@media (min-width: 768px) {
+  .pos-cart__peek { display: none; } /* el peek solo existe en móvil */
+  .pos-cart__backdrop { display: none; }
+}
+@media (max-width: 767px) {
+  .pos-cart {
+    position: fixed;
+    left: 0; right: 0; bottom: 0;
+    height: auto;
+    max-height: 85vh;
+    z-index: 35;
+    border-top: 1px solid var(--line);
+    border-top-left-radius: var(--r-xl);
+    border-top-right-radius: var(--r-xl);
+    box-shadow: var(--sh-lg);
+  }
+  .pos-cart:not(.is-expanded) .pos-cart__body { display: none; }
+  .pos-cart__backdrop {
+    position: fixed; inset: 0; z-index: 34;
+    background: var(--backdrop);
+    animation: fadeIn 0.15s ease;
+  }
+}
 }

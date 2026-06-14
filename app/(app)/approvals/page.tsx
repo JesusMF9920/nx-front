@@ -104,13 +104,13 @@ export default function ApprovalsPage() {
         }
       />
 
-      <div className="grid gap-5" style={{ gridTemplateColumns: "1fr 1.4fr" }}>
+      <div className="grid gap-5 grid-cols-1 xl:grid-cols-[1fr_1.4fr]">
         <div className="card">
-          <div className="card__head gap-1">
+          <div className="card__head gap-1 overflow-x-auto">{/* tabs scrollables en móvil */}
             {TABS.map((t) => (
               <button
                 key={t}
-                className={`btn btn--sm ${tab === t ? "btn--primary" : "btn--ghost"}`}
+                className={`btn btn--sm shrink-0 ${tab === t ? "btn--primary" : "btn--ghost"}`}
                 onClick={() => setTab(t)}
               >
                 {t} <span className="ml-1 opacity-60">{counts[t]}</span>
