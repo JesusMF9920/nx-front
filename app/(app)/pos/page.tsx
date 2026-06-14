@@ -83,6 +83,9 @@ export default function POSPage() {
   const [deliverDraft, setDeliverDraft] = useState("");
   const [showDeliver, setShowDeliver] = useState(false);
   const [showPay, setShowPay] = useState(false);
+  // Bottom-sheet del carrito en teléfono (< md). En desktop el CSS lo ignora
+  // (el carrito es columna fija del grid).
+  const [cartExpanded, setCartExpanded] = useState(false);
   const [variantPicker, setVariantPicker] = useState<PickerState | null>(null);
   const [detailCache, setDetailCache] = useState<Map<string, ApiProductDetail>>(
     () => new Map(),
@@ -475,7 +478,7 @@ export default function POSPage() {
           </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-5 @container">
+        <div className="flex-1 overflow-y-auto px-5 pt-5 pb-24 md:pb-5 @container">
           {(loadError || actionError) && (
             <div
               className="flex items-start gap-2 rounded-md mb-3"
@@ -588,10 +591,49 @@ export default function POSPage() {
         </div>
       </div>
 
-      <div
-        className="flex flex-col bg-surface"
-        style={{ height: "calc(100vh - 48px)" }}
-      >
+      {cartExpanded && (
+        <div
+          className="pos-cart__backdrop"
+          onClick={() => setCartExpanded(false)}
+          aria-hidden
+        />
+      )}
+
+      <div className={`pos-cart ${cartExpanded ? "is-expanded" : ""}`}>
+        {/* Peek (solo móvil): resumen + Cobrar siempre visibles; toca para expandir. */}
+        <div
+          className="pos-cart__peek"
+          role="button"
+          tabIndex={0}
+          aria-expanded={cartExpanded}
+          onClick={() => setCartExpanded((e) => !e)}
+        >
+          <span
+            className="inline-flex text-muted"
+            style={{ transform: cartExpanded ? "none" : "rotate(180deg)" }}
+          >
+            {I.chevronDown}
+          </span>
+          <div className="flex flex-col leading-tight">
+            <span className="text-[11px] text-muted">
+              {cart.length} {cart.length === 1 ? "producto" : "productos"}
+            </span>
+            <span className="num font-semibold">{fmtMXN(total)}</span>
+          </div>
+          <div className="spacer" />
+          <button
+            className="btn btn--accent btn--sm"
+            onClick={(e) => {
+              e.stopPropagation();
+              setShowPay(true);
+            }}
+            disabled={cart.length === 0 || !client || !canSell || hasInvalidAdHoc}
+          >
+            {I.cash} Cobrar
+          </button>
+        </div>
+
+        <div className="pos-cart__body">
         <div
           className="px-[18px] py-3.5"
           style={{ borderBottom: "1px solid var(--line)" }}
@@ -845,7 +887,7 @@ export default function POSPage() {
             </button>
           </div>
           <button
-            className="btn btn--accent btn--lg w-full justify-center mt-2"
+            className="btn btn--accent btn--lg w-full justify-center mt-2 hidden md:flex"
             onClick={() => setShowPay(true)}
             disabled={cart.length === 0 || !client || !canSell || hasInvalidAdHoc}
             title={
@@ -869,6 +911,7 @@ export default function POSPage() {
               No tienes permiso para cobrar en el punto de venta.
             </div>
           )}
+        </div>
         </div>
       </div>
 

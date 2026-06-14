@@ -676,4 +676,51 @@ input, select, textarea { font-family: inherit; font-size: inherit; color: inher
   .page-header { flex-direction: column; gap: 12px; }
   .page-actions { margin-left: 0; flex-wrap: wrap; }
 }
+
+/* ── POS: carrito como bottom-sheet en teléfono (< md); columna del grid en md+.
+   El layout interno (peek/body) vive en CSS, NO en utilidades Tailwind, porque
+   la capa `utilities` ganaría sobre el `display:none` del colapso. */
+.pos-cart {
+  display: flex;
+  flex-direction: column;
+  background: var(--surface);
+  height: calc(100vh - 48px);
+}
+.pos-cart__body {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+.pos-cart__peek {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--line);
+  cursor: pointer;
+}
+@media (min-width: 768px) {
+  .pos-cart__peek { display: none; } /* el peek solo existe en móvil */
+  .pos-cart__backdrop { display: none; }
+}
+@media (max-width: 767px) {
+  .pos-cart {
+    position: fixed;
+    left: 0; right: 0; bottom: 0;
+    height: auto;
+    max-height: 85vh;
+    z-index: 35;
+    border-top: 1px solid var(--line);
+    border-top-left-radius: var(--r-xl);
+    border-top-right-radius: var(--r-xl);
+    box-shadow: var(--sh-lg);
+  }
+  .pos-cart:not(.is-expanded) .pos-cart__body { display: none; }
+  .pos-cart__backdrop {
+    position: fixed; inset: 0; z-index: 34;
+    background: var(--backdrop);
+    animation: fadeIn 0.15s ease;
+  }
+}
 }
