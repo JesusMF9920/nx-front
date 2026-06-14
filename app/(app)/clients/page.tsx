@@ -16,6 +16,7 @@ import {
 import { ApiError } from "@/lib/api/errors";
 import { ordersApi } from "@/lib/api/orders";
 import { ORDER_STATUS_ES, paymentLabel } from "@/lib/api/sales-mappers";
+import { REGIMEN_FISCAL, USO_CFDI } from "@/lib/sat-catalogs";
 import type {
   ApiClient,
   ApiClientAddress,
@@ -895,6 +896,13 @@ function ClientDetailPanel({
               v={client.taxRegimen}
             />
           )}
+          {client.postalCode && (
+            <DetailKV
+              icon={I.receipt}
+              label="CP fiscal"
+              v={client.postalCode}
+            />
+          )}
         </div>
 
         {client.notes && (
@@ -1171,6 +1179,9 @@ function ClientFormModal({
   const [phone, setPhone] = useState(client?.phone ?? "");
   const [email, setEmail] = useState(client?.email ?? "");
   const [taxRegimen, setTaxRegimen] = useState(client?.taxRegimen ?? "");
+  const [fiscalName, setFiscalName] = useState(client?.fiscalName ?? "");
+  const [usoCFDI, setUsoCFDI] = useState(client?.usoCFDI ?? "");
+  const [postalCode, setPostalCode] = useState(client?.postalCode ?? "");
   const [notes, setNotes] = useState(client?.notes ?? "");
   const [tags, setTags] = useState<Set<string>>(
     () => new Set(client?.tags ?? []),
@@ -1225,6 +1236,9 @@ function ClientFormModal({
       email: email.trim() || null,
       rfc: rfc.trim() || null,
       taxRegimen: taxRegimen.trim() || null,
+      fiscalName: fiscalName.trim() || null,
+      usoCFDI: usoCFDI.trim() || null,
+      postalCode: postalCode.trim() || null,
       notes: notes.trim() || null,
       tags: [...tags],
       additionalPhones,
@@ -1356,11 +1370,50 @@ function ClientFormModal({
             onChange={(e) => setTaxRegimen(e.target.value)}
           >
             <option value="">—</option>
-            <option value="601">601 — Régimen general</option>
-            <option value="612">612 — Persona física</option>
-            <option value="603">603 — No lucrativas</option>
-            <option value="626">626 — Simplificado de confianza</option>
+            {REGIMEN_FISCAL.map((r) => (
+              <option key={r.code} value={r.code}>
+                {r.label}
+              </option>
+            ))}
           </select>
+        </div>
+        <div className="field">
+          <span className="label">Uso del CFDI (default)</span>
+          <select
+            className="select"
+            value={usoCFDI}
+            onChange={(e) => setUsoCFDI(e.target.value)}
+          >
+            <option value="">—</option>
+            {USO_CFDI.map((u) => (
+              <option key={u.code} value={u.code}>
+                {u.label}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div className="field">
+          <span className="label">CP fiscal (CFDI)</span>
+          <input
+            className="input"
+            placeholder="Código postal del domicilio fiscal"
+            value={postalCode}
+            onChange={(e) =>
+              setPostalCode(e.target.value.replace(/\D/g, "").slice(0, 5))
+            }
+            inputMode="numeric"
+            maxLength={5}
+          />
+        </div>
+        <div className="field col-span-full">
+          <span className="label">Razón social fiscal (si difiere del nombre)</span>
+          <input
+            className="input"
+            placeholder="Como aparece en la Constancia de Situación Fiscal"
+            value={fiscalName}
+            onChange={(e) => setFiscalName(e.target.value)}
+            maxLength={160}
+          />
         </div>
         <div className="field col-span-full">
           <span className="label">Notas internas</span>

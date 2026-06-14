@@ -22,6 +22,9 @@ export type CreateProductInput = {
   stock?: number;
   unit?: string;
   needsApproval?: boolean;
+  claveProdServ?: string | null;
+  claveUnidad?: string | null;
+  objetoImpuesto?: string | null;
   variantType?: ApiVariantType;
   dimensionConfig?: ApiDimensionConfig | null;
   sizeSurcharges?: Record<string, number> | null;

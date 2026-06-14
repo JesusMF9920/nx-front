@@ -24,6 +24,11 @@ export type BusinessSettingsPatch = Partial<{
   rfc: string | null;
   email: string | null;
   logoKey: string | null;
+  taxRegimen: string | null;
+  postalCode: string | null;
+  defaultClaveProdServ: string | null;
+  defaultClaveUnidad: string | null;
+  defaultObjetoImpuesto: string | null;
 }>;
 
 /**

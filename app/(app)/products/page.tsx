@@ -11,6 +11,7 @@ import { ProductDetail } from "@/components/product-detail";
 import { usePermission } from "@/lib/auth/auth-context";
 import { catalogApi } from "@/lib/api/catalog";
 import { ApiError } from "@/lib/api/errors";
+import { CLAVE_UNIDAD, OBJETO_IMPUESTO } from "@/lib/sat-catalogs";
 import type {
   ApiProduct,
   ApiProductDetail,
@@ -550,6 +551,13 @@ function ProductFormModal({
   const [needsApproval, setNeedsApproval] = useState(
     product?.needsApproval ?? false,
   );
+  const [claveProdServ, setClaveProdServ] = useState(
+    product?.claveProdServ ?? "",
+  );
+  const [claveUnidad, setClaveUnidad] = useState(product?.claveUnidad ?? "");
+  const [objetoImpuesto, setObjetoImpuesto] = useState(
+    product?.objetoImpuesto ?? "",
+  );
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -592,6 +600,9 @@ function ProductFormModal({
       stock: stockNum,
       unit: unit.trim() || "pieza",
       needsApproval,
+      claveProdServ: claveProdServ.trim() || null,
+      claveUnidad: claveUnidad.trim() || null,
+      objetoImpuesto: objetoImpuesto.trim() || null,
     };
 
     setSubmitting(true);
@@ -781,6 +792,52 @@ function ProductFormModal({
             />
             Requiere aprobación del cliente
           </label>
+        </div>
+        <div className="field col-span-full">
+          <span className="label">Códigos SAT (CFDI) — opcional</span>
+          <small className="help mb-1.5 block">
+            Vacío = hereda el default del negocio (Configuración → Datos
+            fiscales).
+          </small>
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(3, 1fr)",
+              gap: 8,
+            }}
+          >
+            <input
+              className="input"
+              value={claveProdServ}
+              onChange={(e) => setClaveProdServ(e.target.value)}
+              placeholder="ClaveProdServ"
+              maxLength={8}
+            />
+            <select
+              className="select"
+              value={claveUnidad}
+              onChange={(e) => setClaveUnidad(e.target.value)}
+            >
+              <option value="">ClaveUnidad…</option>
+              {CLAVE_UNIDAD.map((u) => (
+                <option key={u.code} value={u.code}>
+                  {u.label}
+                </option>
+              ))}
+            </select>
+            <select
+              className="select"
+              value={objetoImpuesto}
+              onChange={(e) => setObjetoImpuesto(e.target.value)}
+            >
+              <option value="">Objeto imp…</option>
+              {OBJETO_IMPUESTO.map((o) => (
+                <option key={o.code} value={o.code}>
+                  {o.label}
+                </option>
+              ))}
+            </select>
+          </div>
         </div>
         {error && (
           <div

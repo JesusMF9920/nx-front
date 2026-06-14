@@ -929,6 +929,7 @@ export default function POSPage() {
           deliverAt={deliverAt || undefined}
           customerEmail={client.email ?? undefined}
           customerPhone={client.phone ?? undefined}
+          defaultRequiresInvoice={!!client.rfc}
           onClose={() => setShowPay(false)}
           onPaid={(res, prints) => {
             setShowPay(false);

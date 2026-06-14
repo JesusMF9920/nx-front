@@ -16,7 +16,9 @@ import { StatusPill } from "@/components/status-pill";
 import { SummaryRow } from "@/components/summary-row";
 import type { ApiAuditEntry } from "@/lib/api/audit";
 import { useFeature, usePermission } from "@/lib/auth/auth-context";
+import { downloadFile } from "@/lib/api/download";
 import { ApiError } from "@/lib/api/errors";
+import { invoicingApi } from "@/lib/api/invoicing";
 import { ordersApi } from "@/lib/api/orders";
 import { openLetterTicket, printThermalTicket } from "@/lib/print/order-ticket";
 import {
@@ -27,6 +29,7 @@ import {
   paymentLabel,
 } from "@/lib/api/sales-mappers";
 import type {
+  ApiInvoice,
   ApiOrderDetail,
   ApiOrderStatus,
   ApiPaymentMethod,
@@ -159,6 +162,12 @@ export default function OrderDetailPage() {
     : MANUAL_ORDER_TRANSITIONS.filter((s) => s !== "delivered");
   // Quien puede ver la orden puede imprimirla; el gate real es el flag.
   const ticketsEnabled = useFeature("tickets");
+  // Facturación (CFDI): flag + permisos. La factura del pedido se carga aparte.
+  const cfdiEnabled = useFeature("cfdi");
+  const canInvoice = usePermission("invoicing.create");
+  const canReadInvoice = usePermission("invoicing.read");
+  const [invoice, setInvoice] = useState<ApiInvoice | null>(null);
+  const [invoicing, setInvoicing] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -192,6 +201,23 @@ export default function OrderDetailPage() {
     setLoading(true);
     void load();
   }, [id, load]);
+
+  // Carga la factura del pedido (si existe) para gatear "Facturar" vs descargas.
+  useEffect(() => {
+    if (!detail || !cfdiEnabled || !canReadInvoice) return;
+    let cancelled = false;
+    void (async () => {
+      try {
+        const { invoice: found } = await invoicingApi.byOrder(detail.id);
+        if (!cancelled) setInvoice(found);
+      } catch {
+        // sin factura o sin acceso: el botón "Facturar" queda disponible
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [detail, cfdiEnabled, canReadInvoice]);
 
   // Usuarios sólo para resolver nombres de actores en el timeline. Falla silenciosa.
   useEffect(() => {
@@ -422,6 +448,54 @@ export default function OrderDetailPage() {
     }
   };
 
+  const facturar = async () => {
+    if (invoicing) return;
+    setInvoicing(true);
+    setActionError(null);
+    setActionNotice(null);
+    try {
+      const res = await invoicingApi.emit(detail.id);
+      setActionNotice(`Factura timbrada · UUID ${res.uuid}`);
+      const { invoice: found } = await invoicingApi.byOrder(detail.id);
+      setInvoice(found);
+    } catch (err) {
+      // El motivo del SAT/PAC (datos del receptor que no cuadran, etc.) viene
+      // en el mensaje del error → mostrarlo tal cual.
+      setActionError(
+        err instanceof ApiError ? err.message : "No se pudo facturar el pedido.",
+      );
+    } finally {
+      setInvoicing(false);
+    }
+  };
+
+  const downloadInvoiceFile = (format: "xml" | "pdf") => {
+    if (!invoice) return;
+    const name = `factura-${invoice.folio ?? invoice.uuid ?? invoice.id}.${format}`;
+    void downloadFile(invoicingApi.fileUrl(invoice.id, format), name);
+  };
+
+  const emitComplement = async () => {
+    if (invoicing) return;
+    setInvoicing(true);
+    setActionError(null);
+    setActionNotice(null);
+    try {
+      const res = await invoicingApi.emitPaymentComplement(detail.id);
+      setActionNotice(
+        `Complemento de pago timbrado · parcialidad ${res.partialityNumber} por ${fmtMXN(res.amount)} · UUID ${res.uuid}`,
+      );
+    } catch (err) {
+      setActionError(
+        err instanceof ApiError
+          ? err.message
+          : "No se pudo emitir el complemento de pago.",
+      );
+    } finally {
+      setInvoicing(false);
+    }
+  };
+
   return (
     <>
       {breadcrumb}
@@ -468,6 +542,56 @@ export default function OrderDetailPage() {
                 </button>
               </>
             )}
+            {cfdiEnabled &&
+              (invoice && invoice.status !== "cancelled" ? (
+                <>
+                  <span
+                    className="text-xs font-medium self-center"
+                    style={{ color: "var(--ok)" }}
+                    title={invoice.uuid ?? undefined}
+                  >
+                    ✓ Facturado
+                  </span>
+                  <button
+                    className="btn"
+                    type="button"
+                    onClick={() => downloadInvoiceFile("pdf")}
+                  >
+                    {I.receipt} Factura PDF
+                  </button>
+                  <button
+                    className="btn"
+                    type="button"
+                    onClick={() => downloadInvoiceFile("xml")}
+                  >
+                    {I.receipt} Factura XML
+                  </button>
+                  {invoice.paymentMethod === "PPD" && canInvoice && (
+                    <button
+                      className="btn"
+                      type="button"
+                      disabled={invoicing}
+                      onClick={() => void emitComplement()}
+                      title="Emite un CFDI de pago (REP) por el abono cobrado"
+                    >
+                      {I.receipt}{" "}
+                      {invoicing ? "Emitiendo…" : "Complemento de pago"}
+                    </button>
+                  )}
+                </>
+              ) : (
+                canInvoice &&
+                !isCancelled && (
+                  <button
+                    className="btn btn--accent"
+                    type="button"
+                    disabled={invoicing}
+                    onClick={() => void facturar()}
+                  >
+                    {I.receipt} {invoicing ? "Facturando…" : "Facturar"}
+                  </button>
+                )
+              ))}
             <button className="btn">{I.mail} Enviar comprobante</button>
             <button className="btn btn--accent">{I.send} Notificar al cliente</button>
             {isEditable && (

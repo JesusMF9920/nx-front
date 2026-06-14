@@ -188,6 +188,12 @@ export type ApiClient = {
   email: string | null;
   rfc: string | null;
   taxRegimen: string | null;
+  /** CFDI — razón social fiscal si difiere del nombre comercial. */
+  fiscalName: string | null;
+  /** CFDI — uso del CFDI por defecto (c_UsoCFDI). */
+  usoCFDI: string | null;
+  /** CFDI — CP del domicilio fiscal del receptor (DomicilioFiscalReceptor). */
+  postalCode: string | null;
   notes: string | null;
   tags: string[];
   additionalPhones: string[];
@@ -245,6 +251,10 @@ export type ApiProduct = {
   unit: string;
   needsApproval: boolean;
   isActive: boolean;
+  /** CFDI — códigos SAT del concepto (null = hereda el default del negocio). */
+  claveProdServ: string | null;
+  claveUnidad: string | null;
+  objetoImpuesto: string | null;
   variantType: ApiVariantType;
   createdAt: string;
   updatedAt: string;
@@ -775,6 +785,14 @@ export type ApiBusinessSettings = {
   logoKey: string | null;
   /** GET presignada temporal (TTL 10 min); null sin logo o sin storage. */
   logoUrl: string | null;
+  /** CFDI — régimen fiscal SAT del emisor (c_RegimenFiscal). */
+  taxRegimen: string | null;
+  /** CFDI — CP del domicilio fiscal / lugar de expedición. */
+  postalCode: string | null;
+  /** CFDI — defaults SAT de conceptos (override por producto). */
+  defaultClaveProdServ: string | null;
+  defaultClaveUnidad: string | null;
+  defaultObjetoImpuesto: string | null;
   updatedAt: string | null;
 };
 
@@ -844,4 +862,36 @@ export type ApiCashCloseResult = {
   countedCash: number;
   expectedCash: number;
   difference: number;
+};
+
+// ── Facturación (CFDI) ─────────────────────────────────────────────────────
+
+export type ApiInvoiceType = "ingreso" | "pago" | "global";
+export type ApiInvoiceStatus = "draft" | "stamped" | "sent" | "cancelled";
+
+export type ApiInvoice = {
+  id: string;
+  type: ApiInvoiceType;
+  status: ApiInvoiceStatus;
+  orderId: string | null;
+  orderFolio: string | null;
+  /** Factura global: pedidos agregados. Vacío en ingreso/pago. */
+  includedOrderIds: string[];
+  /** Folio fiscal (UUID); null hasta timbrar. */
+  uuid: string | null;
+  serie: string | null;
+  folio: string | null;
+  /** MetodoPago SAT del Ingreso ('PUE'|'PPD'); null en pago/global. */
+  paymentMethod: string | null;
+  subtotal: number;
+  total: number;
+  currency: string;
+  receiverRfc: string | null;
+  receiverName: string | null;
+  cancelReason: string | null;
+  /** Estatus del acuse de cancelación del SAT ('canceled' | 'pending'). */
+  cancelStatus: string | null;
+  cancelledAt: string | null;
+  createdAt: string;
+  updatedAt: string;
 };

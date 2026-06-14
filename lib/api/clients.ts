@@ -9,6 +9,9 @@ export type CreateClientInput = {
   email?: string | null;
   rfc?: string | null;
   taxRegimen?: string | null;
+  fiscalName?: string | null;
+  usoCFDI?: string | null;
+  postalCode?: string | null;
   notes?: string | null;
   tags?: string[];
   additionalPhones?: string[];
