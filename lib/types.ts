@@ -2,6 +2,8 @@
 // `lib/api/types.ts`). Aquí sólo quedan shapes locales del POS y los pocos
 // unions en español que consumen componentes de presentación.
 
+import type { ApiPriceTier } from "@/lib/api/types";
+
 /** Status de orden en español — sólo display (StatusPill). */
 export type OrderStatus =
   | "En diseño"
@@ -43,7 +45,14 @@ export type CartLine = {
   supplier?: string;
   needsApproval: boolean;
   qty: number;
+  /** Precio unitario base efectivo (ya resuelto por mayoreo según la cantidad). */
   price: number;
+  /** Precio base del catálogo (sin mayoreo) — para recomputar al cambiar la cantidad. */
+  basePrice?: number;
+  /** Escalones de mayoreo del producto (orientativos; el backend revalida). */
+  priceTiers?: ApiPriceTier[] | null;
+  /** Delta de la variante (preset/size) sobre la base resuelta — para recomputar al cambiar qty. */
+  variantPriceMod?: number;
   /** Code de la variante (preset/size) — lo que CheckoutLineInput exige; el label es solo display. */
   variantCode?: string;
   variantLabel?: string;

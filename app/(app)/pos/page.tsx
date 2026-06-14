@@ -36,6 +36,7 @@ import type {
 } from "@/lib/api/types";
 import { fmtMXN } from "@/lib/format";
 import { cartTotals, lineSubtotal } from "@/lib/pos-cart";
+import { getPriceForQty, hasPriceTiers } from "@/lib/pricing";
 import type { CartLine, ProductSource, SizeBreakdownEntry } from "@/lib/types";
 
 type PickerState = {
@@ -222,7 +223,9 @@ export default function POSPage() {
         supplier: p.supplierName ?? undefined,
         needsApproval: p.needsApproval,
         qty: 1,
-        price: p.price,
+        price: getPriceForQty(p.price, p.priceTiers, 1),
+        basePrice: p.price,
+        priceTiers: p.priceTiers,
       },
     ]);
   };
@@ -271,7 +274,19 @@ export default function POSPage() {
 
   const updateQty = (lineId: string, q: number) => {
     setCart((cs) =>
-      q <= 0 ? cs.filter((c) => c.lineId !== lineId) : cs.map((c) => (c.lineId === lineId ? { ...c, qty: q } : c)),
+      q <= 0
+        ? cs.filter((c) => c.lineId !== lineId)
+        : cs.map((c) => {
+            if (c.lineId !== lineId) return c;
+            // Recalcula el precio por mayoreo según la nueva cantidad
+            // (simple/variante). Las líneas dimension tienen precio fijo por
+            // área y las ad-hoc no llevan basePrice.
+            if (c.basePrice === undefined || c.dimension) return { ...c, qty: q };
+            const unit =
+              getPriceForQty(c.basePrice, c.priceTiers, q) +
+              (c.variantPriceMod ?? 0);
+            return { ...c, qty: q, price: Math.round(unit * 100) / 100 };
+          }),
     );
   };
 
@@ -516,6 +531,15 @@ export default function POSPage() {
                     style={{ borderTop: "1px solid var(--line)" }}
                   >
                     <span className="num font-semibold text-[13px]">{fmtMXN(p.price)}</span>
+                    {hasPriceTiers(p.priceTiers) && (
+                      <span
+                        className="tag"
+                        style={{ background: "var(--accent-soft)", color: "var(--accent-ink)" }}
+                        title="Tiene precios de mayoreo por volumen"
+                      >
+                        Mayoreo
+                      </span>
+                    )}
                     <div className="spacer" />
                     {p.variantType !== "none" && (
                       <span className="tag" title="Requiere variante">{I.layers}</span>
@@ -722,7 +746,23 @@ export default function POSPage() {
                   </label>
                 ) : (
                   !line.sizeBreakdown && (
-                    <span className="num text-muted text-[11px]">× {fmtMXN(line.price)}</span>
+                    <span className="num text-muted text-[11px] flex items-center gap-1">
+                      × {fmtMXN(line.price)}
+                      {line.basePrice !== undefined &&
+                        line.price <
+                          line.basePrice + (line.variantPriceMod ?? 0) && (
+                          <span
+                            className="tag"
+                            style={{
+                              background: "var(--accent-soft)",
+                              color: "var(--accent-ink)",
+                            }}
+                            title="Precio de mayoreo por volumen"
+                          >
+                            Mayoreo
+                          </span>
+                        )}
+                    </span>
                   )
                 )}
                 <div className="spacer" />

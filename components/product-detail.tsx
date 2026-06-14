@@ -6,6 +6,13 @@ import { I } from "@/components/icons";
 import { Kv } from "@/components/kv";
 import { Modal } from "@/components/modal";
 import {
+  PriceTiersEditor,
+  buildTierRows,
+  tierRowsToInput,
+  validateTierRows,
+  type PriceTierRow,
+} from "@/components/price-tiers-editor";
+import {
   MaterialSearchPicker,
   RecipeEditor,
   recipeRowsToInput,
@@ -16,6 +23,7 @@ import { usePermission } from "@/lib/auth/auth-context";
 import { catalogApi, type ProductVariantInput } from "@/lib/api/catalog";
 import { ApiError } from "@/lib/api/errors";
 import { inventoryApi } from "@/lib/api/inventory";
+import { hasPriceTiers, tierRanges } from "@/lib/pricing";
 import type {
   ApiDimensionConfig,
   ApiMaterial,
@@ -84,6 +92,7 @@ export function ProductDetail({
   const [editingVariants, setEditingVariants] = useState(false);
   const [editingRecipe, setEditingRecipe] = useState(false);
   const [editingSized, setEditingSized] = useState(false);
+  const [editingTiers, setEditingTiers] = useState(false);
   const canWrite = usePermission("catalog.products.write");
 
   const detail: ApiProductDetail | null = isDetail(product)
@@ -187,6 +196,11 @@ export function ProductDetail({
         }
       />
       <div className="divider" />
+      <PriceTiersSection
+        detail={detail}
+        onEdit={canWrite ? () => setEditingTiers(true) : undefined}
+      />
+      <div className="divider" />
       <RecipeSection
         detail={detail}
         materials={materials}
@@ -240,6 +254,16 @@ export function ProductDetail({
           onClose={() => setEditingSized(false)}
           onSaved={async () => {
             setEditingSized(false);
+            await refreshAfterSave();
+          }}
+        />
+      )}
+      {editingTiers && detail && (
+        <PriceTiersEditorModal
+          product={detail}
+          onClose={() => setEditingTiers(false)}
+          onSaved={async () => {
+            setEditingTiers(false);
             await refreshAfterSave();
           }}
         />
@@ -1005,6 +1029,190 @@ function RecipeEditorModal({
     >
       <form id="product-recipe-form" onSubmit={submit} className="grid gap-3">
         <RecipeEditor rows={rows} onChange={setRows} />
+        {error && (
+          <div
+            className="rounded-md text-xs"
+            style={{
+              padding: "10px 12px",
+              border: "1px solid var(--danger)",
+              color: "var(--danger)",
+              background: "var(--danger-soft)",
+            }}
+            role="alert"
+          >
+            {error}
+          </div>
+        )}
+      </form>
+    </Modal>
+  );
+}
+
+function PriceTiersSection({
+  detail,
+  onEdit,
+}: {
+  detail: ApiProductDetail;
+  onEdit?: () => void;
+}) {
+  const count = detail.priceTiers?.length ?? 0;
+  const has = count > 0;
+  const ranges = tierRanges(detail.price, detail.priceTiers);
+  return (
+    <div>
+      <div className="flex items-center gap-2 mb-2">
+        <span className="label" style={{ marginBottom: 0 }}>
+          Precios de mayoreo
+        </span>
+        {has && <span className="tag">{count} escalones</span>}
+        <div className="spacer" />
+        {onEdit && (
+          <button className="btn btn--sm btn--ghost" onClick={onEdit}>
+            {has ? (
+              <>
+                {I.edit} Editar mayoreo
+              </>
+            ) : (
+              <>
+                {I.plus} Configurar
+              </>
+            )}
+          </button>
+        )}
+      </div>
+      {has ? (
+        <div className="flex flex-wrap items-center gap-1.5">
+          {ranges.map((rng) => (
+            <span
+              key={rng.label}
+              className="tag"
+              style={
+                rng.isBase
+                  ? undefined
+                  : {
+                      background: "var(--accent-soft)",
+                      color: "var(--accent-ink)",
+                    }
+              }
+            >
+              {rng.label} {detail.unit} → {fmtMXN(rng.unitPrice)}
+            </span>
+          ))}
+        </div>
+      ) : (
+        <div className="text-muted text-sm">
+          Sin precios de mayoreo — se vende a {fmtMXN(detail.price)} /{" "}
+          {detail.unit} en cualquier cantidad.
+        </div>
+      )}
+    </div>
+  );
+}
+
+/**
+ * Configura los escalones de mayoreo de un producto vía PATCH /products/:id.
+ * Independiente del variantType; `priceTiers: null` quita el mayoreo.
+ */
+function PriceTiersEditorModal({
+  product,
+  onClose,
+  onSaved,
+}: {
+  product: ApiProductDetail;
+  onClose: () => void;
+  onSaved: () => void | Promise<void>;
+}) {
+  const [rows, setRows] = useState<PriceTierRow[]>(() =>
+    buildTierRows(product.priceTiers),
+  );
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const save = async (e: FormEvent) => {
+    e.preventDefault();
+    if (submitting) return;
+    setError(null);
+    const invalid = validateTierRows(rows);
+    if (invalid) {
+      setError(invalid);
+      return;
+    }
+    setSubmitting(true);
+    try {
+      await catalogApi.update(product.id, {
+        priceTiers: rows.length > 0 ? tierRowsToInput(rows) : null,
+      });
+      await onSaved();
+    } catch (err) {
+      setError(
+        err instanceof ApiError ? err.message : "No se pudo guardar el mayoreo.",
+      );
+      setSubmitting(false);
+    }
+  };
+
+  const removeTiers = async () => {
+    if (submitting) return;
+    setError(null);
+    setSubmitting(true);
+    try {
+      await catalogApi.update(product.id, { priceTiers: null });
+      await onSaved();
+    } catch (err) {
+      setError(
+        err instanceof ApiError ? err.message : "No se pudo quitar el mayoreo.",
+      );
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <Modal
+      title={`Precios de mayoreo — ${product.name}`}
+      onClose={onClose}
+      width={560}
+      footer={
+        <>
+          <button className="btn btn--ghost" type="button" onClick={onClose}>
+            Cancelar
+          </button>
+          {hasPriceTiers(product.priceTiers) && (
+            <button
+              className="btn btn--danger"
+              type="button"
+              onClick={removeTiers}
+              disabled={submitting}
+            >
+              Quitar mayoreo
+            </button>
+          )}
+          <button
+            className="btn btn--accent"
+            type="submit"
+            form="price-tiers-form"
+            disabled={submitting}
+          >
+            {submitting ? "Guardando…" : "Guardar"}
+          </button>
+        </>
+      }
+    >
+      <form id="price-tiers-form" onSubmit={save} className="grid gap-3.5">
+        <div className="field">
+          <span className="label">
+            Precio base: {fmtMXN(product.price)} / {product.unit}
+          </span>
+          <small className="help mb-1.5 block">
+            Define desde qué cantidad baja el precio. El precio base aplica por
+            debajo del primer escalón.
+          </small>
+          <PriceTiersEditor
+            basePrice={product.price}
+            unit={product.unit}
+            rows={rows}
+            onChange={setRows}
+          />
+        </div>
         {error && (
           <div
             className="rounded-md text-xs"

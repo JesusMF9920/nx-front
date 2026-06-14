@@ -4,6 +4,12 @@ import { useState, type FormEvent } from "react";
 import { I } from "@/components/icons";
 import { Modal } from "@/components/modal";
 import {
+  PriceTiersEditor,
+  tierRowsToInput,
+  validateTierRows,
+  type PriceTierRow,
+} from "@/components/price-tiers-editor";
+import {
   MaterialSearchPicker,
   RecipeEditor,
   recipeRowsToInput,
@@ -59,6 +65,9 @@ export function NewProductForm({
   const [variantType, setVariantType] = useState<ApiVariantType>("none");
   const [sizedMaterial, setSizedMaterial] = useState<ApiMaterial | null>(null);
   const [surcharges, setSurcharges] = useState<SurchargeDraft[]>([]);
+
+  const [showTiers, setShowTiers] = useState(false);
+  const [tierRows, setTierRows] = useState<PriceTierRow[]>([]);
 
   const [showRecipe, setShowRecipe] = useState(false);
   const [recipeRows, setRecipeRows] = useState<RecipeRow[]>([]);
@@ -119,6 +128,15 @@ export function NewProductForm({
       sizeSurcharges = Object.keys(rec).length > 0 ? rec : null;
     }
 
+    // Mayoreo opcional.
+    const tiersInvalid = validateTierRows(tierRows);
+    if (tiersInvalid) {
+      setError(tiersInvalid);
+      return;
+    }
+    const priceTiers =
+      tierRows.length > 0 ? tierRowsToInput(tierRows) : null;
+
     // Receta opcional.
     if (recipeRows.length > 0) {
       const invalid = validateRecipeRows(recipeRows);
@@ -146,6 +164,7 @@ export function NewProductForm({
       objetoImpuesto: objetoImpuesto.trim() || null,
       variantType,
       sizeSurcharges,
+      priceTiers,
       sizedFromMaterialId,
     };
 
@@ -357,6 +376,39 @@ export function NewProductForm({
             />
             Requiere aprobación del cliente
           </label>
+        </div>
+
+        <div className="field col-span-full">
+          <div className="flex items-center gap-2">
+            <span className="label" style={{ marginBottom: 0 }}>
+              Precios de mayoreo (opcional)
+            </span>
+            {tierRows.length > 0 && (
+              <span className="tag">{tierRows.length}</span>
+            )}
+            <div className="spacer" />
+            <button
+              type="button"
+              className="btn btn--sm btn--ghost"
+              onClick={() => setShowTiers((v) => !v)}
+            >
+              {showTiers ? "Ocultar" : <>{I.plus} Precio por volumen</>}
+            </button>
+          </div>
+          {showTiers && (
+            <>
+              <small className="help mb-1.5 block">
+                Cobra más barato por volumen: define “desde qué cantidad” baja el
+                precio. El precio base aplica a cantidades menores.
+              </small>
+              <PriceTiersEditor
+                basePrice={Number(price) || 0}
+                unit={unit}
+                rows={tierRows}
+                onChange={setTierRows}
+              />
+            </>
+          )}
         </div>
 
         <div className="field col-span-full mt-1">

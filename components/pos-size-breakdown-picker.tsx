@@ -4,6 +4,7 @@ import { useState } from "react";
 import { I } from "@/components/icons";
 import { Modal } from "@/components/modal";
 import { fmtMXN } from "@/lib/format";
+import { getPriceForQty, hasPriceTiers } from "@/lib/pricing";
 import type { ApiMaterial, ApiProductDetail } from "@/lib/api/types";
 import type { SizeBreakdownEntry } from "@/lib/types";
 
@@ -38,9 +39,13 @@ export function PosSizeBreakdownPicker({ product, material, editLineId, editBrea
   const [qtys, setQtys] = useState<Record<string, number>>(initial);
 
   const totalQty = Object.values(qtys).reduce((a, b) => a + (b || 0), 0);
+  // Mayoreo: el escalón se resuelve por el TOTAL de piezas; el surcharge por
+  // talla se suma sobre la base ya resuelta (orientativo; el backend revalida).
+  const baseUnit = getPriceForQty(product.price, product.priceTiers, totalQty);
+  const tieredApplied = hasPriceTiers(product.priceTiers) && baseUnit < product.price;
   const lineSubtotal = sizes.reduce((s, sz) => {
     const q = qtys[sz.code] ?? 0;
-    return s + q * (product.price + (surcharges[sz.code] ?? 0));
+    return s + q * (baseUnit + (surcharges[sz.code] ?? 0));
   }, 0);
 
   const setQty = (code: string, q: number) =>
@@ -55,7 +60,7 @@ export function PosSizeBreakdownPicker({ product, material, editLineId, editBrea
         surcharge: surcharges[sz.code] ?? 0,
       }))
       .filter((b) => b.qty > 0);
-    onAdd(product, { qty: totalQty, price: product.price, sizeBreakdown: breakdown }, editLineId);
+    onAdd(product, { qty: totalQty, price: baseUnit, sizeBreakdown: breakdown }, editLineId);
   };
 
   return (
@@ -83,7 +88,7 @@ export function PosSizeBreakdownPicker({ product, material, editLineId, editBrea
           {sizes.map((sz) => {
             const q = qtys[sz.code] ?? 0;
             const surcharge = surcharges[sz.code] ?? 0;
-            const unit = product.price + surcharge;
+            const unit = baseUnit + surcharge;
             const remaining = sz.stock - q;
             const lowStock = remaining < 5;
             return (
@@ -150,6 +155,15 @@ export function PosSizeBreakdownPicker({ product, material, editLineId, editBrea
         <div className="flex items-center gap-3.5">
           <div className="text-xs text-muted">Total piezas</div>
           <div className="num text-lg font-semibold">{totalQty}</div>
+          {tieredApplied && (
+            <span
+              className="tag"
+              style={{ background: "var(--accent-soft)", color: "var(--accent-ink)" }}
+              title="Precio de mayoreo por volumen total"
+            >
+              Mayoreo · {fmtMXN(baseUnit)} base
+            </span>
+          )}
           <div className="spacer" />
           <div className="text-right">
             <div className="text-[11px] text-muted">Subtotal de la línea</div>

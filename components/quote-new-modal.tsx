@@ -28,6 +28,7 @@ import type {
 } from "@/lib/api/types";
 import { fmtMXN } from "@/lib/format";
 import { effectiveQty, lineSubtotal } from "@/lib/pos-cart";
+import { getPriceForQty, hasPriceTiers } from "@/lib/pricing";
 import type { CartLine, ProductSource, SizeBreakdownEntry } from "@/lib/types";
 
 type BuilderLine = CartLine & { unitPriceOverride?: number };
@@ -318,7 +319,9 @@ export function QuoteNewModal({ onClose, onSaved, editQuote }: Props) {
         supplier: p.supplierName ?? undefined,
         needsApproval: p.needsApproval,
         qty: 1,
-        price: p.price,
+        price: getPriceForQty(p.price, p.priceTiers, 1),
+        basePrice: p.price,
+        priceTiers: p.priceTiers,
       },
     ]);
   };
@@ -372,7 +375,16 @@ export function QuoteNewModal({ onClose, onSaved, editQuote }: Props) {
     setCart((cs) =>
       q <= 0
         ? cs.filter((c) => c.lineId !== lineId)
-        : cs.map((c) => (c.lineId === lineId ? { ...c, qty: q } : c)),
+        : cs.map((c) => {
+            if (c.lineId !== lineId) return c;
+            // Recalcula el precio base por mayoreo (simple/variante). El override
+            // negociado, si existe, gana en lineSubtotal. Dimension: precio fijo.
+            if (c.basePrice === undefined || c.dimension) return { ...c, qty: q };
+            const unit =
+              getPriceForQty(c.basePrice, c.priceTiers, q) +
+              (c.variantPriceMod ?? 0);
+            return { ...c, qty: q, price: Math.round(unit * 100) / 100 };
+          }),
     );
   };
 
@@ -551,6 +563,15 @@ export function QuoteNewModal({ onClose, onSaved, editQuote }: Props) {
                   <span className="num font-semibold text-[13px]">
                     {fmtMXN(p.price)}
                   </span>
+                  {hasPriceTiers(p.priceTiers) && (
+                    <span
+                      className="tag"
+                      style={{ background: "var(--accent-soft)", color: "var(--accent-ink)" }}
+                      title="Tiene precios de mayoreo por volumen"
+                    >
+                      Mayoreo
+                    </span>
+                  )}
                   <div className="spacer" />
                   {p.variantType !== "none" && (
                     <span className="tag" title="Requiere variante">
