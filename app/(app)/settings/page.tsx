@@ -1,7 +1,10 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { PageHeader } from "@/components/page-header";
+import { I } from "@/components/icons";
+import { useTheme } from "@/lib/theme/theme-context";
+import type { ThemePreference } from "@/lib/theme/theme";
 import { ApiError } from "@/lib/api/errors";
 import {
   isLogoContentType,
@@ -20,6 +23,58 @@ import {
 function errMsg(err: unknown): string {
   if (err instanceof ApiError) return err.message;
   return err instanceof Error ? err.message : "Algo salió mal.";
+}
+
+const THEME_OPTIONS: { value: ThemePreference; label: string; icon: ReactNode }[] =
+  [
+    { value: "light", label: "Claro", icon: I.sun },
+    { value: "dark", label: "Oscuro", icon: I.moon },
+    { value: "system", label: "Sistema", icon: I.monitor },
+  ];
+
+/**
+ * Preferencia de tema. Es client-only (no pasa por la API ni por
+ * `settings.manage`), así que la ve cualquier usuario autenticado.
+ */
+function AppearanceCard() {
+  const { preference, setPreference } = useTheme();
+  return (
+    <div className="card" style={{ padding: 16 }}>
+      <h2 className="text-sm font-semibold mb-1">Apariencia</h2>
+      <p className="text-muted text-xs mb-4">
+        Tema de la interfaz. «Sistema» sigue la preferencia de tu dispositivo. Se
+        guarda solo en este navegador.
+      </p>
+      <div role="radiogroup" aria-label="Tema" className="flex gap-2">
+        {THEME_OPTIONS.map((opt) => {
+          const active = preference === opt.value;
+          return (
+            <button
+              key={opt.value}
+              type="button"
+              role="radio"
+              aria-checked={active}
+              onClick={() => setPreference(opt.value)}
+              className="btn flex-1"
+              style={{
+                height: 56,
+                flexDirection: "column",
+                gap: 4,
+                justifyContent: "center",
+                background: active ? "var(--accent-soft)" : "var(--surface)",
+                borderColor: active ? "var(--accent)" : "var(--line)",
+                color: active ? "var(--accent-ink)" : "var(--ink)",
+                fontWeight: active ? 600 : 500,
+              }}
+            >
+              <span className="inline-flex">{opt.icon}</span>
+              {opt.label}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
 }
 
 export default function SettingsPage() {
@@ -96,11 +151,14 @@ export default function SettingsPage() {
     return (
       <>
         <PageHeader title="Configuración" sub="Datos del negocio y funciones" />
-        <div className="card" style={{ padding: 16 }}>
-          <div className="text-muted text-sm">
-            No tienes permiso para editar la configuración ({" "}
-            <span className="font-mono text-[11px]">settings.manage</span> ).
-            Pídele a un administrador que te lo asigne.
+        <div className="grid gap-4" style={{ maxWidth: 720 }}>
+          <AppearanceCard />
+          <div className="card" style={{ padding: 16 }}>
+            <div className="text-muted text-sm">
+              No tienes permiso para editar la configuración ({" "}
+              <span className="font-mono text-[11px]">settings.manage</span> ).
+              Pídele a un administrador que te lo asigne.
+            </div>
           </div>
         </div>
       </>
@@ -230,6 +288,9 @@ export default function SettingsPage() {
       )}
 
       <div className="grid gap-4" style={{ maxWidth: 720 }}>
+        {/* ── Apariencia (tema, client-only) ────────────────────────── */}
+        <AppearanceCard />
+
         {/* ── Datos del negocio ─────────────────────────────────────── */}
         <div className="card" style={{ padding: 16 }}>
           <h2 className="text-sm font-semibold mb-1">Datos del negocio</h2>

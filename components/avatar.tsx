@@ -4,7 +4,11 @@ type AvatarProps = {
   color?: string;
 };
 
-const PALETTE = ["#3d3df0", "#a85b00", "#1f7a4d", "#6e3ab8", "#0c5b9e", "#b3261e", "#8e8576", "#36352f"];
+// Colores decorativos FIJOS (no tokens): la identidad de color del avatar no
+// debe cambiar con el tema, y el texto siempre es blanco. Todos son saturados
+// para legibilidad en claro y oscuro (se reemplazaron 2 casi-neutras que se
+// leían como "fondo" en modo oscuro).
+const PALETTE = ["#3d3df0", "#a85b00", "#1f7a4d", "#6e3ab8", "#0c5b9e", "#b3261e", "#0e7490", "#be185d"];
 
 export function Avatar({ name, size = 22, color }: AvatarProps) {
   const initials = name.split(" ").map((s) => s[0]).slice(0, 2).join("").toUpperCase();

@@ -2,12 +2,14 @@ import Link from "next/link";
 import { ORDER_STATUS_ES } from "@/lib/api/sales-mappers";
 import type { ApiOrder, ApiOrderStatus } from "@/lib/api/types";
 
+// fg = token de estado (no hex fijo) para que el borde y el texto se adapten al
+// modo oscuro junto con el fondo `-soft`.
 const PALETTE: Partial<Record<ApiOrderStatus, [string, string]>> = {
-  in_design: ["#0c5b9e", "var(--info-soft)"],
-  client_approval: ["#a85b00", "var(--warn-soft)"],
-  production: ["#3d3df0", "var(--accent-soft)"],
-  ready_for_delivery: ["#1f7a4d", "var(--ok-soft)"],
-  with_supplier: ["#6e3ab8", "var(--supplier-soft)"],
+  in_design: ["var(--info)", "var(--info-soft)"],
+  client_approval: ["var(--warn)", "var(--warn-soft)"],
+  production: ["var(--accent)", "var(--accent-soft)"],
+  ready_for_delivery: ["var(--ok)", "var(--ok-soft)"],
+  with_supplier: ["var(--supplier)", "var(--supplier-soft)"],
 };
 
 export function CalendarEvent({ order }: { order: ApiOrder }) {

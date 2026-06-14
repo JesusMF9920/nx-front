@@ -2,6 +2,8 @@
 
 /* ============ NEXUM POS — Design Tokens ============ */
 :root {
+  color-scheme: light;
+
   /* Neutrals — warm-leaning */
   --bg: #fafaf7;
   --surface: #ffffff;
@@ -42,7 +44,62 @@
   --sh-sm: 0 1px 0 rgba(20, 20, 15, 0.04), 0 1px 2px rgba(20, 20, 15, 0.04);
   --sh-md: 0 1px 0 rgba(20, 20, 15, 0.04), 0 4px 12px rgba(20, 20, 15, 0.06);
   --sh-lg: 0 12px 32px rgba(20, 20, 15, 0.12), 0 2px 6px rgba(20, 20, 15, 0.06);
+
+  --backdrop: rgba(20, 20, 15, 0.4);
 }
+
+/* ============ Modo oscuro ============
+   Redefine los mismos 22 tokens bajo el atributo `data-theme="dark"` (toggle
+   manual; lo fija el script anti-FOUC antes del primer paint). Como todo el CSS
+   de componentes lee `var(--*)`, con esto basta. Principio de las parejas de
+   estado: el `-soft` es el FONDO (oscuro tintado) y la base es el TEXTO (claro
+   saturado), así los pills/badges conservan contraste al invertirse juntos. */
+html[data-theme="dark"] {
+  color-scheme: dark;
+
+  /* Neutrals — warm charcoal */
+  --bg: #15140f;
+  --surface: #1e1c17;
+  --surface-2: #26241e;
+  --surface-3: #302d25;
+  --line: #33302a;
+  --line-2: #403c34;
+  --ink: #f3f1ea;
+  --ink-2: #cdcabf;
+  --muted: #9a978c;
+  --muted-2: #7c7a70;
+
+  /* Brand */
+  --accent: #6366f8;
+  --accent-ink: #b9b9ff;
+  --accent-soft: #23234a;
+
+  /* Status */
+  --ok: #4ade80;
+  --ok-soft: #15281d;
+  --warn: #f0a93a;
+  --warn-soft: #2e2210;
+  --danger: #f4948c;
+  --danger-soft: #341412;
+  --info: #5aa9ec;
+  --info-soft: #11283c;
+
+  /* Supplier marker */
+  --supplier: #c08cf0;
+  --supplier-soft: #281a39;
+
+  /* Elev — sombras opacas para que se perciban sobre fondo oscuro */
+  --sh-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --sh-md: 0 4px 12px rgba(0, 0, 0, 0.45);
+  --sh-lg: 0 12px 32px rgba(0, 0, 0, 0.55), 0 2px 6px rgba(0, 0, 0, 0.4);
+
+  --backdrop: rgba(0, 0, 0, 0.62);
+}
+
+/* Variante `dark:` de Tailwind atada al atributo (toggle manual), por si hace
+   falta algún override puntual. Casi todo se resuelve solo al redefinir los
+   tokens de arriba. */
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
 
 @theme inline {
   --color-bg: var(--bg);
@@ -296,7 +353,7 @@ input, select, textarea { font-family: inherit; font-size: inherit; color: inher
 .btn:disabled { opacity: 0.6; cursor: default; }
 .btn--primary {
   background: var(--ink);
-  color: white;
+  color: var(--surface);
   border-color: var(--ink);
 }
 .btn--primary:hover { background: var(--ink-2); }
@@ -305,7 +362,9 @@ input, select, textarea { font-family: inherit; font-size: inherit; color: inher
   color: white;
   border-color: var(--accent);
 }
-.btn--accent:hover { background: var(--accent-ink); }
+/* Hover desacoplado de --accent-ink: oscurece el accent en ambos temas. En dark
+   --accent-ink es claro (texto de pills), no serviría como fondo con texto blanco. */
+.btn--accent:hover { background: color-mix(in srgb, var(--accent), #000 12%); }
 .btn--ghost {
   background: transparent;
   border-color: transparent;
@@ -384,8 +443,8 @@ input, select, textarea { font-family: inherit; font-size: inherit; color: inher
 .pill--accent { background: var(--accent-soft); color: var(--accent-ink); }
 .pill--supplier { background: var(--supplier-soft); color: var(--supplier); }
 .pill--neutral { background: var(--surface-3); color: var(--ink-2); }
-.pill--solid { background: var(--ink); color: white; }
-.pill--solid::before { background: white; }
+.pill--solid { background: var(--ink); color: var(--surface); }
+.pill--solid::before { background: var(--surface); }
 
 .tag {
   display: inline-flex; align-items: center; gap: 4px;
@@ -488,7 +547,7 @@ input, select, textarea { font-family: inherit; font-size: inherit; color: inher
 /* Modal */
 .modal-backdrop {
   position: fixed; inset: 0;
-  background: rgba(20, 20, 15, 0.4);
+  background: var(--backdrop);
   display: grid; place-items: center;
   z-index: 100;
   animation: fadeIn 0.15s ease;
