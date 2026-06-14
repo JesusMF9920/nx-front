@@ -4,7 +4,12 @@ import { useState } from "react";
 import { I } from "@/components/icons";
 import { Modal } from "@/components/modal";
 import { fmtMXN } from "@/lib/format";
-import type { ApiProductDetail, ApiProductVariant } from "@/lib/api/types";
+import { getPriceForQty } from "@/lib/pricing";
+import type {
+  ApiPriceTier,
+  ApiProductDetail,
+  ApiProductVariant,
+} from "@/lib/api/types";
 
 export type VariantLineData = {
   qty: number;
@@ -15,6 +20,10 @@ export type VariantLineData = {
   variantCode?: string;
   /** Medidas crudas (dimension) — el backend deriva qty/precio. */
   dimension?: { width: number; height: number };
+  /** Base + mayoreo para recomputar al cambiar la cantidad (sólo variantes preset/size). */
+  basePrice?: number;
+  priceTiers?: ApiPriceTier[] | null;
+  variantPriceMod?: number;
 };
 
 type Props = {
@@ -51,19 +60,27 @@ export function PosVariantPicker({ product, onClose, onAdd }: Props) {
             : 1;
       let label = `${w} × ${h} ${cfg.unit}`;
       if (cfg.priceMode === "area") label += ` (${computedQty} ${cfg.unit}²)`;
+      // Mayoreo por dimensión: el umbral se mide contra el área/lineal de ESTA
+      // pieza; el precio queda fijo (el conteo de piezas no lo cambia).
+      const dimUnit = getPriceForQty(product.price, product.priceTiers, computedQty);
       lineData = {
         qty,
-        price: round2(computedQty * product.price),
+        price: round2(computedQty * dimUnit),
         variantLabel: label,
         dimension: { width: w, height: h },
       };
     }
   } else if (selected) {
+    // El tier resuelve la base por la cantidad; el priceMod se suma encima.
+    const baseUnit = getPriceForQty(product.price, product.priceTiers, qty);
     lineData = {
       qty,
-      price: round2(product.price + (selected.priceMod || 0)),
+      price: round2(baseUnit + (selected.priceMod || 0)),
       variantLabel: selected.label,
       variantCode: selected.code,
+      basePrice: product.price,
+      priceTiers: product.priceTiers,
+      variantPriceMod: selected.priceMod || 0,
     };
   }
 

@@ -229,6 +229,12 @@ export type ApiDimensionConfig = {
   priceMode: "area" | "linear" | "flat";
 };
 
+/** Escalón de mayoreo: desde `minQty` unidades, el precio base es `unitPrice`. */
+export type ApiPriceTier = {
+  minQty: number;
+  unitPrice: number;
+};
+
 export type ApiRecipeItem = {
   materialId: string;
   qty: number;
@@ -256,6 +262,12 @@ export type ApiProduct = {
   claveUnidad: string | null;
   objetoImpuesto: string | null;
   variantType: ApiVariantType;
+  /**
+   * Mayoreo por volumen (asc por minQty); null/[] = sin mayoreo. Viaja también
+   * en la lista (no sólo en el detalle) para que el POS muestre el precio por
+   * cantidad sin un GET por producto.
+   */
+  priceTiers: ApiPriceTier[] | null;
   createdAt: string;
   updatedAt: string;
 };

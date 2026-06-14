@@ -2,6 +2,7 @@ import { apiFetch } from "./client";
 import type {
   ApiDimensionConfig,
   ApiList,
+  ApiPriceTier,
   ApiProduct,
   ApiProductDetail,
   ApiProductSource,
@@ -28,6 +29,8 @@ export type CreateProductInput = {
   variantType?: ApiVariantType;
   dimensionConfig?: ApiDimensionConfig | null;
   sizeSurcharges?: Record<string, number> | null;
+  /** Mayoreo por volumen. Independiente del variantType. */
+  priceTiers?: ApiPriceTier[] | null;
   sizedFromMaterialId?: string | null;
 };
 
