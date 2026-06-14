@@ -116,7 +116,7 @@ function BuscarResults() {
                 {clients.map((c) => (
                   <Link
                     key={c.id}
-                    href={`/clients/${c.id}`}
+                    href={`/clients?cliente=${c.id}`}
                     className="flex items-center gap-3"
                     style={{
                       padding: "10px 14px",

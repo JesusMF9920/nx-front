@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useMemo, useState, type FormEvent } from "react";
+import { Suspense, useEffect, useMemo, useState, type FormEvent } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { Avatar } from "@/components/avatar";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { I } from "@/components/icons";
@@ -133,6 +134,16 @@ function typeLabel(t: ApiClientType): string {
 }
 
 export default function ClientsPage() {
+  return (
+    <Suspense fallback={<div className="text-muted text-sm">Cargando…</div>}>
+      <ClientsPageInner />
+    </Suspense>
+  );
+}
+
+function ClientsPageInner() {
+  const searchParams = useSearchParams();
+  const preselectId = searchParams.get("cliente");
   const canWrite = usePermission("clients.write");
   const canDeactivate = usePermission("clients.deactivate");
   const [clients, setClients] = useState<ApiClient[]>([]);
@@ -143,7 +154,9 @@ export default function ClientsPage() {
   const [orderBy, setOrderBy] = useState<OrderByKey>("createdAt");
   const [query, setQuery] = useState("");
   const [debounced, setDebounced] = useState("");
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  // Inicial = deep-link `?cliente=<id>` (si viene): evita que el `reload`
+  // inicial auto-seleccione el primer cliente y pise la preselección.
+  const [selectedId, setSelectedId] = useState<string | null>(preselectId);
   const [selectedDetail, setSelectedDetail] = useState<ApiClient | null>(null);
   const [selectedAudit, setSelectedAudit] = useState<ApiAuditEntry | null>(
     null,
@@ -169,6 +182,15 @@ export default function ClientsPage() {
     () => new Map(users.map((u) => [u.id, u])),
     [users],
   );
+
+  // Deep-link desde la búsqueda global (`/clients?cliente=<id>`): preselecciona
+  // el cliente para abrir su panel de detalle. Reactivo al query param.
+  useEffect(() => {
+    if (preselectId) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setSelectedId(preselectId);
+    }
+  }, [preselectId]);
 
   // Lista de usuarios sólo para resolver nombres en la auditoría. Falla silenciosa.
   useEffect(() => {
