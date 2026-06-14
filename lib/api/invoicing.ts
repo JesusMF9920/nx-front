@@ -7,6 +7,11 @@ export type EmitInvoiceResult = {
   folio: string | null;
 };
 
+export type EmitPaymentComplementResult = EmitInvoiceResult & {
+  partialityNumber: number;
+  amount: number;
+};
+
 export type ListInvoicesParams = {
   skip?: number;
   take?: number;
@@ -21,6 +26,16 @@ export const invoicingApi = {
   /** Timbra un CFDI de Ingreso para el pedido (UUID o folio). */
   emit(orderId: string): Promise<EmitInvoiceResult> {
     return apiFetch<EmitInvoiceResult>("/invoices", {
+      method: "POST",
+      body: JSON.stringify({ orderId }),
+    });
+  },
+
+  /** Emite un Complemento de Pago (REP) por el abono pendiente de un pedido PPD. */
+  emitPaymentComplement(
+    orderId: string,
+  ): Promise<EmitPaymentComplementResult> {
+    return apiFetch<EmitPaymentComplementResult>("/invoices/payment-complement", {
       method: "POST",
       body: JSON.stringify({ orderId }),
     });

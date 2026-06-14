@@ -475,6 +475,27 @@ export default function OrderDetailPage() {
     void downloadFile(invoicingApi.fileUrl(invoice.id, format), name);
   };
 
+  const emitComplement = async () => {
+    if (invoicing) return;
+    setInvoicing(true);
+    setActionError(null);
+    setActionNotice(null);
+    try {
+      const res = await invoicingApi.emitPaymentComplement(detail.id);
+      setActionNotice(
+        `Complemento de pago timbrado · parcialidad ${res.partialityNumber} por ${fmtMXN(res.amount)} · UUID ${res.uuid}`,
+      );
+    } catch (err) {
+      setActionError(
+        err instanceof ApiError
+          ? err.message
+          : "No se pudo emitir el complemento de pago.",
+      );
+    } finally {
+      setInvoicing(false);
+    }
+  };
+
   return (
     <>
       {breadcrumb}
@@ -545,6 +566,18 @@ export default function OrderDetailPage() {
                   >
                     {I.receipt} Factura XML
                   </button>
+                  {invoice.paymentMethod === "PPD" && canInvoice && (
+                    <button
+                      className="btn"
+                      type="button"
+                      disabled={invoicing}
+                      onClick={() => void emitComplement()}
+                      title="Emite un CFDI de pago (REP) por el abono cobrado"
+                    >
+                      {I.receipt}{" "}
+                      {invoicing ? "Emitiendo…" : "Complemento de pago"}
+                    </button>
+                  )}
                 </>
               ) : (
                 canInvoice &&

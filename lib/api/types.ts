@@ -877,6 +877,8 @@ export type ApiInvoice = {
   uuid: string | null;
   serie: string | null;
   folio: string | null;
+  /** MetodoPago SAT del Ingreso ('PUE'|'PPD'); null en pago/global. */
+  paymentMethod: string | null;
   subtotal: number;
   total: number;
   currency: string;
