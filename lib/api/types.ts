@@ -873,6 +873,8 @@ export type ApiInvoice = {
   status: ApiInvoiceStatus;
   orderId: string | null;
   orderFolio: string | null;
+  /** Factura global: pedidos agregados. Vacío en ingreso/pago. */
+  includedOrderIds: string[];
   /** Folio fiscal (UUID); null hasta timbrar. */
   uuid: string | null;
   serie: string | null;

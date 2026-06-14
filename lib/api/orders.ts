@@ -69,6 +69,8 @@ export type CheckoutInput = {
   expectedTotal?: number;
   deliverAt?: string;
   notes?: string;
+  /** CFDI: el cliente pedirá factura individual → se excluye de la global. */
+  requiresInvoice?: boolean;
 };
 
 export type CheckoutPreviewInput = {

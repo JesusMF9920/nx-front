@@ -43,6 +43,8 @@ type Props = {
   notes?: string;
   customerEmail?: string;
   customerPhone?: string;
+  /** CFDI: arranca activo si el cliente tiene datos fiscales (RFC). */
+  defaultRequiresInvoice?: boolean;
   onClose: () => void;
   onPaid: (result: CheckoutResult, prints: TicketPrintPrefs) => void;
 };
@@ -76,6 +78,7 @@ export function PosPaymentModal({
   notes,
   customerEmail,
   customerPhone,
+  defaultRequiresInvoice,
   onClose,
   onPaid,
 }: Props) {
@@ -93,6 +96,11 @@ export function PosPaymentModal({
   const [emailTicket, setEmailTicket] = useState(!!customerEmail);
   const whatsappEnabled = useFeature("whatsapp");
   const [whatsappTicket, setWhatsappTicket] = useState(false);
+  // CFDI: marca la venta para factura individual → la excluye de la global.
+  const cfdiEnabled = useFeature("cfdi");
+  const [requiresInvoice, setRequiresInvoice] = useState(
+    defaultRequiresInvoice ?? false,
+  );
 
   // Corte de caja: con el feature ON y sin sesión abierta, Efectivo/Mixto se
   // bloquean (el backend igual lo rechaza con 409 — esto es UX). Si el fetch
@@ -255,6 +263,7 @@ export function PosPaymentModal({
             ? { deliverAt: new Date(`${deliverAt}T12:00:00`).toISOString() }
             : {}),
           ...(notes ? { notes } : {}),
+          ...(cfdiEnabled && requiresInvoice ? { requiresInvoice: true } : {}),
         },
         idemKey,
       );
@@ -636,6 +645,19 @@ export function PosPaymentModal({
                   onChange={(e) => setWhatsappTicket(e.target.checked)}
                 />
                 {I.whatsapp} Enviar comprobante por WhatsApp
+              </label>
+            )}
+            {cfdiEnabled && (
+              <label className="flex items-center gap-2 text-[13px]">
+                <input
+                  type="checkbox"
+                  checked={requiresInvoice}
+                  onChange={(e) => setRequiresInvoice(e.target.checked)}
+                />
+                {I.receipt} El cliente requiere factura (CFDI)
+                <span className="text-muted text-[11px]">
+                  — se excluye de la global
+                </span>
               </label>
             )}
           </div>

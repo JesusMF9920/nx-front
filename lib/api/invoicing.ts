@@ -12,6 +12,38 @@ export type EmitPaymentComplementResult = EmitInvoiceResult & {
   amount: number;
 };
 
+export type GlobalInvoiceParams = {
+  /** Periodo (ISO date, inclusivo). */
+  from: string;
+  to: string;
+  /** c_Periodicidad (01–05). */
+  periodicity: string;
+  /** c_Meses (01–12 / 13–18). */
+  month: string;
+  /** Ejercicio. */
+  year: number;
+};
+
+export type PreviewGlobalOrder = {
+  id: string;
+  folio: string;
+  total: number;
+  createdAt: string;
+};
+
+export type PreviewGlobalResult = {
+  count: number;
+  subtotal: number;
+  tax: number;
+  total: number;
+  orders: PreviewGlobalOrder[];
+};
+
+export type EmitGlobalInvoiceResult = EmitInvoiceResult & {
+  includedCount: number;
+  total: number;
+};
+
 export type ListInvoicesParams = {
   skip?: number;
   take?: number;
@@ -38,6 +70,25 @@ export const invoicingApi = {
     return apiFetch<EmitPaymentComplementResult>("/invoices/payment-complement", {
       method: "POST",
       body: JSON.stringify({ orderId }),
+    });
+  },
+
+  /** Vista previa de la factura global: pedidos y totales del periodo. */
+  previewGlobal(params: {
+    from: string;
+    to: string;
+  }): Promise<PreviewGlobalResult> {
+    const search = new URLSearchParams({ from: params.from, to: params.to });
+    return apiFetch<PreviewGlobalResult>(
+      `/invoices/global/preview?${search.toString()}`,
+    );
+  },
+
+  /** Timbra la factura global de público en general del periodo. */
+  emitGlobal(params: GlobalInvoiceParams): Promise<EmitGlobalInvoiceResult> {
+    return apiFetch<EmitGlobalInvoiceResult>("/invoices/global", {
+      method: "POST",
+      body: JSON.stringify(params),
     });
   },
 
