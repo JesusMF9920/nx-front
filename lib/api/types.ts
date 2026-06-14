@@ -889,6 +889,8 @@ export type ApiInvoice = {
   receiverRfc: string | null;
   receiverName: string | null;
   cancelReason: string | null;
+  /** Estatus del acuse de cancelación del SAT ('canceled' | 'pending'). */
+  cancelStatus: string | null;
   cancelledAt: string | null;
   createdAt: string;
   updatedAt: string;

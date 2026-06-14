@@ -44,6 +44,24 @@ export type EmitGlobalInvoiceResult = EmitInvoiceResult & {
   total: number;
 };
 
+export type CancelInvoiceResult = {
+  invoiceId: string;
+  status: string;
+  /** Estatus del acuse del SAT ('canceled' | 'pending'). */
+  satStatus: string;
+};
+
+export type CoverageBucket = { count: number; amount: number };
+
+export type InvoiceCoverage = {
+  totalCount: number;
+  totalAmount: number;
+  invoicedIndividual: CoverageBucket;
+  invoicedGlobal: CoverageBucket;
+  pendingInvoice: CoverageBucket;
+  counter: CoverageBucket;
+};
+
 export type ListInvoicesParams = {
   skip?: number;
   take?: number;
@@ -71,6 +89,20 @@ export const invoicingApi = {
       method: "POST",
       body: JSON.stringify({ orderId }),
     });
+  },
+
+  /** Cancela un CFDI ante el SAT (motivo 02/03). */
+  cancel(id: string, motive: string): Promise<CancelInvoiceResult> {
+    return apiFetch<CancelInvoiceResult>(`/invoices/${id}/cancel`, {
+      method: "POST",
+      body: JSON.stringify({ motive }),
+    });
+  },
+
+  /** Reporte de cobertura CFDI del periodo (facturado vs no facturado). */
+  coverage(params: { from: string; to: string }): Promise<InvoiceCoverage> {
+    const search = new URLSearchParams({ from: params.from, to: params.to });
+    return apiFetch<InvoiceCoverage>(`/invoices/coverage?${search.toString()}`);
   },
 
   /** Vista previa de la factura global: pedidos y totales del periodo. */

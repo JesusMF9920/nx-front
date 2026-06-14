@@ -4,6 +4,8 @@ import { useState } from "react";
 import { I } from "@/components/icons";
 import { PageHeader } from "@/components/page-header";
 import { GlobalInvoiceModal } from "@/components/global-invoice-modal";
+import { CancelInvoiceModal } from "@/components/cancel-invoice-modal";
+import { InvoiceCoverageModal } from "@/components/invoice-coverage-modal";
 import { useFeature, usePermission } from "@/lib/auth/auth-context";
 import { invoicingApi } from "@/lib/api/invoicing";
 import { downloadFile } from "@/lib/api/download";
@@ -52,12 +54,15 @@ export default function InvoicesPage() {
   const cfdiEnabled = useFeature("cfdi");
   const canRead = usePermission("invoicing.read");
   const canCreate = usePermission("invoicing.create");
+  const canCancel = usePermission("invoicing.cancel");
 
   const [tab, setTab] = useState<Tab>("Todas");
   const [query, setQuery] = useState("");
   const [filters, setFilters] = useState<InvoiceFilters>({});
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [showGlobal, setShowGlobal] = useState(false);
+  const [showCoverage, setShowCoverage] = useState(false);
+  const [cancelTarget, setCancelTarget] = useState<ApiInvoice | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
 
   const {
@@ -133,15 +138,24 @@ export default function InvoicesPage() {
         title="Facturas"
         sub={`${fmtInt(total)} CFDI${tab === "Todas" ? "" : ` · ${tab}`}`}
         actions={
-          canCreate && (
+          <>
             <button
-              className="btn btn--accent"
+              className="btn"
               type="button"
-              onClick={() => setShowGlobal(true)}
+              onClick={() => setShowCoverage(true)}
             >
-              {I.plus} Generar factura global
+              {I.chart} Cobertura
             </button>
-          )
+            {canCreate && (
+              <button
+                className="btn btn--accent"
+                type="button"
+                onClick={() => setShowGlobal(true)}
+              >
+                {I.plus} Generar factura global
+              </button>
+            )}
+          </>
         }
       />
 
@@ -340,6 +354,13 @@ export default function InvoicesPage() {
                         >
                           {STATUS_ES[inv.status]}
                         </span>
+                        {inv.status === "cancelled" &&
+                          inv.cancelStatus === "pending" && (
+                            <span className="text-muted text-[11px]">
+                              {" "}
+                              · en proceso
+                            </span>
+                          )}
                       </td>
                       <td className="num">{fmtDate(inv.createdAt)}</td>
                       <td style={{ textAlign: "right", whiteSpace: "nowrap" }}>
@@ -359,6 +380,16 @@ export default function InvoicesPage() {
                             >
                               XML
                             </button>
+                            {canCancel && (
+                              <button
+                                className="btn btn--sm btn--ghost"
+                                type="button"
+                                style={{ color: "var(--danger)" }}
+                                onClick={() => setCancelTarget(inv)}
+                              >
+                                {I.x} Cancelar
+                              </button>
+                            )}
                           </>
                         ) : (
                           <span className="text-muted text-[12px]">—</span>
@@ -421,6 +452,26 @@ export default function InvoicesPage() {
             );
             setTab("Global");
             setPage(1);
+            void reload();
+          }}
+        />
+      )}
+
+      {showCoverage && (
+        <InvoiceCoverageModal onClose={() => setShowCoverage(false)} />
+      )}
+
+      {cancelTarget && (
+        <CancelInvoiceModal
+          invoice={cancelTarget}
+          onClose={() => setCancelTarget(null)}
+          onCancelled={(res) => {
+            setCancelTarget(null);
+            setNotice(
+              res.satStatus === "pending"
+                ? "Cancelación enviada al SAT — en proceso de aceptación del receptor."
+                : "Factura cancelada ante el SAT.",
+            );
             void reload();
           }}
         />
