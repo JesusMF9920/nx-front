@@ -6,6 +6,7 @@ import { Fragment, useEffect, useRef, useState } from "react";
 import { labelForRoute } from "@/lib/routes";
 import { I } from "./icons";
 import { Modal } from "./modal";
+import { ThemeToggle } from "./theme-toggle";
 import { useAuth } from "@/lib/auth/auth-context";
 import { designApi } from "@/lib/api/design";
 import { productionApi } from "@/lib/api/production";
@@ -204,6 +205,8 @@ export function Topbar() {
           </>
         )}
       </div>
+
+      <ThemeToggle />
 
       <button
         className="icon-btn"
