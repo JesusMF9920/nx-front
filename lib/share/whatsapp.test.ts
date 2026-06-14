@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  buildCollectionReminderWhatsappMessage,
   buildOrderReceiptWhatsappMessage,
   buildProofWhatsappMessage,
   buildQuoteWhatsappMessage,
@@ -102,6 +103,39 @@ describe("mensajes", () => {
       balance: 0,
     });
     expect(liquidado).not.toContain("Saldo pendiente");
+  });
+
+  it("recordatorio de cobro: incluye cliente, negocio, saldo y el folio único", () => {
+    const msg = buildCollectionReminderWhatsappMessage({
+      businessName: "Imprenta Aurora",
+      clientName: "Café Aurora",
+      totalBalance: 533.6,
+      folios: ["ORD-1011"],
+    });
+    expect(msg).toContain("Café Aurora");
+    expect(msg).toContain("Imprenta Aurora");
+    expect(msg).toContain("saldo pendiente");
+    expect(msg).toContain("$533.60");
+    expect(msg).toContain("Corresponde al pedido ORD-1011.");
+  });
+
+  it("recordatorio de cobro: varios folios se listan; sin folios omite el detalle", () => {
+    const varios = buildCollectionReminderWhatsappMessage({
+      businessName: "Imprenta Aurora",
+      clientName: "Café Aurora",
+      totalBalance: 700,
+      folios: ["ORD-1002", "ORD-1013"],
+    });
+    expect(varios).toContain("Pedidos con saldo: ORD-1002, ORD-1013.");
+
+    const sinFolios = buildCollectionReminderWhatsappMessage({
+      businessName: "Imprenta Aurora",
+      clientName: "Café Aurora",
+      totalBalance: 700,
+    });
+    expect(sinFolios).not.toContain("Corresponde al pedido");
+    expect(sinFolios).not.toContain("Pedidos con saldo");
+    expect(sinFolios).toContain("$700.00");
   });
 
   it("aprobación: incluye versión, URL pública y vencimiento", () => {

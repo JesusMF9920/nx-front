@@ -4,6 +4,7 @@ export const ROUTE_LABELS: Record<string, string> = {
   quotes: "Cotizaciones",
   orders: "Pedidos",
   invoices: "Facturas",
+  collections: "Cobranza",
   production: "Producción",
   purchases: "Compras",
   calendar: "Calendario",

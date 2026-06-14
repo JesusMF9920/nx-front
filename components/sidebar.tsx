@@ -7,6 +7,7 @@ import { I } from "./icons";
 import { useAuth } from "@/lib/auth/auth-context";
 import { reportsApi } from "@/lib/api/reports";
 import { inventoryApi } from "@/lib/api/inventory";
+import { collectionsApi } from "@/lib/api/collections";
 import { settingsApi } from "@/lib/api/settings";
 
 type NavItem = {
@@ -34,6 +35,7 @@ const NAV_GROUPS: NavGroup[] = [
       { href: "/quotes",    label: "Cotizaciones",   icon: I.receipt, perm: "sales.quotes.read" },
       { href: "/orders",    label: "Pedidos",        icon: I.receipt, perm: "sales.orders.read" },
       { href: "/invoices",  label: "Facturas",       icon: I.receipt, perm: "invoicing.read", feature: "cfdi" },
+      { href: "/collections", label: "Cobranza",     icon: I.cash,    perm: "sales.collections.read" },
       { href: "/production", label: "Producción",    icon: I.printer, perm: "sales.production.advance" },
       { href: "/purchases", label: "Compras",        icon: I.truck,   perm: "inventory.purchases.read" },
       { href: "/calendar",  label: "Entregas",       icon: I.calendar, perm: "sales.orders.read" },
@@ -88,6 +90,7 @@ export function Sidebar() {
   const [orgName, setOrgName] = useState<string | null>(null);
   const canReports = permsSet.has("reports.read");
   const canInventory = permsSet.has("inventory.materials.read");
+  const canCollections = permsSet.has("sales.collections.read");
 
   useEffect(() => {
     let cancelled = false;
@@ -111,12 +114,21 @@ export function Sidebar() {
           /* ignore */
         }
       }
+      if (canCollections) {
+        try {
+          // Badge = cuentas (clientes) con saldo vencido (+30 días).
+          const s = await collectionsApi.summary({ onlyOverdue: true });
+          next["/collections"] = s.debtorCount;
+        } catch {
+          /* ignore */
+        }
+      }
       if (!cancelled) setCounts(next);
     })();
     return () => {
       cancelled = true;
     };
-  }, [canReports, canInventory]);
+  }, [canReports, canInventory, canCollections]);
 
   useEffect(() => {
     let cancelled = false;

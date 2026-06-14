@@ -81,6 +81,29 @@ export function buildOrderReceiptWhatsappMessage(args: {
   );
 }
 
+export function buildCollectionReminderWhatsappMessage(args: {
+  businessName: string;
+  clientName: string;
+  /** Saldo total a recordar. */
+  totalBalance: number;
+  /** Folios con saldo (uno si el recordatorio es por pedido). Opcional. */
+  folios?: string[];
+}): string {
+  const pedidos =
+    args.folios && args.folios.length > 0
+      ? args.folios.length === 1
+        ? `\nCorresponde al pedido ${args.folios[0]}.`
+        : `\nPedidos con saldo: ${args.folios.join(", ")}.`
+      : "";
+  // Sin emojis: el redirect de wa.me corrompe caracteres de 4 bytes (U+FFFD).
+  return (
+    `Hola ${args.clientName}:\n` +
+    `Te recordamos que tienes un saldo pendiente con ${args.businessName} ` +
+    `por un total de ${fmtMXN(args.totalBalance)}.${pedidos}\n` +
+    `Puedes liquidarlo en tu próxima visita o por este medio. ¡Gracias!`
+  );
+}
+
 export function buildProofWhatsappMessage(args: {
   businessName: string;
   clientName: string;
