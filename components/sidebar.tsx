@@ -218,6 +218,15 @@ export function Sidebar({
           <div className="user-name">{displayName}</div>
           <div className="user-role">{displayRole}</div>
         </div>
+        <Link
+          href="/change-password"
+          className="icon-btn"
+          title="Cambiar contraseña"
+          aria-label="Cambiar contraseña"
+          onClick={onClose}
+        >
+          {I.lock}
+        </Link>
         <button
           className="icon-btn"
           title="Cerrar sesión"

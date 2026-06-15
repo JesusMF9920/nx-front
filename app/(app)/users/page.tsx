@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { Avatar } from "@/components/avatar";
 import { ConfirmDialog } from "@/components/confirm-dialog";
@@ -56,6 +57,7 @@ export default function UsersPage() {
   const { user: currentUser } = useAuth();
   const canWrite = usePermission("iam.users.write");
   const canDeactivate = usePermission("iam.users.deactivate");
+  const canReadRoles = usePermission("iam.roles.read");
   const isSelf = (u: ApiUser) => !!currentUser && currentUser.id === u.id;
 
   const activateUser = async (u: ApiUser) => {
@@ -198,7 +200,11 @@ export default function UsersPage() {
         sub={`${users.length} usuarios · ${visibleRoles.length} roles configurados`}
         actions={
           <>
-            <button className="btn">{I.shield} Configurar roles</button>
+            {canReadRoles && (
+              <Link href="/roles" className="btn">
+                {I.shield} Configurar roles
+              </Link>
+            )}
             {canWrite && (
               <button
                 className="btn btn--accent"

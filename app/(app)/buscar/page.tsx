@@ -7,8 +7,16 @@ import { PageHeader } from "@/components/page-header";
 import { clientsApi } from "@/lib/api/clients";
 import { catalogApi } from "@/lib/api/catalog";
 import { ordersApi } from "@/lib/api/orders";
+import { quotesApi } from "@/lib/api/quotes";
+import { suppliersApi } from "@/lib/api/suppliers";
 import { usePermission } from "@/lib/auth/auth-context";
-import type { ApiClient, ApiOrder, ApiProduct } from "@/lib/api/types";
+import type {
+  ApiClient,
+  ApiOrder,
+  ApiProduct,
+  ApiQuote,
+  ApiSupplier,
+} from "@/lib/api/types";
 import { fmtMXN } from "@/lib/format";
 
 const TAKE = 6;
@@ -27,10 +35,14 @@ function BuscarResults() {
   const canClients = usePermission("clients.read");
   const canProducts = usePermission("catalog.products.read");
   const canOrders = usePermission("sales.orders.read");
+  const canQuotes = usePermission("sales.quotes.read");
+  const canSuppliers = usePermission("suppliers.read");
 
   const [clients, setClients] = useState<ApiClient[]>([]);
   const [products, setProducts] = useState<ApiProduct[]>([]);
   const [orders, setOrders] = useState<ApiOrder[]>([]);
+  const [quotes, setQuotes] = useState<ApiQuote[]>([]);
+  const [suppliers, setSuppliers] = useState<ApiSupplier[]>([]);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
@@ -39,7 +51,7 @@ function BuscarResults() {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setLoading(true);
     void (async () => {
-      const [c, p, o] = await Promise.all([
+      const [c, p, o, qz, s] = await Promise.all([
         canClients
           ? clientsApi.list({ search: q, take: TAKE }).then((r) => r.items).catch(() => [])
           : Promise.resolve<ApiClient[]>([]),
@@ -49,19 +61,32 @@ function BuscarResults() {
         canOrders
           ? ordersApi.list({ search: q, take: TAKE }).then((r) => r.items).catch(() => [])
           : Promise.resolve<ApiOrder[]>([]),
+        canQuotes
+          ? quotesApi.list({ search: q, take: TAKE }).then((r) => r.items).catch(() => [])
+          : Promise.resolve<ApiQuote[]>([]),
+        canSuppliers
+          ? suppliersApi.list({ search: q, take: TAKE }).then((r) => r.items).catch(() => [])
+          : Promise.resolve<ApiSupplier[]>([]),
       ]);
       if (cancelled) return;
       setClients(c);
       setProducts(p);
       setOrders(o);
+      setQuotes(qz);
+      setSuppliers(s);
       setLoading(false);
     })();
     return () => {
       cancelled = true;
     };
-  }, [q, canClients, canProducts, canOrders]);
+  }, [q, canClients, canProducts, canOrders, canQuotes, canSuppliers]);
 
-  const totalResults = clients.length + products.length + orders.length;
+  const totalResults =
+    clients.length +
+    products.length +
+    orders.length +
+    quotes.length +
+    suppliers.length;
 
   return (
     <>
@@ -101,6 +126,33 @@ function BuscarResults() {
                     <span className="num">{o.folio}</span>
                     <span className="flex-1">{o.clientName}</span>
                     <span className="num">{fmtMXN(o.total)}</span>
+                  </Link>
+                ))}
+              </div>
+            </section>
+          )}
+
+          {quotes.length > 0 && (
+            <section className="card">
+              <div className="card__head">
+                <div className="card__title">Cotizaciones</div>
+              </div>
+              <div className="flex flex-col">
+                {quotes.map((qz) => (
+                  <Link
+                    key={qz.id}
+                    href={`/quotes/${qz.folio}`}
+                    className="flex items-center gap-3"
+                    style={{
+                      padding: "10px 14px",
+                      borderTop: "1px solid var(--line)",
+                      textDecoration: "none",
+                      color: "inherit",
+                    }}
+                  >
+                    <span className="num">{qz.folio}</span>
+                    <span className="flex-1">{qz.clientName}</span>
+                    <span className="num">{fmtMXN(qz.total)}</span>
                   </Link>
                 ))}
               </div>
@@ -154,6 +206,34 @@ function BuscarResults() {
                     <span className="num text-xs text-muted">{p.sku}</span>
                     <span className="flex-1">{p.name}</span>
                     <span className="num">{fmtMXN(p.price)}</span>
+                  </Link>
+                ))}
+              </div>
+            </section>
+          )}
+
+          {suppliers.length > 0 && (
+            <section className="card">
+              <div className="card__head">
+                <div className="card__title">Proveedores</div>
+              </div>
+              <div className="flex flex-col">
+                {suppliers.map((s) => (
+                  <Link
+                    key={s.id}
+                    href={`/suppliers?proveedor=${s.id}`}
+                    className="flex items-center gap-3"
+                    style={{
+                      padding: "10px 14px",
+                      borderTop: "1px solid var(--line)",
+                      textDecoration: "none",
+                      color: "inherit",
+                    }}
+                  >
+                    <span className="flex-1 font-medium">{s.name}</span>
+                    <span className="text-muted text-xs">
+                      {s.service ?? s.phone ?? "—"}
+                    </span>
                   </Link>
                 ))}
               </div>

@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { I } from "@/components/icons";
 import { PageHeader } from "@/components/page-header";
 import { PurchaseDemandPanel } from "@/components/purchase-demand-panel";
@@ -9,7 +9,12 @@ import { PurchaseNewModal } from "@/components/purchase-new-modal";
 import { PurchaseStatusPill } from "@/components/purchase-status-pill";
 import { PurchaseSuggestedModal } from "@/components/purchase-suggested-modal";
 import { purchasesApi } from "@/lib/api/purchases";
-import type { ApiPurchaseOrder, ApiPurchaseStatus } from "@/lib/api/types";
+import { suppliersApi } from "@/lib/api/suppliers";
+import type {
+  ApiPurchaseOrder,
+  ApiPurchaseStatus,
+  ApiSupplier,
+} from "@/lib/api/types";
 import { usePermission } from "@/lib/auth/auth-context";
 import { fmtDate, fmtInt, fmtMXN } from "@/lib/format";
 import { useApiList } from "@/lib/hooks/use-api-list";
@@ -49,6 +54,27 @@ export default function PurchasesPage() {
   const [query, setQuery] = useState("");
   const [showNew, setShowNew] = useState(false);
   const [showSuggested, setShowSuggested] = useState(false);
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  const [supplierId, setSupplierId] = useState("");
+  const [from, setFrom] = useState("");
+  const [to, setTo] = useState("");
+  const [suppliers, setSuppliers] = useState<ApiSupplier[]>([]);
+
+  // Proveedores activos para el filtro (el backend ya soporta supplierId).
+  useEffect(() => {
+    let cancelled = false;
+    suppliersApi
+      .list({ isActive: true, take: 200 })
+      .then((r) => {
+        if (!cancelled) setSuppliers(r.items);
+      })
+      .catch(() => {
+        /* sin proveedores: el selector queda vacío */
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const {
     items: orders,
@@ -62,12 +88,20 @@ export default function PurchasesPage() {
     reload,
   } = useApiList<ApiPurchaseOrder>({
     fetcher: (params) =>
-      purchasesApi.list({ ...params, status: TAB_TO_STATUS[tab] ?? undefined }),
-    filterKey: tab,
+      purchasesApi.list({
+        ...params,
+        status: TAB_TO_STATUS[tab] ?? undefined,
+        supplierId: supplierId || undefined,
+        from: from || undefined,
+        to: to || undefined,
+      }),
+    filterKey: `${tab}|${supplierId}|${from}|${to}`,
     search: query,
     pageSize: PAGE_SIZE,
     errorMessage: "No se pudieron cargar las órdenes de compra.",
   });
+
+  const activeFilterCount = [supplierId, from, to].filter(Boolean).length;
 
   const changeTab = (t: Tab) => {
     setTab(t);
@@ -79,9 +113,11 @@ export default function PurchasesPage() {
       <PageHeader
         title="Compras"
         sub={
-          tab === "Todas"
-            ? `${fmtInt(total)} órdenes de compra`
-            : `${fmtInt(total)} órdenes · ${tab}`
+          tab === "Por comprar"
+            ? "Insumos pendientes por comprar"
+            : tab === "Todas"
+              ? `${fmtInt(total)} órdenes de compra`
+              : `${fmtInt(total)} órdenes · ${tab}`
         }
         actions={
           canCreate && (
@@ -142,6 +178,104 @@ export default function PurchasesPage() {
               onChange={(e) => setQuery(e.target.value)}
             />
           </div>
+          {tab !== "Por comprar" && (
+            <div className="relative">
+              <button
+                className="icon-btn"
+                type="button"
+                aria-label="Filtros"
+                aria-expanded={filtersOpen}
+                onClick={() => setFiltersOpen((o) => !o)}
+              >
+                {I.filter}
+                {activeFilterCount > 0 && (
+                  <span className="nav-item__badge">{activeFilterCount}</span>
+                )}
+              </button>
+              {filtersOpen && (
+                <>
+                  <div
+                    className="fixed inset-0"
+                    style={{ zIndex: 19 }}
+                    onClick={() => setFiltersOpen(false)}
+                  />
+                  <div
+                    className="card"
+                    style={{
+                      position: "absolute",
+                      right: 0,
+                      top: "calc(100% + 6px)",
+                      zIndex: 20,
+                      width: 260,
+                      padding: 14,
+                    }}
+                  >
+                    <div className="flex flex-col gap-3">
+                      <label className="field text-xs">
+                        Proveedor
+                        <select
+                          className="input"
+                          value={supplierId}
+                          onChange={(e) => {
+                            setSupplierId(e.target.value);
+                            setPage(1);
+                          }}
+                        >
+                          <option value="">Todos</option>
+                          {suppliers.map((s) => (
+                            <option key={s.id} value={s.id}>
+                              {s.name}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                      <div className="text-xs font-medium text-muted mt-1">
+                        Fecha de creación
+                      </div>
+                      <label className="field text-xs">
+                        Desde
+                        <input
+                          type="date"
+                          className="input"
+                          value={from}
+                          onChange={(e) => {
+                            setFrom(e.target.value);
+                            setPage(1);
+                          }}
+                        />
+                      </label>
+                      <label className="field text-xs">
+                        Hasta
+                        <input
+                          type="date"
+                          className="input"
+                          value={to}
+                          onChange={(e) => {
+                            setTo(e.target.value);
+                            setPage(1);
+                          }}
+                        />
+                      </label>
+                      {activeFilterCount > 0 && (
+                        <button
+                          className="btn btn--sm btn--ghost"
+                          type="button"
+                          onClick={() => {
+                            setSupplierId("");
+                            setFrom("");
+                            setTo("");
+                            setPage(1);
+                          }}
+                        >
+                          Limpiar filtros
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
+          )}
         </div>
         {tab === "Por comprar" ? (
           <PurchaseDemandPanel

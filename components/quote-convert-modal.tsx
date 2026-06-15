@@ -327,8 +327,8 @@ export function QuoteConvertModal({ quote, onClose, onConverted }: Props) {
             style={{ color: mixedOk ? "var(--muted)" : "var(--danger)" }}
           >
             {mixedOk
-              ? "Los montos cubren el total."
-              : `Los montos deben sumar ${fmtMXN(total)} (restan ${fmtMXN(mixedRemaining)}).`}
+              ? "Los montos cubren el cobro inicial."
+              : `Los montos deben sumar ${fmtMXN(chargeNow)} (restan ${fmtMXN(mixedRemaining)}).`}
           </div>
         </div>
       )}

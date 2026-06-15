@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState, type FormEvent } from "react";
+import { Suspense, useEffect, useState, type FormEvent } from "react";
+import { useSearchParams } from "next/navigation";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { I } from "@/components/icons";
 import { MenuButton, type MenuItem } from "@/components/menu-button";
@@ -29,6 +30,17 @@ function reliabilityColor(r: number): string {
 }
 
 export default function SuppliersPage() {
+  return (
+    <Suspense fallback={<div className="text-muted text-sm">Cargando…</div>}>
+      <SuppliersPageInner />
+    </Suspense>
+  );
+}
+
+function SuppliersPageInner() {
+  // Deep-link `?proveedor=<id>` (desde la búsqueda global): preselecciona el
+  // proveedor para abrir su panel de detalle.
+  const preselectId = useSearchParams().get("proveedor");
   const canWrite = usePermission("suppliers.write");
   const canDeactivate = usePermission("suppliers.deactivate");
   const [suppliers, setSuppliers] = useState<ApiSupplier[]>([]);
@@ -38,7 +50,7 @@ export default function SuppliersPage() {
   const [orderBy, setOrderBy] = useState<OrderByKey>("createdAt");
   const [query, setQuery] = useState("");
   const [debounced, setDebounced] = useState("");
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [selectedId, setSelectedId] = useState<string | null>(preselectId);
   const [selectedDetail, setSelectedDetail] = useState<ApiSupplier | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);

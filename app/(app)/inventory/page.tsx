@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState, type FormEvent } from "react";
+import { Suspense, useEffect, useState, type FormEvent } from "react";
+import { useSearchParams } from "next/navigation";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { I } from "@/components/icons";
 import { InventoryMaterialDetail } from "@/components/inventory-material-detail";
@@ -32,6 +33,15 @@ const ORDER_OPTIONS: { key: OrderByKey; label: string }[] = [
 ];
 
 export default function InventoryPage() {
+  return (
+    <Suspense fallback={<div className="text-muted text-sm">Cargando…</div>}>
+      <InventoryPageInner />
+    </Suspense>
+  );
+}
+
+function InventoryPageInner() {
+  const searchParams = useSearchParams();
   const canWrite = usePermission("inventory.materials.write");
   const canDeactivate = usePermission("inventory.materials.deactivate");
   const canStock = usePermission("inventory.stock.write");
@@ -40,6 +50,9 @@ export default function InventoryPage() {
   const [page, setPage] = useState(1);
   const [orderBy, setOrderBy] = useState<OrderByKey>("name");
   const [showInactive, setShowInactive] = useState(false);
+  // Deep-link `?low=1` (desde la alerta "Insumos bajo stock" del topbar):
+  // aterriza ya filtrado a los insumos por debajo de su punto de reorden.
+  const [lowOnly, setLowOnly] = useState(searchParams.get("low") === "1");
   const [query, setQuery] = useState("");
   const [debounced, setDebounced] = useState("");
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -74,8 +87,11 @@ export default function InventoryPage() {
         take: PAGE_SIZE,
         search: debounced || undefined,
         isActive: showInactive ? undefined : true,
+        belowReorder: lowOnly || undefined,
         orderBy,
-        order: orderBy === "stock" || orderBy === "createdAt" ? "asc" : "asc",
+        // "Más recientes" (createdAt) va descendente; el resto ascendente
+        // (incluido "Stock (menor primero)").
+        order: orderBy === "createdAt" ? "desc" : "asc",
       });
       setMaterials(res.items);
       setTotal(res.total);
@@ -97,7 +113,7 @@ export default function InventoryPage() {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     void reload();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [page, orderBy, debounced, showInactive]);
+  }, [page, orderBy, debounced, showInactive, lowOnly]);
 
   useEffect(() => {
     if (!selectedId) {
@@ -274,6 +290,16 @@ export default function InventoryPage() {
                 </button>
               )}
             </div>
+            <button
+              className={`btn btn--sm ${lowOnly ? "btn--primary" : "btn--ghost"}`}
+              onClick={() => {
+                setLowOnly((v) => !v);
+                setPage(1);
+              }}
+              title="Solo insumos por debajo de su punto de reorden"
+            >
+              Solo bajo stock
+            </button>
             <button
               className={`btn btn--sm ${showInactive ? "btn--primary" : "btn--ghost"}`}
               onClick={() => {

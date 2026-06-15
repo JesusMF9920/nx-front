@@ -925,6 +925,23 @@ function ClientDetailPanel({
               v={client.postalCode}
             />
           )}
+          {client.fiscalName && (
+            <DetailKV
+              icon={I.receipt}
+              label="Razón social"
+              v={client.fiscalName}
+            />
+          )}
+          {client.usoCFDI && (
+            <DetailKV
+              icon={I.receipt}
+              label="Uso de CFDI"
+              v={
+                USO_CFDI.find((u) => u.code === client.usoCFDI)?.label ??
+                client.usoCFDI
+              }
+            />
+          )}
         </div>
 
         {client.notes && (
@@ -1084,7 +1101,10 @@ function ClientDetailPanel({
         <div className="card__title">Órdenes</div>
         <div className="spacer" />
         {ordersTotal > 10 ? (
-          <Link className="btn btn--ghost btn--sm" href="/orders">
+          <Link
+            className="btn btn--ghost btn--sm"
+            href={`/orders?cliente=${client.id}`}
+          >
             Ver todas {I.chevronRight}
           </Link>
         ) : (

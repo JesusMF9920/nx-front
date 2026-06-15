@@ -55,6 +55,7 @@ export default function CashPage() {
   const canRead = usePermission("sales.cash.read");
   const canOpen = usePermission("sales.cash.open");
   const canClose = usePermission("sales.cash.close");
+  const canSupervise = usePermission("sales.cash.supervise");
   const canManageSettings = usePermission("settings.manage");
   const ticketsOn = useFeature("tickets");
 
@@ -261,6 +262,21 @@ export default function CashPage() {
                     − Retiro
                   </button>
                 </>
+              )}
+              {canSupervise && (
+                <button
+                  className="btn btn--sm"
+                  type="button"
+                  onClick={() => {
+                    cashApi
+                      .detail(active.id)
+                      .then(setDetail)
+                      .catch((err) => setError(errMsg(err)));
+                  }}
+                  title="Desglose en vivo de la caja sin cerrar la sesión"
+                >
+                  Corte X
+                </button>
               )}
               {canClose && (
                 <button
@@ -599,7 +615,11 @@ export default function CashPage() {
       {/* ── Detalle de un corte (historial) ───────────────────────────── */}
       {detail && (
         <Modal
-          title={`Corte ${detail.folio}`}
+          title={
+            detail.closedAt
+              ? `Corte ${detail.folio}`
+              : `Corte X en vivo · ${detail.folio}`
+          }
           onClose={() => setDetail(null)}
           width={440}
           footer={
@@ -658,17 +678,25 @@ export default function CashPage() {
             ))}
             <div className="divider" />
             <div className="flex justify-between">
-              <span className="text-muted">Esperado</span>
+              <span className="text-muted">
+                {detail.closedAt ? "Esperado" : "Esperado en caja"}
+              </span>
               <span className="num">{fmtMXN(detail.expectedCash ?? 0)}</span>
             </div>
-            <div className="flex justify-between">
-              <span className="text-muted">Contado</span>
-              <span className="num">{fmtMXN(detail.countedCash ?? 0)}</span>
-            </div>
-            <div className="flex justify-between text-base font-semibold">
-              <span>Diferencia</span>
-              <DifferenceTag value={detail.difference} />
-            </div>
+            {/* Contado/Diferencia solo aplican a un corte cerrado (Z); el
+                corte X en vivo solo muestra lo esperado. */}
+            {detail.closedAt && (
+              <>
+                <div className="flex justify-between">
+                  <span className="text-muted">Contado</span>
+                  <span className="num">{fmtMXN(detail.countedCash ?? 0)}</span>
+                </div>
+                <div className="flex justify-between text-base font-semibold">
+                  <span>Diferencia</span>
+                  <DifferenceTag value={detail.difference} />
+                </div>
+              </>
+            )}
             <div className="flex justify-between text-[13px]">
               <span className="text-muted">
                 Terminal (informativo, {detail.terminalCount ?? 0})
