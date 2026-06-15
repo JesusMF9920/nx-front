@@ -19,8 +19,27 @@ export type ExportableReport =
   | "sellers"
   | "aging";
 
-function rangeQs(range?: ReportRange): string {
-  return range ? `?range=${encodeURIComponent(range)}` : "";
+/**
+ * Periodo de un reporte: un preset (`range`) o un rango personalizado
+ * (`dateFrom`/`dateTo`, formato YYYY-MM-DD). El backend prioriza las fechas
+ * sobre el preset cuando ambas vienen.
+ */
+export type ReportParams = {
+  range?: ReportRange;
+  dateFrom?: string;
+  dateTo?: string;
+};
+
+function periodQs(params?: ReportParams): string {
+  const qs = new URLSearchParams();
+  if (params?.dateFrom && params?.dateTo) {
+    qs.set("dateFrom", params.dateFrom);
+    qs.set("dateTo", params.dateTo);
+  } else if (params?.range) {
+    qs.set("range", params.range);
+  }
+  const s = qs.toString();
+  return s ? `?${s}` : "";
 }
 
 export const reportsApi = {
@@ -28,24 +47,26 @@ export const reportsApi = {
     return apiFetch<ApiDashboard>("/reports/dashboard");
   },
 
-  salesSummary(range?: ReportRange): Promise<ApiSalesSummary> {
-    return apiFetch<ApiSalesSummary>(`/reports/sales-summary${rangeQs(range)}`);
+  salesSummary(params?: ReportParams): Promise<ApiSalesSummary> {
+    return apiFetch<ApiSalesSummary>(
+      `/reports/sales-summary${periodQs(params)}`,
+    );
   },
 
-  topProducts(range?: ReportRange): Promise<Items<ApiTopProduct>> {
+  topProducts(params?: ReportParams): Promise<Items<ApiTopProduct>> {
     return apiFetch<Items<ApiTopProduct>>(
-      `/reports/top-products${rangeQs(range)}`,
+      `/reports/top-products${periodQs(params)}`,
     );
   },
 
-  topClients(range?: ReportRange): Promise<Items<ApiTopClient>> {
+  topClients(params?: ReportParams): Promise<Items<ApiTopClient>> {
     return apiFetch<Items<ApiTopClient>>(
-      `/reports/top-clients${rangeQs(range)}`,
+      `/reports/top-clients${periodQs(params)}`,
     );
   },
 
-  sellers(range?: ReportRange): Promise<Items<ApiSeller>> {
-    return apiFetch<Items<ApiSeller>>(`/reports/sellers${rangeQs(range)}`);
+  sellers(params?: ReportParams): Promise<Items<ApiSeller>> {
+    return apiFetch<Items<ApiSeller>>(`/reports/sellers${periodQs(params)}`);
   },
 
   aging(): Promise<Items<ApiAgingRow>> {
@@ -56,10 +77,15 @@ export const reportsApi = {
   async download(
     report: ExportableReport,
     format: ExportFormat,
-    range?: ReportRange,
+    params?: ReportParams,
   ): Promise<void> {
     const qs = new URLSearchParams({ format });
-    if (range) qs.set("range", range);
+    if (params?.dateFrom && params?.dateTo) {
+      qs.set("dateFrom", params.dateFrom);
+      qs.set("dateTo", params.dateTo);
+    } else if (params?.range) {
+      qs.set("range", params.range);
+    }
     const blob = await apiFetchBlob(`/reports/${report}/export?${qs.toString()}`);
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");

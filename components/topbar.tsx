@@ -141,7 +141,7 @@ export function Topbar({ onMenuClick }: { onMenuClick?: () => void }) {
         {I.search}
         <input
           ref={searchRef}
-          placeholder="Buscar pedidos, clientes, productos…"
+          placeholder="Buscar pedidos, cotizaciones, clientes, productos…"
           value={q}
           onChange={(e) => setQ(e.target.value)}
           onKeyDown={(e) => {
@@ -235,7 +235,7 @@ export function Topbar({ onMenuClick }: { onMenuClick?: () => void }) {
               <div className="font-medium mb-2">Atajos de teclado</div>
               <div className="flex flex-col gap-1.5 text-muted">
                 <div className="flex items-center justify-between">
-                  <span>Buscar (pedidos, clientes, productos)</span>
+                  <span>Buscar (pedidos, cotizaciones, clientes, productos, proveedores)</span>
                   <span className="kbd">⌘K</span>
                 </div>
                 <div className="flex items-center justify-between">

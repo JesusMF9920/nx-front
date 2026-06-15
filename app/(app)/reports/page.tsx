@@ -13,6 +13,7 @@ import {
   reportsApi,
   type ExportableReport,
   type ExportFormat,
+  type ReportParams,
   type ReportRange,
 } from "@/lib/api/reports";
 import type {
@@ -42,6 +43,8 @@ export default function ReportsPage() {
   const canRead = usePermission("reports.read");
   const canExport = usePermission("reports.export");
   const [range, setRange] = useState<ReportRange>("30d");
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
   const [tab, setTab] = useState<Tab>("Resumen");
 
   const [summary, setSummary] = useState<ApiSalesSummary | null>(null);
@@ -59,12 +62,14 @@ export default function ReportsPage() {
     void (async () => {
       setLoading(true);
       setError(null);
+      const params: ReportParams =
+        dateFrom && dateTo ? { dateFrom, dateTo } : { range };
       try {
         const [s, p, c, v, a] = await Promise.all([
-          reportsApi.salesSummary(range),
-          reportsApi.topProducts(range),
-          reportsApi.topClients(range),
-          reportsApi.sellers(range),
+          reportsApi.salesSummary(params),
+          reportsApi.topProducts(params),
+          reportsApi.topClients(params),
+          reportsApi.sellers(params),
           reportsApi.aging(),
         ]);
         if (token !== reqRef.current) return;
@@ -82,13 +87,19 @@ export default function ReportsPage() {
         if (token === reqRef.current) setLoading(false);
       }
     })();
-  }, [range, canRead]);
+  }, [range, dateFrom, dateTo, canRead]);
 
   const exportReport = async (format: ExportFormat) => {
     const report = TAB_REPORT[tab];
     if (!report) return;
+    const params: ReportParams =
+      dateFrom && dateTo ? { dateFrom, dateTo } : { range };
     try {
-      await reportsApi.download(report, format, report === "aging" ? undefined : range);
+      await reportsApi.download(
+        report,
+        format,
+        report === "aging" ? undefined : params,
+      );
     } catch (err) {
       setError(
         err instanceof ApiError ? err.message : "No se pudo exportar el reporte.",
@@ -113,6 +124,7 @@ export default function ReportsPage() {
   const totCxC = aging.reduce((s, a) => s + a.total, 0);
   const overdue = aging.reduce((s, a) => s + a.b3160 + a.b6190 + a.b90, 0);
   const exportable = TAB_REPORT[tab] !== undefined;
+  const customActive = !!(dateFrom && dateTo);
 
   return (
     <>
@@ -125,13 +137,51 @@ export default function ReportsPage() {
               {RANGES.map((r) => (
                 <button
                   key={r}
-                  onClick={() => setRange(r)}
-                  className={`btn btn--sm ${range === r ? "btn--primary" : "btn--ghost"}`}
+                  onClick={() => {
+                    setRange(r);
+                    setDateFrom("");
+                    setDateTo("");
+                  }}
+                  className={`btn btn--sm ${range === r && !customActive ? "btn--primary" : "btn--ghost"}`}
                   style={{ border: "none" }}
                 >
                   {r}
                 </button>
               ))}
+            </div>
+            <div className="row gap-1 items-center">
+              <input
+                type="date"
+                className="input"
+                style={{ height: 32, fontSize: 12, width: 140 }}
+                value={dateFrom}
+                max={dateTo || undefined}
+                onChange={(e) => setDateFrom(e.target.value)}
+                aria-label="Desde"
+              />
+              <span className="text-muted text-xs">a</span>
+              <input
+                type="date"
+                className="input"
+                style={{ height: 32, fontSize: 12, width: 140 }}
+                value={dateTo}
+                min={dateFrom || undefined}
+                onChange={(e) => setDateTo(e.target.value)}
+                aria-label="Hasta"
+              />
+              {customActive && (
+                <button
+                  className="icon-btn"
+                  type="button"
+                  title="Quitar rango personalizado"
+                  onClick={() => {
+                    setDateFrom("");
+                    setDateTo("");
+                  }}
+                >
+                  {I.x}
+                </button>
+              )}
             </div>
             {canExport && (
               <>
