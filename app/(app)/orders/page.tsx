@@ -1,8 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Suspense, useState } from "react";
 import { I } from "@/components/icons";
 import { PageHeader } from "@/components/page-header";
 import { PaymentPill } from "@/components/payment-pill";
@@ -55,7 +55,18 @@ type OrderFilters = {
 };
 
 export default function OrdersPage() {
+  return (
+    <Suspense fallback={<div className="text-muted text-sm">Cargando…</div>}>
+      <OrdersPageInner />
+    </Suspense>
+  );
+}
+
+function OrdersPageInner() {
   const router = useRouter();
+  // Deep-link `?cliente=<id>` (desde el detalle del cliente): filtra la lista
+  // a los pedidos de ese cliente.
+  const clienteId = useSearchParams().get("cliente");
   const canSell = usePermission("sales.pos.sell");
   const [tab, setTab] = useState<Tab>("Todos");
   const [query, setQuery] = useState("");
@@ -79,9 +90,10 @@ export default function OrdersPage() {
       ordersApi.list({
         ...params,
         status: TAB_TO_STATUS[tab] ?? undefined,
+        clientId: clienteId ?? undefined,
         ...filters,
       }),
-    filterKey: `${tab}|${filters.from ?? ""}|${filters.to ?? ""}|${filters.deliverFrom ?? ""}|${filters.deliverTo ?? ""}`,
+    filterKey: `${tab}|${clienteId ?? ""}|${filters.from ?? ""}|${filters.to ?? ""}|${filters.deliverFrom ?? ""}|${filters.deliverTo ?? ""}`,
     search: query,
     pageSize: PAGE_SIZE,
     errorMessage: "No se pudieron cargar los pedidos.",
@@ -107,6 +119,7 @@ export default function OrdersPage() {
         ordersApi.exportCsvUrl({
           status: TAB_TO_STATUS[tab] ?? undefined,
           search: query || undefined,
+          clientId: clienteId ?? undefined,
           ...filters,
         } satisfies ListOrdersParams),
         "pedidos.csv",
@@ -145,6 +158,22 @@ export default function OrdersPage() {
           </>
         }
       />
+
+      {clienteId && (
+        <div
+          className="card mb-3 flex items-center gap-2"
+          style={{ padding: "8px 12px" }}
+        >
+          <span className="text-sm">
+            Mostrando pedidos de{" "}
+            <strong>{orders[0]?.clientName ?? "un cliente"}</strong>
+          </span>
+          <div className="spacer" />
+          <Link className="btn btn--sm btn--ghost" href="/orders">
+            Ver todos los pedidos
+          </Link>
+        </div>
+      )}
 
       {actionError && (
         <div

@@ -164,6 +164,17 @@ export default function ChangePasswordPage() {
         <button className="btn btn--primary btn--lg" type="submit" disabled={loading}>
           {loading ? "Guardando…" : "Guardar contraseña"}
         </button>
+
+        {!mustChangePassword && (
+          <button
+            type="button"
+            className="text-xs text-muted text-center"
+            style={{ background: "none", border: 0, cursor: "pointer" }}
+            onClick={() => router.back()}
+          >
+            Cancelar y volver
+          </button>
+        )}
       </form>
     </div>
   );

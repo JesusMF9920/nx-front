@@ -37,7 +37,10 @@ const ACTION_ICON: Record<string, ReactNode> = {
   "sales.quote.converted": I.cart,
 };
 
-const CHANNELS: ApiQuoteChannel[] = ["whatsapp", "email", "link", "in_person"];
+// "link" se conserva en el mapper para mostrar envíos históricos, pero no se
+// ofrece como opción: no genera un enlace compartible (no hay vista pública de
+// cotización todavía), así que era un dead-end para el vendedor.
+const CHANNELS: ApiQuoteChannel[] = ["whatsapp", "email", "in_person"];
 
 function fmtTime(iso: string): string {
   return new Date(iso).toLocaleTimeString("es-MX", {
@@ -659,8 +662,8 @@ export default function QuoteDetailPage() {
           </div>
           <div className="text-[11px] text-muted mt-3">
             {whatsappEnabled
-              ? "Correo envía la cotización con el PDF adjunto. WhatsApp abre el chat con el mensaje prellenado. Link y Presencial solo registran el canal."
-              : "Correo envía la cotización con el PDF adjunto al correo del cliente. WhatsApp, Link y Presencial solo registran el canal por ahora."}
+              ? "Correo envía la cotización con el PDF adjunto. WhatsApp abre el chat con el mensaje prellenado. Presencial solo registra el canal."
+              : "Correo envía la cotización con el PDF adjunto al correo del cliente. WhatsApp y Presencial solo registran el canal por ahora."}
           </div>
         </Modal>
       )}

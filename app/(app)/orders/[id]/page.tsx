@@ -15,6 +15,7 @@ import { PageHeader } from "@/components/page-header";
 import { StatusPill } from "@/components/status-pill";
 import { SummaryRow } from "@/components/summary-row";
 import type { ApiAuditEntry } from "@/lib/api/audit";
+import { clientsApi } from "@/lib/api/clients";
 import { useFeature, usePermission } from "@/lib/auth/auth-context";
 import { downloadFile } from "@/lib/api/download";
 import { ApiError } from "@/lib/api/errors";
@@ -29,6 +30,7 @@ import {
   paymentLabel,
 } from "@/lib/api/sales-mappers";
 import type {
+  ApiClient,
   ApiInvoice,
   ApiOrderDetail,
   ApiOrderStatus,
@@ -37,6 +39,10 @@ import type {
 } from "@/lib/api/types";
 import { usersApi } from "@/lib/api/users";
 import { fmtDate, fmtDateLong, fmtMXN } from "@/lib/format";
+import {
+  buildOrderReceiptWhatsappMessage,
+  buildWaMeUrl,
+} from "@/lib/share/whatsapp";
 
 const ACTION_ICON: Record<string, ReactNode> = {
   "sales.order.placed": I.cart,
@@ -124,6 +130,7 @@ function toDateInput(iso: string | null): string {
 export default function OrderDetailPage() {
   const { id } = useParams<{ id: string }>();
   const [detail, setDetail] = useState<ApiOrderDetail | null>(null);
+  const [client, setClient] = useState<ApiClient | null>(null);
   const [timeline, setTimeline] = useState<ApiAuditEntry[]>([]);
   const [users, setUsers] = useState<ApiUser[]>([]);
   const [loading, setLoading] = useState(true);
@@ -218,6 +225,24 @@ export default function OrderDetailPage() {
       cancelled = true;
     };
   }, [detail, cfdiEnabled, canReadInvoice]);
+
+  // Datos de contacto del cliente para los accesos directos (correo/WhatsApp)
+  // de la tarjeta Cliente. Falla silenciosa si no hay permiso clients.read.
+  useEffect(() => {
+    if (!detail?.clientId) return;
+    let cancelled = false;
+    void (async () => {
+      try {
+        const c = await clientsApi.get(detail.clientId);
+        if (!cancelled) setClient(c);
+      } catch {
+        // sin acceso a clientes: los accesos directos de contacto se ocultan
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [detail?.clientId]);
 
   // Usuarios sólo para resolver nombres de actores en el timeline. Falla silenciosa.
   useEffect(() => {
@@ -592,8 +617,6 @@ export default function OrderDetailPage() {
                   </button>
                 )
               ))}
-            <button className="btn">{I.mail} Enviar comprobante</button>
-            <button className="btn btn--accent">{I.send} Notificar al cliente</button>
             {isEditable && (
               <button
                 className="btn"
@@ -987,9 +1010,36 @@ export default function OrderDetailPage() {
             </div>
             <div className="divider m-0" />
             <div className="px-3.5 py-2.5 flex gap-1.5 flex-wrap">
-              <button className="btn btn--sm">{I.mail} Correo</button>
-              <button className="btn btn--sm">{I.whatsapp} WhatsApp</button>
-              <button className="btn btn--sm">{I.link} Portal</button>
+              {client?.email ? (
+                <a className="btn btn--sm" href={`mailto:${client.email}`}>
+                  {I.mail} Correo
+                </a>
+              ) : (
+                <button
+                  className="btn btn--sm"
+                  type="button"
+                  disabled
+                  title="El cliente no tiene correo registrado"
+                >
+                  {I.mail} Correo
+                </button>
+              )}
+              <a
+                className="btn btn--sm"
+                href={buildWaMeUrl(
+                  client?.phone,
+                  buildOrderReceiptWhatsappMessage({
+                    clientName: detail.clientName,
+                    folio: detail.folio,
+                    total: detail.total,
+                    balance: pending,
+                  }),
+                )}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                {I.whatsapp} WhatsApp
+              </a>
             </div>
           </div>
         </div>

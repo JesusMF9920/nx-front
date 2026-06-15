@@ -89,9 +89,15 @@ export default function ProductionPage() {
       await ordersApi.transitionItemStatus(item.orderId, item.itemId, status);
       await load();
     } catch (err) {
-      setActionError(
-        err instanceof ApiError ? err.message : "No se pudo avanzar el job.",
-      );
+      // El backend rechaza retrocesos con un error crudo en inglés
+      // ("Invalid status transition: …"); tradúcelo para el taller.
+      let msg = "No se pudo avanzar el job.";
+      if (err instanceof ApiError) {
+        msg = /invalid status transition/i.test(err.message)
+          ? "No se puede avanzar el job a esa etapa."
+          : err.message;
+      }
+      setActionError(msg);
     } finally {
       setItemBusy(null);
     }
@@ -207,7 +213,7 @@ export default function ProductionPage() {
         </div>
       ) : (
         <div className="grid gap-4">
-          {PIPELINE.map((stage) => {
+          {PIPELINE.map((stage, stageIndex) => {
             const stageItems = items.filter((i) => i.status === stage);
             if (stageItems.length === 0) return null;
             return (
@@ -307,15 +313,11 @@ export default function ProductionPage() {
                                 }
                                 aria-label={`Avanzar ${item.productName} del pedido ${item.orderFolio}`}
                               >
-                                {/* El taller avanza hasta "listo para
-                                    entrega"; marcar Entregado es de gestión de
-                                    la orden (se hace desde el pedido). */}
-                                {!PIPELINE.includes(item.status) && (
-                                  <option value={item.status} disabled>
-                                    {ORDER_STATUS_ES[item.status]}
-                                  </option>
-                                )}
-                                {PIPELINE.map((s) => (
+                                {/* Solo etapas hacia adelante: el backend
+                                    rechaza retroceder. El taller avanza hasta
+                                    "listo para entrega"; marcar Entregado es
+                                    gestión de la orden (desde el pedido). */}
+                                {PIPELINE.slice(stageIndex).map((s) => (
                                   <option key={s} value={s}>
                                     {ORDER_STATUS_ES[s]}
                                   </option>

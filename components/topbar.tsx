@@ -94,7 +94,7 @@ export function Topbar({ onMenuClick }: { onMenuClick?: () => void }) {
               key: "lowstock",
               label: "Insumos bajo stock",
               count: r.total,
-              href: "/inventory",
+              href: "/inventory?low=1",
             });
           }
         } catch {
