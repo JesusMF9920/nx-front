@@ -49,6 +49,11 @@ export const authApi = {
     );
   },
 
+  /** Reenvía el correo de verificación al usuario autenticado. */
+  requestEmailVerification(): Promise<void> {
+    return apiFetch<void>("/auth/verify-email/request", { method: "POST" });
+  },
+
   /** Aceptar una invitación: el usuario fija su contraseña con el token. */
   acceptInvitation(token: string, newPassword: string): Promise<void> {
     return apiFetch<void>(

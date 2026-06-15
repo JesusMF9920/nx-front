@@ -535,6 +535,17 @@ export default function OrderDetailPage() {
           <>
             {detail.clientName} · creado {fmtDateLong(detail.createdAt)} · entrega{" "}
             {detail.deliverAt ? fmtDateLong(detail.deliverAt) : "Sin fecha"}
+            {detail.quoteId && (
+              <>
+                {" · "}
+                <Link
+                  href={`/quotes/${detail.quoteId}`}
+                  style={{ color: "var(--accent)" }}
+                >
+                  ver cotización origen
+                </Link>
+              </>
+            )}
           </>
         }
         actions={

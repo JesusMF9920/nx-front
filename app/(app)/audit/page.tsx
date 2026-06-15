@@ -48,6 +48,9 @@ export default function AuditPage() {
   const [users, setUsers] = useState<ApiUser[]>([]);
   const [page, setPage] = useState(1);
   const [actionFilter, setActionFilter] = useState("");
+  const [actorFilter, setActorFilter] = useState("");
+  const [fromDate, setFromDate] = useState("");
+  const [toDate, setToDate] = useState("");
   const [targetFilter, setTargetFilter] = useState("");
   const [targetQuery, setTargetQuery] = useState("");
   const [loading, setLoading] = useState(true);
@@ -83,7 +86,10 @@ export default function AuditPage() {
           skip: (page - 1) * PAGE_SIZE,
           take: PAGE_SIZE,
           action: actionFilter || undefined,
+          actorId: actorFilter || undefined,
           target: targetFilter || undefined,
+          fromDate: fromDate || undefined,
+          toDate: toDate || undefined,
         });
         if (cancelled) return;
         setEntries(res.items);
@@ -103,7 +109,7 @@ export default function AuditPage() {
     return () => {
       cancelled = true;
     };
-  }, [hasAccess, page, actionFilter, targetFilter]);
+  }, [hasAccess, page, actionFilter, actorFilter, targetFilter, fromDate, toDate]);
 
   const actorById = useMemo(() => {
     const m = new Map<string, ApiUser>();
@@ -149,8 +155,8 @@ export default function AuditPage() {
       />
 
       <div className="card mb-3" style={{ padding: 12 }}>
-        <div className="grid items-end gap-3" style={{ gridTemplateColumns: "240px 1fr auto" }}>
-          <div className="field m-0">
+        <div className="flex flex-wrap items-end gap-3">
+          <div className="field m-0" style={{ width: 220 }}>
             <span className="label">Acción</span>
             <select
               className="input"
@@ -168,7 +174,51 @@ export default function AuditPage() {
               ))}
             </select>
           </div>
+          <div className="field m-0" style={{ width: 200 }}>
+            <span className="label">Usuario</span>
+            <select
+              className="input"
+              value={actorFilter}
+              onChange={(e) => {
+                setActorFilter(e.target.value);
+                setPage(1);
+              }}
+            >
+              <option value="">Todos</option>
+              {users.map((u) => (
+                <option key={u.id} value={u.id}>
+                  {u.name}
+                </option>
+              ))}
+            </select>
+          </div>
           <div className="field m-0">
+            <span className="label">Desde</span>
+            <input
+              type="date"
+              className="input"
+              value={fromDate}
+              max={toDate || undefined}
+              onChange={(e) => {
+                setFromDate(e.target.value);
+                setPage(1);
+              }}
+            />
+          </div>
+          <div className="field m-0">
+            <span className="label">Hasta</span>
+            <input
+              type="date"
+              className="input"
+              value={toDate}
+              min={fromDate || undefined}
+              onChange={(e) => {
+                setToDate(e.target.value);
+                setPage(1);
+              }}
+            />
+          </div>
+          <div className="field m-0" style={{ minWidth: 200, flex: 1 }}>
             <span className="label">Target (ej. user:UUID o role:UUID)</span>
             <input
               className="input"
@@ -192,12 +242,19 @@ export default function AuditPage() {
             >
               {I.search} Filtrar
             </button>
-            {(actionFilter || targetFilter) && (
+            {(actionFilter ||
+              targetFilter ||
+              actorFilter ||
+              fromDate ||
+              toDate) && (
               <button
                 className="btn btn--ghost"
                 type="button"
                 onClick={() => {
                   setActionFilter("");
+                  setActorFilter("");
+                  setFromDate("");
+                  setToDate("");
                   setTargetFilter("");
                   setTargetQuery("");
                   setPage(1);

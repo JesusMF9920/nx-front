@@ -3,6 +3,7 @@
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
+import { EmailVerificationBanner } from "@/components/email-verification-banner";
 import { Sidebar } from "@/components/sidebar";
 import { Topbar } from "@/components/topbar";
 import { useAuth } from "@/lib/auth/auth-context";
@@ -54,7 +55,10 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       )}
       <div className="main">
         <Topbar onMenuClick={() => setNavOpen((o) => !o)} />
-        <main className="content">{children}</main>
+        <main className="content">
+          <EmailVerificationBanner />
+          {children}
+        </main>
       </div>
     </div>
   );

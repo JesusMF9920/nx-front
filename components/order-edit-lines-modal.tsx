@@ -4,6 +4,7 @@ import { useState } from "react";
 import { I } from "@/components/icons";
 import { Modal } from "@/components/modal";
 import { SummaryRow } from "@/components/summary-row";
+import { usePermission } from "@/lib/auth/auth-context";
 import { ApiError } from "@/lib/api/errors";
 import { ordersApi, type CheckoutLineInput } from "@/lib/api/orders";
 import type { ApiOrderDetail, ApiOrderItem } from "@/lib/api/types";
@@ -93,13 +94,17 @@ function toInput(line: CartLine): CheckoutLineInput {
 }
 
 export function OrderEditLinesModal({ order, onClose, onDone }: Props) {
+  const canDiscount = usePermission("sales.discount.apply");
   const [lines, setLines] = useState<CartLine[]>(() =>
     order.items.map(lineFromItem),
   );
+  // Conserva el descuento del pedido (antes se fijaba en 0 y se borraba al
+  // guardar); editable solo con sales.discount.apply, igual que el POS.
+  const [discount, setDiscount] = useState(order.discount);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const { subtotal, tax, total } = cartTotals(lines, 0);
+  const { subtotal, discountApplied, tax, total } = cartTotals(lines, discount);
   const hasInvalidAdHoc = lines.some(
     (l) => l.isAdHoc && (l.name.trim() === "" || l.price <= 0),
   );
@@ -132,7 +137,10 @@ export function OrderEditLinesModal({ order, onClose, onDone }: Props) {
     setSubmitting(true);
     setError(null);
     try {
-      await ordersApi.editLines(order.id, { lines: lines.map(toInput) });
+      await ordersApi.editLines(order.id, {
+        lines: lines.map(toInput),
+        discount,
+      });
       await onDone();
       onClose();
     } catch (err) {
@@ -341,6 +349,34 @@ export function OrderEditLinesModal({ order, onClose, onDone }: Props) {
 
         <div>
           <SummaryRow label="Subtotal" value={fmtMXN(subtotal)} />
+          {canDiscount ? (
+            <div className="flex items-center justify-between py-1">
+              <span className="text-[13px] text-muted">Descuento</span>
+              <label className="flex items-center gap-1 text-[13px]">
+                $
+                <input
+                  className="input num"
+                  type="number"
+                  min={0}
+                  step="0.01"
+                  value={discount || ""}
+                  onChange={(e) =>
+                    setDiscount(
+                      Math.max(0, parseFloat(e.target.value || "0") || 0),
+                    )
+                  }
+                  style={{ width: 96, height: 28, padding: "0 8px" }}
+                />
+              </label>
+            </div>
+          ) : (
+            discountApplied > 0 && (
+              <SummaryRow
+                label="Descuento"
+                value={`− ${fmtMXN(discountApplied)}`}
+              />
+            )
+          )}
           <SummaryRow label="IVA 16%" value={fmtMXN(tax)} />
           <SummaryRow label="Total" value={fmtMXN(total)} big />
           <SummaryRow label="Ya pagado" value={fmtMXN(order.paid)} muted />
