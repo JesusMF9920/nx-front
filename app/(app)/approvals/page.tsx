@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { ApprovalDetail } from "@/components/approval-detail";
 import { ApprovalNewModal } from "@/components/approval-new-modal";
@@ -14,11 +15,12 @@ import type {
 } from "@/lib/api/types";
 import { usePermission } from "@/lib/auth/auth-context";
 
-type Tab = "Pendientes" | "Cambios" | "Aprobados" | "Todos";
+type Tab = "Borradores" | "Pendientes" | "Cambios" | "Aprobados" | "Todos";
 
-const TABS: Tab[] = ["Pendientes", "Cambios", "Aprobados", "Todos"];
+const TABS: Tab[] = ["Borradores", "Pendientes", "Cambios", "Aprobados", "Todos"];
 
 const TAB_TO_STATUS: Record<Tab, ApiDesignProofStatus | null> = {
+  Borradores: "draft",
   Pendientes: "awaiting_client",
   Cambios: "changes_requested",
   Aprobados: "approved",
@@ -62,6 +64,7 @@ export default function ApprovalsPage() {
 
   const counts = useMemo(
     () => ({
+      Borradores: items.filter((a) => a.status === "draft").length,
       Pendientes: items.filter((a) => a.status === "awaiting_client").length,
       Cambios: items.filter((a) => a.status === "changes_requested").length,
       Aprobados: items.filter((a) => a.status === "approved").length,
@@ -165,9 +168,15 @@ export default function ApprovalsPage() {
                     <div className="flex items-center gap-1.5">
                       <span className="num text-[11px] text-muted">{a.folio}</span>
                       <span className="text-muted">·</span>
-                      <span className="num text-[11px] text-muted">
+                      <Link
+                        href={`/orders/${a.orderFolio}`}
+                        className="num text-[11px]"
+                        style={{ color: "var(--accent)" }}
+                        onClick={(e) => e.stopPropagation()}
+                        title="Ver pedido"
+                      >
                         {a.orderFolio}
-                      </span>
+                      </Link>
                     </div>
                     <div className="font-medium text-[13px] mt-0.5">
                       {a.productName}

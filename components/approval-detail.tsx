@@ -43,6 +43,7 @@ export function ApprovalDetail({
   const [showSend, setShowSend] = useState(false);
   const [confirm, setConfirm] = useState<"approve" | "changes" | null>(null);
   const [commentText, setCommentText] = useState("");
+  const [versionNote, setVersionNote] = useState("");
   const fileRef = useRef<HTMLInputElement>(null);
 
   const reload = useCallback(async () => {
@@ -96,7 +97,9 @@ export function ApprovalDetail({
       await designApi.addVersion(detail.id, {
         fileKey: presign.key,
         contentType: file.type,
+        ...(versionNote.trim() ? { note: versionNote.trim() } : {}),
       });
+      setVersionNote("");
       await reload();
       onMutated();
     } catch (err) {
@@ -263,7 +266,14 @@ export function ApprovalDetail({
             </div>
           ))}
           {canCreate && !approved && (
-            <>
+            <div className="p-2.5 flex flex-col gap-2">
+              <input
+                className="input text-[12px]"
+                placeholder="Nota de esta versión para el cliente (opcional)"
+                value={versionNote}
+                onChange={(e) => setVersionNote(e.target.value)}
+                disabled={busy}
+              />
               <input
                 ref={fileRef}
                 type="file"
@@ -275,13 +285,13 @@ export function ApprovalDetail({
                 }}
               />
               <button
-                className="btn btn--ghost btn--sm m-2.5"
+                className="btn btn--ghost btn--sm self-start"
                 disabled={busy}
                 onClick={() => fileRef.current?.click()}
               >
                 {I.upload} {busy ? "Subiendo…" : "Subir nueva versión"}
               </button>
-            </>
+            </div>
           )}
         </div>
       </div>

@@ -1,7 +1,9 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
 import { I } from "@/components/icons";
+import { Modal } from "@/components/modal";
 import { PageHeader } from "@/components/page-header";
 import { GlobalInvoiceModal } from "@/components/global-invoice-modal";
 import { CancelInvoiceModal } from "@/components/cancel-invoice-modal";
@@ -63,6 +65,7 @@ export default function InvoicesPage() {
   const [showGlobal, setShowGlobal] = useState(false);
   const [showCoverage, setShowCoverage] = useState(false);
   const [cancelTarget, setCancelTarget] = useState<ApiInvoice | null>(null);
+  const [detailInvoice, setDetailInvoice] = useState<ApiInvoice | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
 
   const {
@@ -102,6 +105,17 @@ export default function InvoicesPage() {
   const download = (inv: ApiInvoice, format: "xml" | "pdf") => {
     const name = `factura-${inv.folio ?? inv.uuid ?? inv.id}.${format}`;
     void downloadFile(invoicingApi.fileUrl(inv.id, format), name);
+  };
+
+  // Abre el detalle con los datos de la fila y los refresca con GET /invoices/:id.
+  const openDetail = async (inv: ApiInvoice) => {
+    setDetailInvoice(inv);
+    try {
+      const fresh = await invoicingApi.get(inv.id);
+      setDetailInvoice((cur) => (cur && cur.id === fresh.id ? fresh : cur));
+    } catch {
+      /* se queda con los datos de la fila */
+    }
   };
 
   if (!canRead) {
@@ -328,10 +342,38 @@ export default function InvoicesPage() {
                     inv.status === "stamped" || inv.status === "sent";
                   return (
                     <tr key={inv.id}>
-                      <td className="num" title={inv.uuid ?? undefined}>
-                        {inv.folio ?? (inv.uuid ? inv.uuid.slice(0, 8) : "—")}
+                      <td className="num">
+                        <button
+                          type="button"
+                          onClick={() => void openDetail(inv)}
+                          title={inv.uuid ?? "Ver detalle"}
+                          style={{
+                            background: "none",
+                            border: 0,
+                            padding: 0,
+                            cursor: "pointer",
+                            color: "var(--accent)",
+                          }}
+                        >
+                          {inv.folio ?? (inv.uuid ? inv.uuid.slice(0, 8) : "—")}
+                        </button>
                       </td>
-                      <td>{TYPE_ES[inv.type]}</td>
+                      <td>
+                        {TYPE_ES[inv.type]}
+                        {inv.paymentMethod && (
+                          <span
+                            className="tag text-[10px]"
+                            style={{ marginLeft: 6 }}
+                            title={
+                              inv.paymentMethod === "PPD"
+                                ? "Pago en parcialidades o diferido (requiere complemento de pago)"
+                                : "Pago en una sola exhibición"
+                            }
+                          >
+                            {inv.paymentMethod}
+                          </span>
+                        )}
+                      </td>
                       <td>
                         {inv.receiverName ?? "—"}
                         {inv.receiverRfc && (
@@ -476,6 +518,109 @@ export default function InvoicesPage() {
           }}
         />
       )}
+
+      {detailInvoice && (
+        <Modal
+          title={
+            detailInvoice.folio
+              ? `Factura ${detailInvoice.folio}`
+              : "Detalle de factura"
+          }
+          onClose={() => setDetailInvoice(null)}
+          width={460}
+          footer={
+            <button
+              className="btn btn--accent"
+              onClick={() => setDetailInvoice(null)}
+            >
+              Cerrar
+            </button>
+          }
+        >
+          <div className="grid gap-2 text-sm">
+            <InvoiceRow label="Folio fiscal (UUID)" value={detailInvoice.uuid ?? "—"} mono />
+            <InvoiceRow
+              label="Serie · Folio"
+              value={`${detailInvoice.serie ?? "—"} · ${detailInvoice.folio ?? "—"}`}
+            />
+            <InvoiceRow
+              label="Tipo"
+              value={
+                TYPE_ES[detailInvoice.type] +
+                (detailInvoice.paymentMethod
+                  ? ` · ${detailInvoice.paymentMethod}`
+                  : "")
+              }
+            />
+            <InvoiceRow
+              label="Estado"
+              value={
+                STATUS_ES[detailInvoice.status] +
+                (detailInvoice.cancelStatus === "pending"
+                  ? " · en proceso"
+                  : "")
+              }
+            />
+            <InvoiceRow label="Receptor" value={detailInvoice.receiverName ?? "—"} />
+            <InvoiceRow label="RFC receptor" value={detailInvoice.receiverRfc ?? "—"} mono />
+            <InvoiceRow label="Subtotal" value={fmtMXN(detailInvoice.subtotal)} />
+            <InvoiceRow label="Total" value={fmtMXN(detailInvoice.total)} />
+            {detailInvoice.orderFolio && (
+              <div className="flex justify-between gap-3">
+                <span className="text-muted">Pedido</span>
+                <Link
+                  href={`/orders/${detailInvoice.orderFolio}`}
+                  className="num"
+                  style={{ color: "var(--accent)" }}
+                >
+                  {detailInvoice.orderFolio}
+                </Link>
+              </div>
+            )}
+            {detailInvoice.type === "global" && (
+              <InvoiceRow
+                label="Ventas incluidas"
+                value={String(detailInvoice.includedOrderIds.length)}
+              />
+            )}
+            <InvoiceRow label="Emitida" value={fmtDate(detailInvoice.createdAt)} />
+            {detailInvoice.cancelledAt && (
+              <InvoiceRow
+                label="Cancelada"
+                value={fmtDate(detailInvoice.cancelledAt)}
+              />
+            )}
+            {detailInvoice.cancelReason && (
+              <InvoiceRow
+                label="Motivo de cancelación"
+                value={detailInvoice.cancelReason}
+              />
+            )}
+          </div>
+        </Modal>
+      )}
     </>
+  );
+}
+
+function InvoiceRow({
+  label,
+  value,
+  mono,
+}: {
+  label: string;
+  value: string;
+  mono?: boolean;
+}) {
+  return (
+    <div className="flex justify-between gap-3">
+      <span className="text-muted">{label}</span>
+      <span
+        className={mono ? "num font-mono text-right" : "text-right"}
+        style={{ wordBreak: "break-word" }}
+      >
+        {value}
+      </span>
+    </div>
   );
 }

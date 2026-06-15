@@ -55,6 +55,8 @@ export default function ProductsPage() {
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
   const [sourceFilter, setSourceFilter] = useState<SourceFilter>("all");
+  const [categoryFilter, setCategoryFilter] = useState("");
+  const [categories, setCategories] = useState<string[]>([]);
   const [showInactive, setShowInactive] = useState(false);
   const [orderBy, setOrderBy] = useState<OrderByKey>("createdAt");
   const [query, setQuery] = useState("");
@@ -101,6 +103,7 @@ export default function ProductsPage() {
         take: PAGE_SIZE,
         search: debounced || undefined,
         source: sourceFilter === "all" ? undefined : sourceFilter,
+        category: categoryFilter || undefined,
         isActive: showInactive ? undefined : true,
         orderBy,
         order: orderBy === "name" || orderBy === "sku" ? "asc" : "desc",
@@ -125,7 +128,23 @@ export default function ProductsPage() {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     void reload();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [page, sourceFilter, debounced, orderBy, showInactive]);
+  }, [page, sourceFilter, categoryFilter, debounced, orderBy, showInactive]);
+
+  // Categorías para el filtro (el POS ya consume este endpoint).
+  useEffect(() => {
+    let cancelled = false;
+    catalogApi
+      .categories()
+      .then((cs) => {
+        if (!cancelled) setCategories(cs);
+      })
+      .catch(() => {
+        /* sin categorías: el filtro queda vacío */
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     if (!selectedId) {
@@ -287,6 +306,23 @@ export default function ProductsPage() {
                 </button>
               ))}
             </div>
+            <select
+              className="input"
+              style={{ width: 170, height: 32, fontSize: 12 }}
+              value={categoryFilter}
+              onChange={(e) => {
+                setCategoryFilter(e.target.value);
+                setPage(1);
+              }}
+              aria-label="Filtrar por categoría"
+            >
+              <option value="">Categoría: todas</option>
+              {categories.map((c) => (
+                <option key={c} value={c}>
+                  {c}
+                </option>
+              ))}
+            </select>
             <button
               className={`btn btn--sm ${showInactive ? "btn--primary" : "btn--ghost"}`}
               onClick={toggleInactive}
