@@ -151,8 +151,14 @@ export default function UsersPage() {
     [roles],
   );
 
-  // Selección efectiva: la elegida, o el primer usuario de la página (auto).
-  const effectiveId = selectedId ?? users[0]?.id ?? null;
+  // Selección efectiva: la elegida (si sigue en la página actual) o, si no, el
+  // primer usuario — evita que al paginar/buscar quede un detalle vacío.
+  const effectiveId =
+    (selectedId && users.some((u) => u.id === selectedId)
+      ? selectedId
+      : null) ??
+    users[0]?.id ??
+    null;
   const selected = useMemo(
     () => users.find((u) => u.id === effectiveId) ?? null,
     [users, effectiveId],
@@ -268,7 +274,7 @@ export default function UsersPage() {
             <div className="topbar__search m-0" style={{ width: 220 }}>
               {I.search}
               <input
-                placeholder="Buscar usuario"
+                placeholder="Buscar por nombre, correo o rol"
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
               />
