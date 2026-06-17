@@ -14,13 +14,19 @@ export type UpdateUserInput = {
 
 export const usersApi = {
   list(
-    params: { skip?: number; take?: number; roleId?: string } = {},
+    params: {
+      skip?: number;
+      take?: number;
+      roleId?: string;
+      search?: string;
+    } = {},
   ): Promise<ApiList<ApiUser>> {
-    const search = new URLSearchParams();
-    if (params.skip !== undefined) search.set("skip", String(params.skip));
-    if (params.take !== undefined) search.set("take", String(params.take));
-    if (params.roleId) search.set("roleId", params.roleId);
-    const qs = search.toString();
+    const sp = new URLSearchParams();
+    if (params.skip !== undefined) sp.set("skip", String(params.skip));
+    if (params.take !== undefined) sp.set("take", String(params.take));
+    if (params.roleId) sp.set("roleId", params.roleId);
+    if (params.search) sp.set("search", params.search);
+    const qs = sp.toString();
     return apiFetch<ApiList<ApiUser>>(`/users${qs ? `?${qs}` : ""}`);
   },
 

@@ -13,6 +13,7 @@ import { ApiError } from "@/lib/api/errors";
 import { rolesApi } from "@/lib/api/roles";
 import type { ApiRole, ApiUser } from "@/lib/api/types";
 import { usersApi } from "@/lib/api/users";
+import { useApiList } from "@/lib/hooks/use-api-list";
 import { useAuth, usePermission } from "@/lib/auth/auth-context";
 import { generateTempPassword } from "@/lib/auth/generate-password";
 
@@ -36,12 +37,7 @@ function rolesOfUser(user: ApiUser, rolesById: Map<string, ApiRole>): ApiRole[] 
 const PAGE_SIZE = 25;
 
 export default function UsersPage() {
-  const [users, setUsers] = useState<ApiUser[]>([]);
   const [roles, setRoles] = useState<ApiRole[]>([]);
-  const [total, setTotal] = useState(0);
-  const [page, setPage] = useState(1);
-  const [loading, setLoading] = useState(true);
-  const [loadError, setLoadError] = useState<string | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [showNew, setShowNew] = useState(false);
   const [editTarget, setEditTarget] = useState<ApiUser | null>(null);
@@ -54,6 +50,37 @@ export default function UsersPage() {
   const [actionNotice, setActionNotice] = useState<string | null>(null);
   const [query, setQuery] = useState("");
 
+  const {
+    items: users,
+    total,
+    totalPages,
+    page,
+    setPage,
+    loading,
+    error: loadError,
+    debounced,
+    reload,
+  } = useApiList<ApiUser>({
+    fetcher: (params) => usersApi.list(params),
+    search: query,
+    pageSize: PAGE_SIZE,
+    errorMessage: "No se pudieron cargar los usuarios.",
+  });
+
+  // Catálogo de roles (una vez); no cambia con la búsqueda/paginación.
+  useEffect(() => {
+    let active = true;
+    rolesApi
+      .list()
+      .then((r) => {
+        if (active) setRoles(r);
+      })
+      .catch(() => {});
+    return () => {
+      active = false;
+    };
+  }, []);
+
   const { user: currentUser } = useAuth();
   const canWrite = usePermission("iam.users.write");
   const canDeactivate = usePermission("iam.users.deactivate");
@@ -64,7 +91,7 @@ export default function UsersPage() {
     setActionError(null);
     try {
       await usersApi.activate(u.id);
-      await reload(page);
+      await reload();
     } catch (err) {
       setActionError(
         err instanceof ApiError
@@ -124,60 +151,11 @@ export default function UsersPage() {
     [roles],
   );
 
-  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
-
-  const reload = async (targetPage = page) => {
-    setLoading(true);
-    setLoadError(null);
-    try {
-      const [usersRes, rolesRes] = await Promise.all([
-        usersApi.list({
-          skip: (targetPage - 1) * PAGE_SIZE,
-          take: PAGE_SIZE,
-        }),
-        rolesApi.list(),
-      ]);
-      setUsers(usersRes.items);
-      setTotal(usersRes.total);
-      setRoles(rolesRes);
-      if (!selectedId && usersRes.items.length > 0) {
-        setSelectedId(usersRes.items[0].id);
-      }
-    } catch (err) {
-      const message =
-        err instanceof ApiError
-          ? err.message
-          : "No se pudieron cargar los usuarios.";
-      setLoadError(message);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    // Recarga al montar y al cambiar de página.
-    void reload();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [page]);
-
-  const filteredUsers = useMemo(() => {
-    if (!query.trim()) return users;
-    const q = query.toLowerCase();
-    return users.filter((u) => {
-      const roleNames = rolesOfUser(u, rolesById)
-        .map((r) => r.name.toLowerCase())
-        .join(" ");
-      return (
-        u.name.toLowerCase().includes(q) ||
-        u.email.toLowerCase().includes(q) ||
-        roleNames.includes(q)
-      );
-    });
-  }, [users, rolesById, query]);
-
+  // Selección efectiva: la elegida, o el primer usuario de la página (auto).
+  const effectiveId = selectedId ?? users[0]?.id ?? null;
   const selected = useMemo(
-    () => users.find((u) => u.id === selectedId) ?? null,
-    [users, selectedId],
+    () => users.find((u) => u.id === effectiveId) ?? null,
+    [users, effectiveId],
   );
 
   const usersPerRole = useMemo(() => {
@@ -197,7 +175,7 @@ export default function UsersPage() {
     <>
       <PageHeader
         title="Usuarios y permisos"
-        sub={`${users.length} usuarios · ${visibleRoles.length} roles configurados`}
+        sub={`${total} usuarios · ${visibleRoles.length} roles configurados`}
         actions={
           <>
             {canReadRoles && (
@@ -311,14 +289,14 @@ export default function UsersPage() {
                 </tr>
               </thead>
               <tbody>
-                {filteredUsers.map((u) => {
+                {users.map((u) => {
                   const userRoles = rolesOfUser(u, rolesById);
                   return (
                     <tr
                       key={u.id}
                       onClick={() => setSelectedId(u.id)}
                       style={{
-                        background: selectedId === u.id ? "var(--surface-2)" : "",
+                        background: effectiveId === u.id ? "var(--surface-2)" : "",
                       }}
                     >
                       <td>
@@ -373,17 +351,14 @@ export default function UsersPage() {
           >
             <span>
               {total === 0
-                ? "Sin usuarios"
+                ? debounced
+                  ? `Sin resultados para «${debounced}»`
+                  : "Sin usuarios"
                 : `Mostrando ${(page - 1) * PAGE_SIZE + 1}–${Math.min(
                     page * PAGE_SIZE,
                     total,
                   )} de ${total}`}
             </span>
-            {query.trim() && (
-              <span className="text-muted-2">
-                · La búsqueda filtra dentro de esta página
-              </span>
-            )}
             <div className="spacer" />
             <span className="num">
               Página {page} de {totalPages}
@@ -541,18 +516,16 @@ export default function UsersPage() {
           onClose={() => setShowNew(false)}
           onCreated={async () => {
             setShowNew(false);
-            // Los nuevos usuarios aparecen al final (orden createdAt asc):
-            // saltamos a la última página para que el admin lo vea.
-            const fresh = await usersApi.list({ take: 1, skip: 0 });
-            const lastPage = Math.max(
-              1,
-              Math.ceil(fresh.total / PAGE_SIZE),
-            );
-            if (lastPage !== page) {
-              setPage(lastPage);
-            } else {
-              await reload(lastPage);
+            // Con búsqueda activa, recarga la vista filtrada; si no, salta a la
+            // última página (los nuevos van al final por createdAt asc) para verlo.
+            if (query.trim()) {
+              await reload();
+              return;
             }
+            const fresh = await usersApi.list({ take: 1, skip: 0 });
+            const lastPage = Math.max(1, Math.ceil(fresh.total / PAGE_SIZE));
+            if (lastPage !== page) setPage(lastPage);
+            else await reload();
           }}
         />
       )}
@@ -564,7 +537,7 @@ export default function UsersPage() {
           onClose={() => setEditTarget(null)}
           onDone={async () => {
             setEditTarget(null);
-            await reload(page);
+            await reload();
           }}
         />
       )}
@@ -575,7 +548,7 @@ export default function UsersPage() {
           onClose={() => setResetTarget(null)}
           onDone={async () => {
             setResetTarget(null);
-            await reload(page);
+            await reload();
           }}
         />
       )}
@@ -600,7 +573,7 @@ export default function UsersPage() {
             try {
               await usersApi.deactivate(deactivateTarget.id);
               setDeactivateTarget(null);
-              await reload(page);
+              await reload();
             } catch (err) {
               throw new Error(
                 err instanceof ApiError
