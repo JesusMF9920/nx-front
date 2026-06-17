@@ -418,6 +418,8 @@ export type ApiOrderItem = {
   lineNote: string | null;
   qty: number;
   unitPrice: number;
+  /** Costo unitario snapshot al vender (para margen). */
+  unitCost: number;
   variantCode: string | null;
   variantLabel: string | null;
   sizeBreakdown: ApiSizeBreakdownEntry[] | null;
@@ -479,6 +481,7 @@ export type ApiOrder = {
 
 /** Forma del GET /orders/:idOrFolio (detalle). */
 export type ApiOrderDetail = Omit<ApiOrder, "itemsCount"> & {
+  createdById: string;
   subtotal: number;
   discount: number;
   tax: number;
@@ -514,6 +517,8 @@ export type ApiQuoteItem = {
   lineNote: string | null;
   qty: number;
   unitPrice: number;
+  /** Costo unitario snapshot al cotizar (para margen). */
+  unitCost: number;
   /** true ⇒ el precio unitario fue negociado a mano. */
   priceOverridden: boolean;
   variantCode: string | null;
