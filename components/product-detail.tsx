@@ -93,6 +93,7 @@ export function ProductDetail({
   const [editingRecipe, setEditingRecipe] = useState(false);
   const [editingSized, setEditingSized] = useState(false);
   const [editingTiers, setEditingTiers] = useState(false);
+  const [editingDimension, setEditingDimension] = useState(false);
   const canWrite = usePermission("catalog.products.write");
 
   const detail: ApiProductDetail | null = isDetail(product)
@@ -194,6 +195,11 @@ export function ProductDetail({
             ? () => setEditingSized(true)
             : undefined
         }
+        onConfigureDimension={
+          canWrite && detail.variantType === "dimension"
+            ? () => setEditingDimension(true)
+            : undefined
+        }
       />
       <div className="divider" />
       <PriceTiersSection
@@ -264,6 +270,16 @@ export function ProductDetail({
           onClose={() => setEditingTiers(false)}
           onSaved={async () => {
             setEditingTiers(false);
+            await refreshAfterSave();
+          }}
+        />
+      )}
+      {editingDimension && detail && (
+        <DimensionEditorModal
+          product={detail}
+          onClose={() => setEditingDimension(false)}
+          onSaved={async () => {
+            setEditingDimension(false);
             await refreshAfterSave();
           }}
         />
@@ -460,12 +476,15 @@ function VariantsSection({
   materials,
   onEditVariants,
   onConfigureSized,
+  onConfigureDimension,
 }: {
   detail: ApiProductDetail;
   materials: Record<string, ApiMaterial>;
   onEditVariants?: () => void;
   /** Asignar/cambiar el insumo de tallas (none ↔ sized_from_material). */
   onConfigureSized?: () => void;
+  /** Configurar/editar el rango y modo de cobro de un producto por dimensión. */
+  onConfigureDimension?: () => void;
 }) {
   const isPredef =
     detail.variantType === "size" || detail.variantType === "preset";
@@ -497,6 +516,12 @@ function VariantsSection({
             {detail.variantType === "sized_from_material"
               ? "Cambiar insumo de tallas"
               : "Asignar tallas desde insumo"}
+          </button>
+        )}
+        {onConfigureDimension && (
+          <button className="btn btn--sm" onClick={onConfigureDimension}>
+            {I.edit}{" "}
+            {detail.dimensionConfig ? "Editar dimensión" : "Configurar dimensión"}
           </button>
         )}
       </div>
@@ -1212,6 +1237,201 @@ function PriceTiersEditorModal({
             rows={rows}
             onChange={setRows}
           />
+        </div>
+        {error && (
+          <div
+            className="rounded-md text-xs"
+            style={{
+              padding: "10px 12px",
+              border: "1px solid var(--danger)",
+              color: "var(--danger)",
+              background: "var(--danger-soft)",
+            }}
+            role="alert"
+          >
+            {error}
+          </div>
+        )}
+      </form>
+    </Modal>
+  );
+}
+
+function DimensionEditorModal({
+  product,
+  onClose,
+  onSaved,
+}: {
+  product: ApiProductDetail;
+  onClose: () => void;
+  onSaved: () => void | Promise<void>;
+}) {
+  const cfg = product.dimensionConfig;
+  const [unit, setUnit] = useState<ApiDimensionConfig["unit"]>(cfg?.unit ?? "cm");
+  const [priceMode, setPriceMode] = useState<ApiDimensionConfig["priceMode"]>(
+    cfg?.priceMode ?? "area",
+  );
+  const [min, setMin] = useState(cfg ? String(cfg.min) : "");
+  const [max, setMax] = useState(cfg ? String(cfg.max) : "");
+  const [step, setStep] = useState(cfg ? String(cfg.step) : "");
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const save = async (e: FormEvent) => {
+    e.preventDefault();
+    if (submitting) return;
+    setError(null);
+    const minN = Number(min);
+    const maxN = Number(max);
+    const stepN = Number(step);
+    if (!Number.isFinite(minN) || minN <= 0) {
+      setError("El mínimo debe ser un número mayor que 0.");
+      return;
+    }
+    if (!Number.isFinite(maxN) || maxN <= minN) {
+      setError("El máximo debe ser mayor que el mínimo.");
+      return;
+    }
+    if (!Number.isFinite(stepN) || stepN <= 0) {
+      setError("El paso debe ser un número mayor que 0.");
+      return;
+    }
+    if (stepN > maxN - minN) {
+      setError("El paso no puede ser mayor que el rango (máximo − mínimo).");
+      return;
+    }
+    setSubmitting(true);
+    try {
+      await catalogApi.update(product.id, {
+        dimensionConfig: { unit, min: minN, max: maxN, step: stepN, priceMode },
+      });
+      await onSaved();
+    } catch (err) {
+      setError(
+        err instanceof ApiError
+          ? err.message
+          : "No se pudo guardar la configuración de dimensión.",
+      );
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <Modal
+      title={`Dimensión — ${product.name}`}
+      onClose={onClose}
+      width={520}
+      footer={
+        <>
+          <button className="btn btn--ghost" type="button" onClick={onClose}>
+            Cancelar
+          </button>
+          <button
+            className="btn btn--accent"
+            type="submit"
+            form="dimension-form"
+            disabled={submitting}
+          >
+            {submitting ? "Guardando…" : "Guardar"}
+          </button>
+        </>
+      }
+    >
+      <form id="dimension-form" onSubmit={save} className="grid gap-3.5">
+        <small className="help block">
+          El POS captura el ancho y alto dentro del rango (múltiplos del paso) y
+          calcula el precio a partir del precio base ({fmtMXN(product.price)}/
+          {product.unit}) según el modo de cobro.
+        </small>
+        <div className="grid gap-3.5 grid-cols-1 sm:grid-cols-2">
+          <div className="field">
+            <label className="label" htmlFor="dim-unit">
+              Unidad de medida
+            </label>
+            <select
+              id="dim-unit"
+              className="select"
+              value={unit}
+              onChange={(e) =>
+                setUnit(e.target.value as ApiDimensionConfig["unit"])
+              }
+            >
+              {(["cm", "m", "in"] as const).map((u) => (
+                <option key={u} value={u}>
+                  {DIMENSION_UNIT_LABEL[u]}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="field">
+            <label className="label" htmlFor="dim-mode">
+              Modo de cobro
+            </label>
+            <select
+              id="dim-mode"
+              className="select"
+              value={priceMode}
+              onChange={(e) =>
+                setPriceMode(e.target.value as ApiDimensionConfig["priceMode"])
+              }
+            >
+              {(["area", "linear", "flat"] as const).map((m) => (
+                <option key={m} value={m}>
+                  {PRICE_MODE_LABEL[m]}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+        <div className="grid gap-3.5 grid-cols-3">
+          <div className="field">
+            <label className="label" htmlFor="dim-min">
+              Mínimo ({unit})
+            </label>
+            <input
+              id="dim-min"
+              className="input"
+              type="number"
+              inputMode="decimal"
+              min="0"
+              step="any"
+              value={min}
+              onChange={(e) => setMin(e.target.value)}
+              placeholder="0"
+            />
+          </div>
+          <div className="field">
+            <label className="label" htmlFor="dim-max">
+              Máximo ({unit})
+            </label>
+            <input
+              id="dim-max"
+              className="input"
+              type="number"
+              inputMode="decimal"
+              min="0"
+              step="any"
+              value={max}
+              onChange={(e) => setMax(e.target.value)}
+              placeholder="0"
+            />
+          </div>
+          <div className="field">
+            <label className="label" htmlFor="dim-step">
+              Paso ({unit})
+            </label>
+            <input
+              id="dim-step"
+              className="input"
+              type="number"
+              inputMode="decimal"
+              min="0"
+              step="any"
+              value={step}
+              onChange={(e) => setStep(e.target.value)}
+              placeholder="0"
+            />
+          </div>
         </div>
         {error && (
           <div
