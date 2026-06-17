@@ -235,7 +235,7 @@ function SuppliersPageInner() {
         </div>
       )}
 
-      <div className="grid gap-5" style={{ gridTemplateColumns: "1.6fr 1fr" }}>
+      <div className="grid grid-cols-1 lg:grid-cols-[1.6fr_1fr] gap-5">
         <div className="card">
           <div className="card__head gap-2 flex-wrap">
             <div className="topbar__search m-0 relative" style={{ width: 240 }}>

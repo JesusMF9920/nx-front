@@ -334,7 +334,7 @@ export default function RolesPage() {
         </div>
       )}
 
-      <div className="grid items-start gap-[18px]" style={{ gridTemplateColumns: "280px 1fr" }}>
+      <div className="grid grid-cols-1 lg:grid-cols-[280px_1fr] items-start gap-[18px]">
         <div className="card">
           <div className="card__head">
             <div className="card__title">Roles</div>

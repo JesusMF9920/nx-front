@@ -37,11 +37,10 @@ export default function LoginPage() {
 
   return (
     <div
-      className="min-h-screen grid bg-bg"
-      style={{ gridTemplateColumns: "1fr 1.05fr" }}
+      className="min-h-screen grid grid-cols-1 lg:grid-cols-[1fr_1.05fr] bg-bg"
     >
       {/* Left — form */}
-      <div className="flex flex-col" style={{ padding: "32px 48px" }}>
+      <div className="flex flex-col" style={{ padding: "24px" }}>
         <div className="flex items-center gap-2">
           <div className="brand-mark">N</div>
           <div className="brand-name">
@@ -50,7 +49,7 @@ export default function LoginPage() {
         </div>
 
         <div className="flex-1 grid place-items-center">
-          <form onSubmit={submit} className="flex flex-col gap-[18px]" style={{ width: 360 }}>
+          <form onSubmit={submit} className="flex flex-col gap-[18px] w-full max-w-[360px]">
             <div>
               <h1 className="font-semibold m-0" style={{ fontSize: 26, letterSpacing: "-.02em" }}>
                 Inicia sesión
@@ -145,7 +144,7 @@ export default function LoginPage() {
           ese token se invierte a claro en modo oscuro y dejaría el texto blanco
           ilegible. */}
       <div
-        className="relative overflow-hidden flex flex-col"
+        className="relative overflow-hidden hidden lg:flex flex-col"
         style={{
           background: "#1a1a17",
           color: "white",
