@@ -452,7 +452,7 @@ export default function QuoteDetailPage() {
         </div>
       )}
 
-      <div className="grid gap-5" style={{ gridTemplateColumns: "1fr 320px" }}>
+      <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-5">
         <div className="grid gap-5">
           <div className="card">
             <div className="card__head">
