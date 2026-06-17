@@ -630,6 +630,7 @@ input, select, textarea { font-family: inherit; font-size: inherit; color: inher
   font-size: 12px;
   display: flex; gap: 6px; align-items: baseline;
 }
+}
 
 /* ============ Responsive (móvil/tablet) ============ */
 /* Por debajo de lg (1024px) el sidebar deja de ser columna fija y pasa a ser un
