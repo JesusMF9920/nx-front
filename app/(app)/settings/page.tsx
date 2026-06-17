@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { PageHeader } from "@/components/page-header";
 import { I } from "@/components/icons";
+import { SkeletonText } from "@/components/skeleton";
 import { useTheme } from "@/lib/theme/theme-context";
 import type { ThemePreference } from "@/lib/theme/theme";
 import { ApiError } from "@/lib/api/errors";
@@ -19,6 +20,7 @@ import {
   OBJETO_IMPUESTO,
   REGIMEN_FISCAL,
 } from "@/lib/sat-catalogs";
+import { useToast } from "@/lib/toast/toast-context";
 
 function errMsg(err: unknown): string {
   if (err instanceof ApiError) return err.message;
@@ -78,6 +80,7 @@ function AppearanceCard() {
 }
 
 export default function SettingsPage() {
+  const toast = useToast();
   const canManage = usePermission("settings.manage");
   const { refresh } = useAuth();
 
@@ -185,6 +188,7 @@ export default function SettingsPage() {
       });
       setBusiness(updated);
       setSaved(true);
+      toast.success("Datos del negocio guardados");
     } catch (err) {
       setFormError(errMsg(err));
     } finally {
@@ -212,6 +216,7 @@ export default function SettingsPage() {
       });
       setBusiness(updated);
       setFiscalSaved(true);
+      toast.success("Datos fiscales guardados");
     } catch (err) {
       setFiscalError(errMsg(err));
     } finally {
@@ -233,6 +238,7 @@ export default function SettingsPage() {
       await storageApi.upload(uploadUrl, file);
       const updated = await settingsApi.updateBusiness({ logoKey: key });
       setBusiness(updated);
+      toast.success("Logo actualizado");
     } catch (err) {
       setLogoError(errMsg(err));
     } finally {
@@ -248,6 +254,7 @@ export default function SettingsPage() {
     try {
       const updated = await settingsApi.updateBusiness({ logoKey: null });
       setBusiness(updated);
+      toast.success("Logo eliminado");
     } catch (err) {
       setLogoError(errMsg(err));
     } finally {
@@ -265,6 +272,11 @@ export default function SettingsPage() {
         prev.map((f) =>
           f.key === res.key ? { ...f, enabled: res.enabled } : f,
         ),
+      );
+      toast.success(
+        res.enabled
+          ? `Función «${flag.label}» activada`
+          : `Función «${flag.label}» desactivada`,
       );
       // Propagar a useFeature en toda la app (checkboxes del POS, botones…).
       await refresh();
@@ -553,7 +565,7 @@ export default function SettingsPage() {
             inmediato para todos los usuarios.
           </p>
 
-          {loading && <div className="text-muted text-sm">Cargando…</div>}
+          {loading && <SkeletonText lines={4} />}
           {!loading && flags.length === 0 && (
             <div className="text-muted text-sm">
               No hay funciones configurables.

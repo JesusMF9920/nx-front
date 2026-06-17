@@ -125,35 +125,46 @@ function ToastViewport({
   toasts: Toast[];
   onDismiss: (id: number) => void;
 }) {
-  // El contenedor se renderiza siempre (aunque vacío) y es una live-region:
-  // los lectores de pantalla anuncian los toasts que se agregan dentro.
+  const polite = toasts.filter((t) => t.kind !== "error");
+  const assertive = toasts.filter((t) => t.kind === "error");
   return (
-    <div
-      className="toast-viewport"
-      role="region"
-      aria-label="Notificaciones"
-    >
-      {toasts.map((t) => (
-        <div
-          key={t.id}
-          className={`toast toast--${t.kind}`}
-          role={t.kind === "error" ? "alert" : "status"}
-          aria-live={t.kind === "error" ? "assertive" : "polite"}
-        >
-          <span className="toast__icon" aria-hidden="true">
-            {KIND_ICON[t.kind]}
-          </span>
-          <span className="toast__msg">{t.message}</span>
-          <button
-            type="button"
-            className="toast__close"
-            onClick={() => onDismiss(t.id)}
-            aria-label="Cerrar notificación"
-          >
-            {I.x}
-          </button>
-        </div>
-      ))}
-    </div>
+    <>
+      {/* Live-regions persistentes y solo-SR: existen desde el primer render,
+          así el lector anuncia el TEXTO que se agrega dentro (un nodo con
+          aria-live insertado junto con su contenido no se anuncia de forma
+          fiable). polite → éxito/info; assertive → error. */}
+      <div className="sr-only" role="status" aria-live="polite">
+        {polite.map((t) => (
+          <div key={t.id}>{t.message}</div>
+        ))}
+      </div>
+      <div className="sr-only" role="alert" aria-live="assertive">
+        {assertive.map((t) => (
+          <div key={t.id}>{t.message}</div>
+        ))}
+      </div>
+      {/* Pila visual. El texto va aria-hidden para no duplicar la lectura con la
+          live-region; el botón de cerrar conserva su nombre accesible. */}
+      <div className="toast-viewport">
+        {toasts.map((t) => (
+          <div key={t.id} className={`toast toast--${t.kind}`}>
+            <span className="toast__icon" aria-hidden="true">
+              {KIND_ICON[t.kind]}
+            </span>
+            <span className="toast__msg" aria-hidden="true">
+              {t.message}
+            </span>
+            <button
+              type="button"
+              className="toast__close"
+              onClick={() => onDismiss(t.id)}
+              aria-label={`Cerrar notificación: ${t.message}`}
+            >
+              {I.x}
+            </button>
+          </div>
+        ))}
+      </div>
+    </>
   );
 }

@@ -6,6 +6,7 @@ import { ApprovalSendModal } from "@/components/approval-send-modal";
 import { Avatar } from "@/components/avatar";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { I } from "@/components/icons";
+import { SkeletonText } from "@/components/skeleton";
 import {
   designApi,
   isProofContentType,
@@ -18,6 +19,7 @@ import type {
 } from "@/lib/api/types";
 import { usePermission } from "@/lib/auth/auth-context";
 import { fmtDate } from "@/lib/format";
+import { useToast } from "@/lib/toast/toast-context";
 
 /**
  * Detalle de una ficha de diseño: versiones reales con preview firmado,
@@ -31,6 +33,7 @@ export function ApprovalDetail({
   proofId: string;
   onMutated: () => void;
 }) {
+  const toast = useToast();
   const canCreate = usePermission("design.proofs.create");
   const canManage = usePermission("design.proofs.manage");
 
@@ -100,6 +103,7 @@ export function ApprovalDetail({
         ...(versionNote.trim() ? { note: versionNote.trim() } : {}),
       });
       setVersionNote("");
+      toast.success("Nueva versión subida");
       await reload();
       onMutated();
     } catch (err) {
@@ -117,6 +121,7 @@ export function ApprovalDetail({
     try {
       await designApi.addComment(detail.id, commentText.trim());
       setCommentText("");
+      toast.success("Comentario agregado");
       await reload();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Algo salió mal.");
@@ -134,7 +139,9 @@ export function ApprovalDetail({
   }
   if (!detail) {
     return (
-      <div className="card self-start p-6 text-muted text-sm">Cargando…</div>
+      <div className="card self-start p-6">
+        <SkeletonText lines={6} />
+      </div>
     );
   }
 
@@ -390,10 +397,19 @@ export function ApprovalDetail({
           confirmLabel="Aprobar diseño"
           kind="primary"
           onConfirm={async () => {
-            await designApi.approve(detail.id);
-            setConfirm(null);
-            await reload();
-            onMutated();
+            try {
+              await designApi.approve(detail.id);
+              toast.success("Diseño aprobado");
+              setConfirm(null);
+              await reload();
+              onMutated();
+            } catch (err) {
+              toast.error(
+                err instanceof Error
+                  ? err.message
+                  : "No se pudo completar la acción.",
+              );
+            }
           }}
           onClose={() => setConfirm(null)}
         />
@@ -405,10 +421,19 @@ export function ApprovalDetail({
           confirmLabel="Registrar cambios"
           kind="danger"
           onConfirm={async () => {
-            await designApi.requestChanges(detail.id);
-            setConfirm(null);
-            await reload();
-            onMutated();
+            try {
+              await designApi.requestChanges(detail.id);
+              toast.success("Cambios solicitados registrados");
+              setConfirm(null);
+              await reload();
+              onMutated();
+            } catch (err) {
+              toast.error(
+                err instanceof Error
+                  ? err.message
+                  : "No se pudo completar la acción.",
+              );
+            }
           }}
           onClose={() => setConfirm(null)}
         />

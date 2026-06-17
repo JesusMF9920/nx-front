@@ -7,7 +7,9 @@ import { I } from "@/components/icons";
 import { MenuButton, type MenuItem } from "@/components/menu-button";
 import { Modal } from "@/components/modal";
 import { PageHeader } from "@/components/page-header";
+import { SkeletonText } from "@/components/skeleton";
 import { usePermission } from "@/lib/auth/auth-context";
+import { useToast } from "@/lib/toast/toast-context";
 import { ApiError } from "@/lib/api/errors";
 import { auditApi, type ApiAuditEntry } from "@/lib/api/audit";
 import {
@@ -46,6 +48,7 @@ function actionLabel(action: string): string {
 }
 
 export default function RolesPage() {
+  const toast = useToast();
   const canWrite = usePermission("iam.roles.write");
   const [roles, setRoles] = useState<ApiRole[]>([]);
   const [permissions, setPermissions] = useState<ApiPermission[]>([]);
@@ -210,6 +213,7 @@ export default function RolesPage() {
     updateRoleLocal(role.id, { permissions: next });
     try {
       await rolesApi.update(role.id, { permissions: next });
+      toast.success(currentlyHas ? "Permiso retirado" : "Permiso otorgado");
       // Refrescar última modificación.
       const auditRes = await auditApi.list({
         target: `role:${role.id}`,
@@ -232,6 +236,7 @@ export default function RolesPage() {
     setActionError(null);
     try {
       await rolesApi.revoke(role.id, user.id);
+      toast.success("Rol revocado al usuario");
       // Recarga del detalle + del rail (counts).
       const [detail, allUsersRes] = await Promise.all([
         usersApi.list({ roleId: role.id, take: USERS_PAGE_SIZE }),
@@ -336,7 +341,9 @@ export default function RolesPage() {
           </div>
           <div>
             {loading ? (
-              <div className="px-3.5 py-3 text-muted text-sm">Cargando…</div>
+              <div className="px-3.5 py-3">
+                <SkeletonText lines={5} />
+              </div>
             ) : filteredRoles.length === 0 ? (
               <div className="px-3.5 py-3 text-muted text-sm">
                 {query.trim()
@@ -520,7 +527,9 @@ export default function RolesPage() {
                 )}
               </div>
               {detailLoading ? (
-                <div className="card__body text-muted text-sm">Cargando…</div>
+                <div className="card__body">
+                  <SkeletonText lines={4} />
+                </div>
               ) : roleUsers.length === 0 ? (
                 <div className="card__body text-muted text-sm">
                   Nadie tiene este rol todavía.
@@ -626,6 +635,7 @@ export default function RolesPage() {
           onConfirm={async () => {
             try {
               await rolesApi.remove(deleteTarget.id);
+              toast.success("Rol eliminado");
               setDeleteTarget(null);
               setSelectedId(null);
               await reload();
@@ -664,6 +674,7 @@ function NewRoleModal({
   onClose: () => void;
   onCreated: (createdId: string) => void | Promise<void>;
 }) {
+  const toast = useToast();
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [templateId, setTemplateId] = useState<string>("");
@@ -687,6 +698,7 @@ function NewRoleModal({
         description: description.trim() || null,
         permissions,
       });
+      toast.success("Rol creado");
       await onCreated(created.id);
     } catch (err) {
       const message =
@@ -788,6 +800,7 @@ function EditRoleModal({
   onClose: () => void;
   onDone: () => void | Promise<void>;
 }) {
+  const toast = useToast();
   const [name, setName] = useState(role.name);
   const [description, setDescription] = useState(role.description ?? "");
   const [submitting, setSubmitting] = useState(false);
@@ -814,6 +827,7 @@ function EditRoleModal({
     setSubmitting(true);
     try {
       await rolesApi.update(role.id, patch);
+      toast.success("Rol actualizado");
       await onDone();
     } catch (err) {
       const message =
@@ -893,6 +907,7 @@ function AssignUserModal({
   onClose: () => void;
   onDone: () => void | Promise<void>;
 }) {
+  const toast = useToast();
   const [candidates, setCandidates] = useState<ApiUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [userId, setUserId] = useState<string>("");
@@ -934,6 +949,7 @@ function AssignUserModal({
     setSubmitting(true);
     try {
       await rolesApi.assign(role.id, userId);
+      toast.success("Usuario asignado al rol");
       await onDone();
     } catch (err) {
       const message =

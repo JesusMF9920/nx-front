@@ -3,12 +3,14 @@
 import { useEffect, useMemo, useState } from "react";
 import { I } from "@/components/icons";
 import { Modal } from "@/components/modal";
+import { SkeletonText } from "@/components/skeleton";
 import { ApiError } from "@/lib/api/errors";
 import { inventoryApi } from "@/lib/api/inventory";
 import { purchasesApi } from "@/lib/api/purchases";
 import { suppliersApi } from "@/lib/api/suppliers";
 import type { ApiMaterial, ApiSupplier } from "@/lib/api/types";
 import { fmtMXN } from "@/lib/format";
+import { useToast } from "@/lib/toast/toast-context";
 
 /** Cantidad sugerida: lleva el stock a ~2× el punto de reorden. */
 function suggestedQty(m: ApiMaterial): number {
@@ -30,6 +32,7 @@ export function PurchaseSuggestedModal({
   const [checked, setChecked] = useState<Set<string>>(new Set());
   const [generating, setGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const toast = useToast();
 
   useEffect(() => {
     let cancelled = false;
@@ -149,6 +152,11 @@ export function PurchaseSuggestedModal({
       }
     }
     if (failed === 0) {
+      toast.success(
+        created === 1
+          ? "Orden de compra creada"
+          : `${created} órdenes de compra creadas`,
+      );
       onGenerated(created);
       return;
     }
@@ -202,7 +210,7 @@ export function PurchaseSuggestedModal({
       )}
 
       {loading ? (
-        <div className="text-muted text-sm">Cargando sugerencias…</div>
+        <SkeletonText lines={5} />
       ) : groups.length === 0 ? (
         <div className="text-muted text-sm">
           No hay insumos por debajo del punto de reorden con proveedor

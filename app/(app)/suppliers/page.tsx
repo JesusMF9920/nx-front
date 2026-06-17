@@ -7,10 +7,12 @@ import { I } from "@/components/icons";
 import { MenuButton, type MenuItem } from "@/components/menu-button";
 import { Modal } from "@/components/modal";
 import { PageHeader } from "@/components/page-header";
+import { SkeletonTable } from "@/components/skeleton";
 import { usePermission } from "@/lib/auth/auth-context";
 import { ApiError } from "@/lib/api/errors";
 import { suppliersApi } from "@/lib/api/suppliers";
 import type { ApiSupplier } from "@/lib/api/types";
+import { useToast } from "@/lib/toast/toast-context";
 
 type OrderByKey = "name" | "leadDays" | "reliability" | "createdAt";
 
@@ -38,6 +40,7 @@ export default function SuppliersPage() {
 }
 
 function SuppliersPageInner() {
+  const toast = useToast();
   // Deep-link `?proveedor=<id>` (desde la búsqueda global): preselecciona el
   // proveedor para abrir su panel de detalle.
   const preselectId = useSearchParams().get("proveedor");
@@ -173,6 +176,7 @@ function SuppliersPageInner() {
             setActionError(null);
             try {
               await suppliersApi.activate(s.id);
+              toast.success("Proveedor activado");
               await reload(page);
             } catch (err) {
               setActionError(
@@ -282,7 +286,9 @@ function SuppliersPageInner() {
           </div>
 
           {loading ? (
-            <div className="card__body text-muted text-sm">Cargando…</div>
+            <div className="card__body">
+              <SkeletonTable rows={6} cols={5} />
+            </div>
           ) : suppliers.length === 0 ? (
             <div className="card__body text-muted text-sm">
               {debounced
@@ -398,6 +404,7 @@ function SuppliersPageInner() {
               setActionError(null);
               try {
                 await suppliersApi.activate(selected.id);
+                toast.success("Proveedor activado");
                 await reload(page);
                 await refreshSelected();
               } catch (err) {
@@ -462,6 +469,7 @@ function SuppliersPageInner() {
           onConfirm={async () => {
             try {
               await suppliersApi.deactivate(deactivateTarget.id);
+              toast.success("Proveedor desactivado");
               setDeactivateTarget(null);
               await reload(page);
               await refreshSelected();
@@ -604,6 +612,7 @@ function SupplierFormModal({
   onClose: () => void;
   onDone: (createdId?: string) => void | Promise<void>;
 }) {
+  const toast = useToast();
   const [name, setName] = useState(supplier?.name ?? "");
   const [service, setService] = useState(supplier?.service ?? "");
   const [contact, setContact] = useState(supplier?.contact ?? "");
@@ -650,9 +659,11 @@ function SupplierFormModal({
     try {
       if (mode === "create") {
         const { id } = await suppliersApi.create(payload);
+        toast.success("Proveedor creado");
         await onDone(id);
       } else if (supplier) {
         await suppliersApi.update(supplier.id, payload);
+        toast.success("Proveedor guardado");
         await onDone();
       }
     } catch (err) {

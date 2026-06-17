@@ -10,6 +10,7 @@ import { PageHeader } from "@/components/page-header";
 import { QuoteConvertModal } from "@/components/quote-convert-modal";
 import { QuoteNewModal } from "@/components/quote-new-modal";
 import { QuoteStatusPill } from "@/components/quote-status-pill";
+import { SkeletonText } from "@/components/skeleton";
 import { SummaryRow } from "@/components/summary-row";
 import type { ApiAuditEntry } from "@/lib/api/audit";
 import { ApiError } from "@/lib/api/errors";
@@ -27,6 +28,7 @@ import { settingsApi } from "@/lib/api/settings";
 import { usersApi } from "@/lib/api/users";
 import { useFeature, usePermission } from "@/lib/auth/auth-context";
 import { buildQuoteWhatsappMessage, buildWaMeUrl } from "@/lib/share/whatsapp";
+import { useToast } from "@/lib/toast/toast-context";
 import { fmtDate, fmtDateLong, fmtMXN } from "@/lib/format";
 
 const ACTION_ICON: Record<string, ReactNode> = {
@@ -75,6 +77,7 @@ function quoteTimelineSub(entry: ApiAuditEntry): string | null {
 export default function QuoteDetailPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
+  const toast = useToast();
   const [detail, setDetail] = useState<ApiQuoteDetail | null>(null);
   const [timeline, setTimeline] = useState<ApiAuditEntry[]>([]);
   const [users, setUsers] = useState<ApiUser[]>([]);
@@ -150,11 +153,16 @@ export default function QuoteDetailPage() {
       actorId ? (map.get(actorId) ?? null) : null;
   }, [users]);
 
-  const runAction = async (fn: () => Promise<unknown>, fail: string) => {
+  const runAction = async (
+    fn: () => Promise<unknown>,
+    fail: string,
+    success?: string,
+  ) => {
     setBusy(true);
     setActionError(null);
     try {
       await fn();
+      if (success) toast.success(success);
       await load();
     } catch (err) {
       setActionError(err instanceof ApiError ? err.message : fail);
@@ -198,6 +206,9 @@ export default function QuoteDetailPage() {
         );
         // Intento de apertura directa; si el popup se bloquea queda el enlace.
         window.open(url, "_blank");
+      } else {
+        // Presencial (u otros canales sin banner propio): confirma el envío.
+        toast.success("Cotización enviada");
       }
     }, "No se pudo enviar la cotización.");
   };
@@ -208,6 +219,7 @@ export default function QuoteDetailPage() {
     void runAction(
       () => quotesApi.approve(quoteId),
       "No se pudo aprobar la cotización.",
+      "Cotización aprobada",
     );
   };
 
@@ -220,6 +232,7 @@ export default function QuoteDetailPage() {
     void runAction(
       () => quotesApi.reject(quoteId, reason || undefined),
       "No se pudo rechazar la cotización.",
+      "Cotización rechazada",
     );
   };
 
@@ -238,7 +251,9 @@ export default function QuoteDetailPage() {
         {breadcrumb}
         <PageHeader title="Cotización" sub="Cargando…" />
         <div className="card">
-          <div className="card__body text-muted text-sm">Cargando…</div>
+          <div className="card__body">
+            <SkeletonText lines={5} />
+          </div>
         </div>
       </>
     );

@@ -19,10 +19,12 @@ import {
   validateRecipeRows,
   type RecipeRow,
 } from "@/components/recipe-editor";
+import { SkeletonText } from "@/components/skeleton";
 import { usePermission } from "@/lib/auth/auth-context";
 import { catalogApi, type ProductVariantInput } from "@/lib/api/catalog";
 import { ApiError } from "@/lib/api/errors";
 import { inventoryApi } from "@/lib/api/inventory";
+import { useToast } from "@/lib/toast/toast-context";
 import { hasPriceTiers, tierRanges } from "@/lib/pricing";
 import type {
   ApiDimensionConfig,
@@ -227,7 +229,7 @@ export function ProductDetail({
       {detailError.message}
     </div>
   ) : (
-    <div className="text-muted text-sm">Cargando variantes y receta…</div>
+    <SkeletonText lines={6} />
   );
 
   const modals = (
@@ -746,6 +748,7 @@ function VariantsEditorModal({
   onClose: () => void;
   onSaved: () => void | Promise<void>;
 }) {
+  const toast = useToast();
   const [rows, setRows] = useState<VariantDraft[]>(
     product.variants.length > 0
       ? product.variants.map((v) => ({
@@ -815,6 +818,7 @@ function VariantsEditorModal({
     setSubmitting(true);
     try {
       await catalogApi.setVariants(product.id, inputs);
+      toast.success("Variantes guardadas");
       await onSaved();
     } catch (err) {
       setError(
@@ -991,6 +995,7 @@ function RecipeEditorModal({
   onClose: () => void;
   onSaved: () => void | Promise<void>;
 }) {
+  const toast = useToast();
   const [rows, setRows] = useState<RecipeRow[]>(() =>
     product.recipeItems.map((it) => {
       const m = materials[it.materialId];
@@ -1020,6 +1025,7 @@ function RecipeEditorModal({
     setSubmitting(true);
     try {
       await catalogApi.setRecipe(product.id, recipeRowsToInput(rows));
+      toast.success("Receta guardada");
       await onSaved();
     } catch (err) {
       setError(
@@ -1147,6 +1153,7 @@ function PriceTiersEditorModal({
   onClose: () => void;
   onSaved: () => void | Promise<void>;
 }) {
+  const toast = useToast();
   const [rows, setRows] = useState<PriceTierRow[]>(() =>
     buildTierRows(product.priceTiers),
   );
@@ -1167,6 +1174,7 @@ function PriceTiersEditorModal({
       await catalogApi.update(product.id, {
         priceTiers: rows.length > 0 ? tierRowsToInput(rows) : null,
       });
+      toast.success("Precios de mayoreo guardados");
       await onSaved();
     } catch (err) {
       setError(
@@ -1182,6 +1190,7 @@ function PriceTiersEditorModal({
     setSubmitting(true);
     try {
       await catalogApi.update(product.id, { priceTiers: null });
+      toast.success("Precios de mayoreo eliminados");
       await onSaved();
     } catch (err) {
       setError(
@@ -1266,6 +1275,7 @@ function DimensionEditorModal({
   onClose: () => void;
   onSaved: () => void | Promise<void>;
 }) {
+  const toast = useToast();
   const cfg = product.dimensionConfig;
   const [unit, setUnit] = useState<ApiDimensionConfig["unit"]>(cfg?.unit ?? "cm");
   const [priceMode, setPriceMode] = useState<ApiDimensionConfig["priceMode"]>(
@@ -1305,6 +1315,7 @@ function DimensionEditorModal({
       await catalogApi.update(product.id, {
         dimensionConfig: { unit, min: minN, max: maxN, step: stepN, priceMode },
       });
+      toast.success("Dimensión guardada");
       await onSaved();
     } catch (err) {
       setError(
@@ -1485,6 +1496,7 @@ function SizedFromMaterialEditorModal({
   onClose: () => void;
   onSaved: () => void | Promise<void>;
 }) {
+  const toast = useToast();
   const [material, setMaterial] = useState<ApiMaterial | null>(
     product.sizedFromMaterialId
       ? (materials[product.sizedFromMaterialId] ?? null)
@@ -1550,6 +1562,7 @@ function SizedFromMaterialEditorModal({
         sizedFromMaterialId: material.id,
         sizeSurcharges: Object.keys(rec).length > 0 ? rec : null,
       });
+      toast.success("Tallas guardadas");
       await onSaved();
     } catch (err) {
       setError(
@@ -1567,6 +1580,7 @@ function SizedFromMaterialEditorModal({
     setSubmitting(true);
     try {
       await catalogApi.update(product.id, { variantType: "none" });
+      toast.success("Tallas eliminadas");
       await onSaved();
     } catch (err) {
       setError(

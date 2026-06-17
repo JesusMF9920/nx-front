@@ -38,14 +38,16 @@ describe("Modal (accesibilidad)", () => {
 
   it("clic en el backdrop cierra; clic en el panel no", () => {
     const onClose = vi.fn();
-    const { container } = render(
+    // El modal se portaliza a document.body, así que el backdrop no está en el
+    // container del render.
+    render(
       <Modal title="X" onClose={onClose}>
         c
       </Modal>,
     );
     fireEvent.click(screen.getByRole("dialog")); // panel
     expect(onClose).not.toHaveBeenCalled();
-    fireEvent.click(container.querySelector(".modal-backdrop")!);
+    fireEvent.click(document.querySelector(".modal-backdrop")!);
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 
@@ -57,6 +59,26 @@ describe("Modal (accesibilidad)", () => {
     );
     expect(document.body.style.overflow).toBe("hidden");
     unmount();
+    expect(document.body.style.overflow).toBe("");
+  });
+
+  it("anidados: el scroll-lock se sostiene hasta cerrar el último modal", () => {
+    function Nested({ inner }: { inner: boolean }) {
+      return (
+        <Modal title="A" onClose={() => {}}>
+          {inner && (
+            <Modal title="B" onClose={() => {}}>
+              <button>x</button>
+            </Modal>
+          )}
+        </Modal>
+      );
+    }
+    const { rerender, unmount } = render(<Nested inner />);
+    expect(document.body.style.overflow).toBe("hidden");
+    rerender(<Nested inner={false} />); // cierra el interno
+    expect(document.body.style.overflow).toBe("hidden"); // el externo sigue abierto
+    unmount(); // cierra el externo
     expect(document.body.style.overflow).toBe("");
   });
 

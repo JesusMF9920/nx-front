@@ -103,6 +103,7 @@ export function GlobalInvoiceModal({ onClose, onGenerated }: Props) {
         month: range.monthCode,
         year: range.year,
       });
+      // El padre (onGenerated) muestra un banner con folio + UUID; no duplicamos.
       onGenerated({
         folio: res.folio,
         uuid: res.uuid,

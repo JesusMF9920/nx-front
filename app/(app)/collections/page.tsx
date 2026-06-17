@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { I } from "@/components/icons";
+import { SkeletonTable } from "@/components/skeleton";
 import { PageHeader } from "@/components/page-header";
 import { OrderPaymentModal } from "@/components/order-payment-modal";
 import {
@@ -316,8 +317,8 @@ export default function CollectionsPage() {
             <tbody>
               {showLoading ? (
                 <tr>
-                  <td colSpan={colCount} className="text-muted">
-                    Cargando cobranza…
+                  <td colSpan={colCount}>
+                    <SkeletonTable rows={6} cols={colCount} />
                   </td>
                 </tr>
               ) : rowCount === 0 ? (

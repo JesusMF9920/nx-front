@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useId, useRef, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 import { I } from "./icons";
 
 type ModalProps = {
@@ -13,10 +14,12 @@ type ModalProps = {
 
 // Pila de modales abiertos (un token por instancia). Solo el de hasta arriba
 // responde a Escape y atrapa el foco, para que con modales anidados el teclado
-// actúe sobre el visible. El bloqueo de scroll del body se aplica una sola vez
-// (al abrir el primero) y se restaura al cerrar el último.
+// actúe sobre el visible. El bloqueo de scroll del body y el `inert` del shell
+// se aplican una sola vez (al abrir el primero) y se restauran al cerrar el
+// último.
 const modalStack: string[] = [];
 let bodyOverflowBeforeLock = "";
+let inertedShell: HTMLElement | null = null;
 
 const FOCUSABLE =
   'a[href], button:not([disabled]), textarea:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])';
@@ -33,10 +36,22 @@ export function Modal({ title, onClose, children, footer, width = 720 }: ModalPr
     restoreFocusTo.current = document.activeElement as HTMLElement | null;
 
     const wasEmpty = modalStack.length === 0;
-    modalStack.push(token);
+    // Idempotente: si por un re-montaje (StrictMode en dev) el token ya estuviera
+    // en la pila, no lo dupliques — así el indexOf/splice del cleanup siempre lo
+    // retira por completo y nunca queda un huérfano que congele inert/scroll-lock.
+    if (!modalStack.includes(token)) modalStack.push(token);
     if (wasEmpty) {
       bodyOverflowBeforeLock = document.body.style.overflow;
       document.body.style.overflow = "hidden";
+      // Vuelve inerte el shell de la app (sidebar/topbar/contenido) mientras hay
+      // un modal abierto: ni el teclado ni el lector de pantalla alcanzan el
+      // fondo. El modal se portaliza a <body> (fuera de .app) y los toasts son
+      // hermanos de .app, así que ninguno queda inerte.
+      const shell = document.querySelector<HTMLElement>(".app");
+      if (shell) {
+        shell.inert = true;
+        inertedShell = shell;
+      }
     }
 
     const panel = panelRef.current;
@@ -94,6 +109,12 @@ export function Modal({ title, onClose, children, footer, width = 720 }: ModalPr
       if (i >= 0) modalStack.splice(i, 1);
       if (modalStack.length === 0) {
         document.body.style.overflow = bodyOverflowBeforeLock;
+        // Quita el inert ANTES de restaurar el foco: el disparador vive dentro
+        // de .app y no podría recibir foco si el shell sigue inerte.
+        if (inertedShell) {
+          inertedShell.inert = false;
+          inertedShell = null;
+        }
       }
       // Devuelve el foco a quien lo tenía antes de abrir (si sigue en el DOM).
       const target = restoreFocusTo.current;
@@ -101,7 +122,10 @@ export function Modal({ title, onClose, children, footer, width = 720 }: ModalPr
     };
   }, [onClose, titleId]);
 
-  return (
+  // Durante SSR no hay document; el modal solo se monta en cliente.
+  if (typeof document === "undefined") return null;
+
+  return createPortal(
     <div className="modal-backdrop" onClick={onClose}>
       {/* Topa el ancho al viewport en teléfono (deja 8px de margen por lado);
           en pantallas grandes usa el `width` pedido. */}
@@ -132,6 +156,7 @@ export function Modal({ title, onClose, children, footer, width = 720 }: ModalPr
         <div className="modal__body">{children}</div>
         {footer && <div className="modal__foot">{footer}</div>}
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }

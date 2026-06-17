@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { I } from "@/components/icons";
 import { Modal } from "@/components/modal";
+import { SkeletonText } from "@/components/skeleton";
 import { PageHeader } from "@/components/page-header";
 import { cashApi } from "@/lib/api/cash";
 import { ApiError } from "@/lib/api/errors";
@@ -15,6 +16,7 @@ import type {
 } from "@/lib/api/types";
 import { useFeature, usePermission } from "@/lib/auth/auth-context";
 import { fmtMXN } from "@/lib/format";
+import { useToast } from "@/lib/toast/toast-context";
 import { buildCashCutTicketHtml } from "@/lib/print/cash-cut-ticket";
 import { printHtmlInIframe } from "@/lib/print/print-html";
 
@@ -51,6 +53,7 @@ function DifferenceTag({ value }: { value: number | null }) {
 }
 
 export default function CashPage() {
+  const toast = useToast();
   const featureOn = useFeature("cash_sessions");
   const canRead = usePermission("sales.cash.read");
   const canOpen = usePermission("sales.cash.open");
@@ -125,6 +128,7 @@ export default function CashPage() {
     run(async () => {
       const value = Number(floatDraft);
       await cashApi.open(Number.isFinite(value) ? value : 0);
+      toast.success("Caja abierta.");
       setShowOpen(false);
       setFloatDraft("");
     }).catch(() => undefined);
@@ -132,11 +136,15 @@ export default function CashPage() {
   const addMovement = () =>
     run(async () => {
       if (!movementType) return;
+      const currentType = movementType;
       await cashApi.addMovement({
         type: movementType,
         amount: Number(amountDraft),
         reason: reasonDraft,
       });
+      toast.success(
+        currentType === "deposit" ? "Depósito registrado." : "Retiro registrado.",
+      );
       setMovementType(null);
       setAmountDraft("");
       setReasonDraft("");
@@ -149,6 +157,7 @@ export default function CashPage() {
         countedCash: Number(countedDraft),
         ...(notesDraft.trim() ? { notes: notesDraft.trim() } : {}),
       });
+      toast.success("Corte de caja realizado.");
       setShowClose(false);
       setCountedDraft("");
       setNotesDraft("");
@@ -230,7 +239,7 @@ export default function CashPage() {
       {/* ── Sesión activa ─────────────────────────────────────────────── */}
       <div className="card mb-4" style={{ padding: 16 }}>
         {loading ? (
-          <div className="text-muted text-sm">Cargando…</div>
+          <SkeletonText lines={3} />
         ) : active ? (
           <>
             <div className="flex items-center gap-3 mb-3">

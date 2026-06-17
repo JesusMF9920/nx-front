@@ -11,6 +11,7 @@ import type {
   ApiStockMoveType,
 } from "@/lib/api/types";
 import { fmtInt, fmtMXN } from "@/lib/format";
+import { useToast } from "@/lib/toast/toast-context";
 
 const dateTimeFmt = new Intl.DateTimeFormat("es-MX", {
   dateStyle: "short",
@@ -284,6 +285,7 @@ function VariantsManagerModal({
   onClose: () => void;
   onDone: () => void | Promise<void>;
 }) {
+  const toast = useToast();
   const [rows, setRows] = useState<VariantRow[]>(
     material.variants.map((v) => ({ code: v.code, label: v.label, stock: v.stock })),
   );
@@ -319,6 +321,7 @@ function VariantsManagerModal({
     setSubmitting(true);
     try {
       await inventoryApi.setVariants(material.id, clean);
+      toast.success("Tallas actualizadas");
       await onDone();
     } catch (err) {
       setError(

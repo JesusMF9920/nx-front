@@ -31,47 +31,49 @@ describe("ToastProvider / useToast", () => {
     cleanup();
   });
 
-  it("muestra un toast de éxito con role=status", () => {
-    renderWithProvider();
+  it("anuncia el éxito en la live-region polite (role=status)", () => {
+    const { container } = renderWithProvider();
     fireEvent.click(screen.getByText("ok"));
-    const toast = screen.getByText("Guardado").closest(".toast");
-    expect(toast).toBeTruthy();
-    expect(toast?.getAttribute("role")).toBe("status");
-    expect(toast?.className).toContain("toast--success");
+    // La live-region persistente con role=status contiene el texto.
+    expect(screen.getByRole("status").textContent).toContain("Guardado");
+    // Y existe el toast visual con su variante.
+    expect(container.querySelector(".toast--success")).toBeTruthy();
   });
 
-  it("los errores usan role=alert (assertive)", () => {
-    renderWithProvider();
+  it("los errores van a la live-region assertive (role=alert)", () => {
+    const { container } = renderWithProvider();
     fireEvent.click(screen.getByText("err"));
-    const toast = screen.getByText("Falló").closest(".toast");
-    expect(toast?.getAttribute("role")).toBe("alert");
-    expect(toast?.getAttribute("aria-live")).toBe("assertive");
+    const alert = screen.getByRole("alert");
+    expect(alert.getAttribute("aria-live")).toBe("assertive");
+    expect(alert.textContent).toContain("Falló");
+    expect(container.querySelector(".toast--error")).toBeTruthy();
   });
 
   it("se auto-descarta al vencer la duración", () => {
-    renderWithProvider();
+    const { container } = renderWithProvider();
     fireEvent.click(screen.getByText("ok"));
-    expect(screen.queryByText("Guardado")).toBeTruthy();
+    expect(container.querySelector(".toast--success")).toBeTruthy();
     act(() => {
       vi.advanceTimersByTime(4000);
     });
-    expect(screen.queryByText("Guardado")).toBeNull();
+    expect(container.querySelector(".toast--success")).toBeNull();
+    expect(screen.getByRole("status").textContent).not.toContain("Guardado");
   });
 
   it("duration=0 no se auto-descarta", () => {
-    renderWithProvider();
+    const { container } = renderWithProvider();
     fireEvent.click(screen.getByText("sticky"));
     act(() => {
       vi.advanceTimersByTime(60000);
     });
-    expect(screen.queryByText("Aviso")).toBeTruthy();
+    expect(container.querySelector(".toast--info")).toBeTruthy();
   });
 
   it("el botón cerrar descarta el toast", () => {
-    renderWithProvider();
+    const { container } = renderWithProvider();
     fireEvent.click(screen.getByText("ok"));
-    fireEvent.click(screen.getByLabelText("Cerrar notificación"));
-    expect(screen.queryByText("Guardado")).toBeNull();
+    fireEvent.click(screen.getByLabelText(/Cerrar notificación/));
+    expect(container.querySelector(".toast--success")).toBeNull();
   });
 
   it("useToast fuera del provider lanza error", () => {

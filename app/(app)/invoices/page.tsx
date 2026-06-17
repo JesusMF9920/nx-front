@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useState } from "react";
 import { I } from "@/components/icons";
 import { Modal } from "@/components/modal";
+import { SkeletonTable } from "@/components/skeleton";
 import { PageHeader } from "@/components/page-header";
 import { GlobalInvoiceModal } from "@/components/global-invoice-modal";
 import { CancelInvoiceModal } from "@/components/cancel-invoice-modal";
@@ -347,8 +348,8 @@ export default function InvoicesPage() {
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={7} className="text-muted">
-                    Cargando facturas…
+                  <td colSpan={7}>
+                    <SkeletonTable rows={6} cols={7} />
                   </td>
                 </tr>
               ) : invoices.length === 0 ? (

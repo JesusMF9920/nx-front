@@ -13,6 +13,7 @@ import type {
   ApiSupplier,
 } from "@/lib/api/types";
 import { fmtMXN } from "@/lib/format";
+import { useToast } from "@/lib/toast/toast-context";
 
 type DraftLine = {
   /** "" = línea libre. */
@@ -52,6 +53,7 @@ export function PurchaseNewModal({
   editOrder?: ApiPurchaseOrderDetail;
 }) {
   const isEdit = !!editOrder;
+  const toast = useToast();
   const [suppliers, setSuppliers] = useState<ApiSupplier[]>([]);
   const [materials, setMaterials] = useState<ApiMaterial[]>([]);
   const [loadingData, setLoadingData] = useState(true);
@@ -166,9 +168,11 @@ export function PurchaseNewModal({
     try {
       if (editOrder) {
         await purchasesApi.update(editOrder.id, input);
+        toast.success("Orden de compra actualizada");
         onSaved({ folio: editOrder.folio });
       } else {
         const res = await purchasesApi.create(input);
+        toast.success("Orden de compra creada");
         onSaved({ folio: res.folio });
       }
     } catch (err) {

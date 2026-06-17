@@ -4,10 +4,12 @@ import { useEffect, useState } from "react";
 import { Avatar } from "@/components/avatar";
 import { I } from "@/components/icons";
 import { Modal } from "@/components/modal";
+import { SkeletonTable } from "@/components/skeleton";
 import { clientsApi } from "@/lib/api/clients";
 import { ApiError } from "@/lib/api/errors";
 import type { ApiClient, ApiClientType } from "@/lib/api/types";
 import { usePermission } from "@/lib/auth/auth-context";
+import { useToast } from "@/lib/toast/toast-context";
 
 type Props = {
   onClose: () => void;
@@ -57,6 +59,7 @@ function ClientRow({
 
 export function PosClientPicker({ onClose, onSelect }: Props) {
   const canCreate = usePermission("clients.write");
+  const toast = useToast();
   const [mode, setMode] = useState<"search" | "create">("search");
 
   // ── Búsqueda ──────────────────────────────────────────────────────────
@@ -166,6 +169,7 @@ export function PosClientPicker({ onClose, onSelect }: Props) {
         ...(email.trim() ? { email: email.trim() } : {}),
       };
       const { id } = await clientsApi.create(input);
+      toast.success("Cliente creado");
       // El POST devuelve solo {id}: se construye el cliente local con lo
       // capturado (suficiente para el POS/cotizador; el detalle completo
       // vive en /clients).
@@ -265,7 +269,7 @@ export function PosClientPicker({ onClose, onSelect }: Props) {
             style={{ maxHeight: 360 }}
           >
             {loading ? (
-              <div className="empty m-4">Cargando…</div>
+              <SkeletonTable rows={6} cols={2} />
             ) : clients.length === 0 ? (
               <div className="empty m-4 flex flex-col items-center gap-2">
                 <span>

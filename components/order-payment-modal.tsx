@@ -6,6 +6,7 @@ import { SummaryRow } from "@/components/summary-row";
 import { ApiError } from "@/lib/api/errors";
 import { ordersApi } from "@/lib/api/orders";
 import { PAYMENT_METHOD_ES } from "@/lib/api/sales-mappers";
+import { useToast } from "@/lib/toast/toast-context";
 import type { ApiOrderDetail, ApiPaymentMethod } from "@/lib/api/types";
 import { fmtMXN } from "@/lib/format";
 
@@ -17,6 +18,7 @@ type OrderPaymentModalProps = {
 };
 
 export function OrderPaymentModal({ order, onClose, onDone }: OrderPaymentModalProps) {
+  const toast = useToast();
   const balance = Math.max(0, +(order.total - order.paid).toFixed(2));
   const blocked = balance <= 0 || order.status === "cancelled";
 
@@ -47,6 +49,7 @@ export function OrderPaymentModal({ order, onClose, onDone }: OrderPaymentModalP
         },
         idemKey,
       );
+      toast.success(`Pago de ${fmtMXN(+parsed.toFixed(2))} registrado`);
       await onDone();
       onClose();
     } catch (err) {

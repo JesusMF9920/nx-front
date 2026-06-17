@@ -16,6 +16,7 @@ import { Modal } from "@/components/modal";
 import { PageHeader } from "@/components/page-header";
 import { PurchaseNewModal } from "@/components/purchase-new-modal";
 import { PurchaseStatusPill } from "@/components/purchase-status-pill";
+import { SkeletonText } from "@/components/skeleton";
 import { SummaryRow } from "@/components/summary-row";
 import type { ApiAuditEntry } from "@/lib/api/audit";
 import { ApiError } from "@/lib/api/errors";
@@ -25,6 +26,7 @@ import type { ApiPurchaseOrderDetail, ApiUser } from "@/lib/api/types";
 import { usersApi } from "@/lib/api/users";
 import { usePermission } from "@/lib/auth/auth-context";
 import { fmtDate, fmtDateLong, fmtMXN } from "@/lib/format";
+import { useToast } from "@/lib/toast/toast-context";
 
 const ACTION_ICON: Record<string, ReactNode> = {
   "inventory.purchase_order.created": I.receipt,
@@ -79,6 +81,7 @@ export default function PurchaseDetailPage() {
 
   const canManage = usePermission("inventory.purchases.manage");
   const canReceive = usePermission("inventory.purchases.receive");
+  const toast = useToast();
 
   // Token incremental: invalida cargas previas (cambio rápido de id o recargas
   // tras una acción) para no setear estado con datos de otro id.
@@ -141,11 +144,16 @@ export default function PurchaseDetailPage() {
       actorId ? (map.get(actorId) ?? null) : null;
   }, [users]);
 
-  const runAction = async (fn: () => Promise<unknown>, fail: string) => {
+  const runAction = async (
+    fn: () => Promise<unknown>,
+    fail: string,
+    ok?: string,
+  ) => {
     setBusy(true);
     setActionError(null);
     try {
       await fn();
+      if (ok) toast.success(ok);
       await load();
     } catch (err) {
       setActionError(err instanceof ApiError ? err.message : fail);
@@ -161,6 +169,7 @@ export default function PurchaseDetailPage() {
     void runAction(
       () => purchasesApi.send(detail.id),
       "No se pudo enviar la orden.",
+      "Orden enviada al proveedor",
     );
   };
 
@@ -170,6 +179,7 @@ export default function PurchaseDetailPage() {
     void runAction(
       () => purchasesApi.receive(detail.id),
       "No se pudo recibir la mercancía.",
+      "Mercancía recibida",
     );
   };
 
@@ -181,6 +191,7 @@ export default function PurchaseDetailPage() {
     void runAction(
       () => purchasesApi.cancel(detail.id, reason || undefined),
       "No se pudo cancelar la orden.",
+      "Orden de compra cancelada",
     );
   };
 
@@ -199,7 +210,9 @@ export default function PurchaseDetailPage() {
         {breadcrumb}
         <PageHeader title="Orden de compra" sub="Cargando…" />
         <div className="card">
-          <div className="card__body text-muted text-sm">Cargando…</div>
+          <div className="card__body">
+            <SkeletonText lines={5} />
+          </div>
         </div>
       </>
     );

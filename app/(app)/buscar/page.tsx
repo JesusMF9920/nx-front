@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useState } from "react";
 import { PageHeader } from "@/components/page-header";
+import { SkeletonText } from "@/components/skeleton";
 import { clientsApi } from "@/lib/api/clients";
 import { catalogApi } from "@/lib/api/catalog";
 import { ordersApi } from "@/lib/api/orders";
@@ -100,7 +101,7 @@ function BuscarResults() {
           Usa el buscador de arriba (⌘K) para encontrar pedidos, clientes y productos.
         </div>
       ) : loading ? (
-        <div className="text-muted text-sm">Buscando…</div>
+        <SkeletonText lines={5} />
       ) : totalResults === 0 ? (
         <div className="empty m-3.5">Sin resultados para “{q}”.</div>
       ) : (

@@ -819,4 +819,5 @@ input, select, textarea { font-family: inherit; font-size: inherit; color: inher
 @media (prefers-reduced-motion: reduce) {
   .skeleton { animation: none; }
   .toast { animation: none; }
+  .modal, .modal-backdrop { animation: none; }
 }

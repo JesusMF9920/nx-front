@@ -5,6 +5,7 @@ import { Modal } from "./modal";
 import { designApi } from "@/lib/api/design";
 import { ordersApi } from "@/lib/api/orders";
 import type { ApiOrder, ApiOrderItem } from "@/lib/api/types";
+import { useToast } from "@/lib/toast/toast-context";
 
 /** Etapas donde un job admite abrir ficha de diseño. */
 const DESIGN_STAGES = ["in_design", "client_approval"];
@@ -21,6 +22,7 @@ export function ApprovalNewModal({
   onClose: () => void;
   onCreated: (id: string) => void;
 }) {
+  const toast = useToast();
   const [orders, setOrders] = useState<ApiOrder[]>([]);
   const [orderId, setOrderId] = useState<string>("");
   const [items, setItems] = useState<ApiOrderItem[]>([]);
@@ -77,6 +79,7 @@ export function ApprovalNewModal({
     setError(null);
     try {
       const res = await designApi.create({ orderId, itemId });
+      toast.success("Ficha de diseño creada");
       onCreated(res.id);
     } catch (err) {
       setBusy(false);

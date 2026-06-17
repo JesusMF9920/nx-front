@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { I } from "@/components/icons";
 import { PageHeader } from "@/components/page-header";
 import { SalesChart } from "@/components/sales-chart";
+import { SkeletonText } from "@/components/skeleton";
 import { StatusPill } from "@/components/status-pill";
 import { ApiError } from "@/lib/api/errors";
 import { reportsApi } from "@/lib/api/reports";
@@ -142,7 +143,7 @@ export default function DashboardPage() {
       )}
 
       {loading || !data ? (
-        <div className="text-muted text-sm">Cargando dashboard…</div>
+        <SkeletonText lines={5} />
       ) : (
         <>
           <div className="kpi-grid mb-5">

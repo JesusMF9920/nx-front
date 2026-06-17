@@ -8,9 +8,11 @@ import { Modal } from "@/components/modal";
 import { NewProductForm } from "@/components/new-product-form";
 import { PageHeader } from "@/components/page-header";
 import { ProductDetail } from "@/components/product-detail";
+import { SkeletonTable } from "@/components/skeleton";
 import { usePermission } from "@/lib/auth/auth-context";
 import { catalogApi } from "@/lib/api/catalog";
 import { ApiError } from "@/lib/api/errors";
+import { useToast } from "@/lib/toast/toast-context";
 import { CLAVE_UNIDAD, OBJETO_IMPUESTO } from "@/lib/sat-catalogs";
 import type {
   ApiProduct,
@@ -49,6 +51,7 @@ function sourceLabel(s: ApiProductSource): string {
 }
 
 export default function ProductsPage() {
+  const toast = useToast();
   const canWrite = usePermission("catalog.products.write");
   const canDeactivate = usePermission("catalog.products.deactivate");
   const [products, setProducts] = useState<ApiProduct[]>([]);
@@ -205,6 +208,7 @@ export default function ProductsPage() {
             setActionError(null);
             try {
               await catalogApi.activate(p.id);
+              toast.success("Producto activado");
               await reload(page);
             } catch (err) {
               setActionError(
@@ -347,7 +351,9 @@ export default function ProductsPage() {
           </div>
 
           {loading ? (
-            <div className="card__body text-muted text-sm">Cargando…</div>
+            <div className="card__body">
+              <SkeletonTable rows={6} cols={6} />
+            </div>
           ) : products.length === 0 ? (
             <div className="card__body text-muted text-sm">
               {debounced || sourceFilter !== "all"
@@ -478,6 +484,7 @@ export default function ProductsPage() {
                     setActionError(null);
                     try {
                       await catalogApi.activate(selected.id);
+                      toast.success("Producto activado");
                       await reload(page);
                       await refreshSelected();
                     } catch (err) {
@@ -543,6 +550,7 @@ export default function ProductsPage() {
           onConfirm={async () => {
             try {
               await catalogApi.deactivate(deactivateTarget.id);
+              toast.success("Producto desactivado");
               setDeactivateTarget(null);
               await reload(page);
               await refreshSelected();
@@ -571,6 +579,7 @@ function ProductFormModal({
   onClose: () => void;
   onDone: (createdId?: string) => void | Promise<void>;
 }) {
+  const toast = useToast();
   const [sku, setSku] = useState(product?.sku ?? "");
   const [name, setName] = useState(product?.name ?? "");
   const [category, setCategory] = useState(product?.category ?? "");
@@ -645,9 +654,11 @@ function ProductFormModal({
     try {
       if (mode === "create") {
         const { id } = await catalogApi.create(payload);
+        toast.success("Producto creado");
         await onDone(id);
       } else if (product) {
         await catalogApi.update(product.id, payload);
+        toast.success("Producto actualizado");
         await onDone();
       }
     } catch (err) {

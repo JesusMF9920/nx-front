@@ -6,6 +6,7 @@ import { usePermission } from "@/lib/auth/auth-context";
 import { Avatar } from "@/components/avatar";
 import { I } from "@/components/icons";
 import { Modal } from "@/components/modal";
+import { SkeletonTable } from "@/components/skeleton";
 import { SummaryRow } from "@/components/summary-row";
 import { PosCashIndicator } from "@/components/pos-cash-indicator";
 import { PosClientPicker } from "@/components/pos-client-picker";
@@ -530,7 +531,7 @@ export default function POSPage() {
             </div>
           )}
           {loading ? (
-            <div className="empty">Cargando…</div>
+            <SkeletonTable rows={6} cols={4} />
           ) : products.length === 0 && !loadError ? (
             <div className="empty">
               {debounced || activeCategory !== "Todos"

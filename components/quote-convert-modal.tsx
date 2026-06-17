@@ -9,6 +9,7 @@ import type { CheckoutPaymentInput } from "@/lib/api/orders";
 import { quotesApi } from "@/lib/api/quotes";
 import type { ApiConvertResult, ApiQuoteDetail, ApiStockShortage } from "@/lib/api/types";
 import { fmtMXN } from "@/lib/format";
+import { useToast } from "@/lib/toast/toast-context";
 import { DEFAULT_DEPOSIT_PCT, depositAmount } from "@/lib/pos-cart";
 import type { PaymentMethod } from "@/lib/types";
 
@@ -40,6 +41,7 @@ function round2(n: number): number {
 }
 
 export function QuoteConvertModal({ quote, onClose, onConverted }: Props) {
+  const toast = useToast();
   const total = quote.total;
   const [method, setMethod] = useState<PaymentMethod>("Efectivo");
   const [chargeMode, setChargeMode] = useState<ChargeMode>("deposit");
@@ -127,6 +129,7 @@ export function QuoteConvertModal({ quote, onClose, onConverted }: Props) {
           ? { deliverAt: new Date(`${deliverAt}T12:00:00`).toISOString() }
           : {}),
       });
+      toast.success("Cotización convertida a pedido");
       onConverted(res);
     } catch (err) {
       if (err instanceof ApiError && err.status === 409) {

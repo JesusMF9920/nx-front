@@ -12,6 +12,7 @@ import { OrderPaymentModal } from "@/components/order-payment-modal";
 import { OrderRefundModal } from "@/components/order-refund-modal";
 import { OrderStatusBanner } from "@/components/order-status-banner";
 import { PageHeader } from "@/components/page-header";
+import { SkeletonText } from "@/components/skeleton";
 import { StatusPill } from "@/components/status-pill";
 import { SummaryRow } from "@/components/summary-row";
 import type { ApiAuditEntry } from "@/lib/api/audit";
@@ -39,6 +40,7 @@ import type {
   ApiUser,
 } from "@/lib/api/types";
 import { usersApi } from "@/lib/api/users";
+import { useToast } from "@/lib/toast/toast-context";
 import { fmtDate, fmtDateLong, fmtMXN } from "@/lib/format";
 import {
   buildOrderReceiptWhatsappMessage,
@@ -130,6 +132,7 @@ function toDateInput(iso: string | null): string {
 
 export default function OrderDetailPage() {
   const { id } = useParams<{ id: string }>();
+  const toast = useToast();
   const [detail, setDetail] = useState<ApiOrderDetail | null>(null);
   const [client, setClient] = useState<ApiClient | null>(null);
   const [timeline, setTimeline] = useState<ApiAuditEntry[]>([]);
@@ -292,6 +295,7 @@ export default function OrderDetailPage() {
     try {
       await ordersApi.transitionStatus(detail.id, status);
       await load();
+      toast.success(`Pedido movido a ${ORDER_STATUS_ES[status]}`);
     } catch (err) {
       setActionError(
         err instanceof ApiError
@@ -321,6 +325,7 @@ export default function OrderDetailPage() {
     try {
       await ordersApi.transitionItemStatus(detail.id, itemId, status);
       await load();
+      toast.success(`Producto movido a ${ORDER_STATUS_ES[status]}`);
     } catch (err) {
       setActionError(
         err instanceof ApiError
@@ -344,6 +349,7 @@ export default function OrderDetailPage() {
         notes: notesDraft.trim() ? notesDraft.trim() : null,
       });
       await load();
+      toast.success("Entrega y notas guardadas");
     } catch (err) {
       setActionError(
         err instanceof ApiError
@@ -370,7 +376,9 @@ export default function OrderDetailPage() {
         {breadcrumb}
         <PageHeader title="Pedido" sub="Cargando…" />
         <div className="card">
-          <div className="card__body text-muted text-sm">Cargando pedido…</div>
+          <div className="card__body">
+            <SkeletonText lines={5} />
+          </div>
         </div>
       </>
     );
@@ -1169,6 +1177,7 @@ export default function OrderDetailPage() {
               );
             }
             await load();
+            toast.success("Pedido cancelado");
             setShowCancel(false);
           }}
           onClose={() => setShowCancel(false)}

@@ -18,6 +18,7 @@ import {
 } from "@/components/recipe-editor";
 import { catalogApi, type CreateProductInput } from "@/lib/api/catalog";
 import { ApiError } from "@/lib/api/errors";
+import { useToast } from "@/lib/toast/toast-context";
 import { CLAVE_UNIDAD, OBJETO_IMPUESTO } from "@/lib/sat-catalogs";
 import type {
   ApiMaterial,
@@ -45,6 +46,7 @@ export function NewProductForm({
   onClose: () => void;
   onDone: (createdId: string) => void | Promise<void>;
 }) {
+  const toast = useToast();
   const [sku, setSku] = useState("");
   const [name, setName] = useState("");
   const [category, setCategory] = useState("");
@@ -182,6 +184,7 @@ export function NewProductForm({
         await catalogApi.setRecipe(id, recipeRowsToInput(recipeRows));
         setRecipeSaved(true);
       }
+      toast.success("Producto creado");
       await onDone(id);
     } catch (err) {
       const detail =

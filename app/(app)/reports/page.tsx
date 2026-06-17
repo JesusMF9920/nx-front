@@ -8,6 +8,7 @@ import { ReportsClients } from "@/components/reports-clients";
 import { ReportsProducts } from "@/components/reports-products";
 import { ReportsSellers } from "@/components/reports-sellers";
 import { ReportsSummary } from "@/components/reports-summary";
+import { SkeletonText } from "@/components/skeleton";
 import { ApiError } from "@/lib/api/errors";
 import {
   reportsApi,
@@ -265,7 +266,7 @@ export default function ReportsPage() {
       </div>
 
       {loading ? (
-        <div className="text-muted text-sm">Cargando reportes…</div>
+        <SkeletonText lines={5} />
       ) : (
         <>
           {tab === "Resumen" && summary && (

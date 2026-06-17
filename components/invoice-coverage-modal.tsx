@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { Modal } from "@/components/modal";
+import { SkeletonTable } from "@/components/skeleton";
 import { invoicingApi, type InvoiceCoverage } from "@/lib/api/invoicing";
 import { ApiError } from "@/lib/api/errors";
 import { fmtInt, fmtMXN } from "@/lib/format";
@@ -117,7 +118,7 @@ export function InvoiceCoverageModal({ onClose }: Props) {
 
       <div className="card" style={{ padding: 14 }}>
         {loading ? (
-          <div className="text-muted text-[13px]">Calculando…</div>
+          <SkeletonTable rows={4} cols={3} />
         ) : !data || data.totalCount === 0 ? (
           <div className="text-muted text-[13px]">
             No hay ventas en este periodo.

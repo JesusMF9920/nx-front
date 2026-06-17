@@ -8,6 +8,7 @@ import { PurchaseDemandPanel } from "@/components/purchase-demand-panel";
 import { PurchaseNewModal } from "@/components/purchase-new-modal";
 import { PurchaseStatusPill } from "@/components/purchase-status-pill";
 import { PurchaseSuggestedModal } from "@/components/purchase-suggested-modal";
+import { SkeletonTable } from "@/components/skeleton";
 import { purchasesApi } from "@/lib/api/purchases";
 import { suppliersApi } from "@/lib/api/suppliers";
 import type {
@@ -299,8 +300,8 @@ export default function PurchasesPage() {
           <tbody>
             {loading ? (
               <tr>
-                <td colSpan={6} className="text-muted">
-                  Cargando órdenes de compra…
+                <td colSpan={6}>
+                  <SkeletonTable rows={6} cols={6} />
                 </td>
               </tr>
             ) : orders.length === 0 ? (

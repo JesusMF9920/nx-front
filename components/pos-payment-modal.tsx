@@ -17,6 +17,7 @@ import {
 import type { ApiStockShortage } from "@/lib/api/types";
 import { cashApi } from "@/lib/api/cash";
 import { useFeature } from "@/lib/auth/auth-context";
+import { useToast } from "@/lib/toast/toast-context";
 import type { PaymentMethod } from "@/lib/types";
 
 /** Métodos que tocan EFECTIVO (requieren caja abierta con el feature on). */
@@ -82,6 +83,7 @@ export function PosPaymentModal({
   onClose,
   onPaid,
 }: Props) {
+  const toast = useToast();
   const [method, setMethod] = useState<PaymentMethod>("Efectivo");
   const [chargeMode, setChargeMode] = useState<ChargeMode>("deposit");
   const [customCharge, setCustomCharge] = useState("");
@@ -267,6 +269,7 @@ export function PosPaymentModal({
         },
         idemKey,
       );
+      toast.success(`Venta ${res.folio} registrada`);
       onPaid(res, {
         printThermal: ticketsEnabled && printTicket,
         printLetter: ticketsEnabled && printLetter,

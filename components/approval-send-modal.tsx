@@ -57,6 +57,9 @@ export function ApprovalSendModal({
         // Intento de apertura directa; si el popup se bloquea queda el enlace.
         window.open(url, "_blank");
       }
+      // Sin toast: el modal sigue abierto y muestra su propio banner
+      // role="status" (correo enviado / link de WhatsApp / liga a copiar), así
+      // que un toast duplicaría el anuncio del lector de pantalla.
       onSent();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Algo salió mal.");

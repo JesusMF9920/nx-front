@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { I } from "@/components/icons";
 import { PageHeader } from "@/components/page-header";
+import { SkeletonTable } from "@/components/skeleton";
 import { auditApi, type ApiAuditEntry } from "@/lib/api/audit";
 import { ApiError } from "@/lib/api/errors";
 import { usersApi } from "@/lib/api/users";
@@ -284,7 +285,9 @@ export default function AuditPage() {
 
       <div className="card">
         {loading ? (
-          <div className="card__body text-muted text-sm">Cargando…</div>
+          <div className="card__body">
+            <SkeletonTable rows={6} cols={5} />
+          </div>
         ) : entries.length === 0 ? (
           <div className="card__body text-muted text-sm">
             No hay eventos que coincidan con los filtros.

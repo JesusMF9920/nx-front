@@ -11,6 +11,7 @@ import { InventoryStockEntryModal } from "@/components/inventory-stock-entry-mod
 import { MenuButton, type MenuItem } from "@/components/menu-button";
 import { Modal } from "@/components/modal";
 import { PageHeader } from "@/components/page-header";
+import { SkeletonTable } from "@/components/skeleton";
 import { usePermission } from "@/lib/auth/auth-context";
 import { ApiError } from "@/lib/api/errors";
 import { inventoryApi } from "@/lib/api/inventory";
@@ -20,6 +21,7 @@ import type {
   ApiStockMoveType,
 } from "@/lib/api/types";
 import { fmtInt, fmtMXN } from "@/lib/format";
+import { useToast } from "@/lib/toast/toast-context";
 
 const PAGE_SIZE = 25;
 
@@ -42,6 +44,7 @@ export default function InventoryPage() {
 
 function InventoryPageInner() {
   const searchParams = useSearchParams();
+  const toast = useToast();
   const canWrite = usePermission("inventory.materials.write");
   const canDeactivate = usePermission("inventory.materials.deactivate");
   const canStock = usePermission("inventory.stock.write");
@@ -210,6 +213,7 @@ function InventoryPageInner() {
           setActionError(null);
           try {
             await inventoryApi.activate(m.id);
+            toast.success("Material activado");
             await reload(page);
           } catch (err) {
             setActionError(
@@ -329,7 +333,9 @@ function InventoryPageInner() {
           </div>
 
           {loading ? (
-            <div className="card__body text-muted text-sm">Cargando…</div>
+            <div className="card__body">
+              <SkeletonTable rows={6} cols={6} />
+            </div>
           ) : materials.length === 0 ? (
             <div className="card__body text-muted text-sm">
               {debounced
@@ -452,6 +458,7 @@ function InventoryPageInner() {
               setActionError(null);
               try {
                 await inventoryApi.activate(selected.id);
+                toast.success("Material activado");
                 await reload(page);
                 await refreshSelected();
               } catch (err) {
@@ -542,6 +549,7 @@ function InventoryPageInner() {
           onConfirm={async () => {
             try {
               await inventoryApi.deactivate(deactivateTarget.id);
+              toast.success("Material desactivado");
               setDeactivateTarget(null);
               await reload(page);
               await refreshSelected();
@@ -568,6 +576,7 @@ function MaterialEditModal({
   onClose: () => void;
   onDone: () => void | Promise<void>;
 }) {
+  const toast = useToast();
   const [sku, setSku] = useState(material.sku);
   const [name, setName] = useState(material.name);
   const [category, setCategory] = useState(material.category);
@@ -609,6 +618,7 @@ function MaterialEditModal({
         supplierName: supplierName.trim() || null,
         buyToOrder,
       });
+      toast.success("Material guardado");
       await onDone();
     } catch (err) {
       setError(

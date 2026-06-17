@@ -6,6 +6,7 @@ import { SummaryRow } from "@/components/summary-row";
 import { ApiError } from "@/lib/api/errors";
 import { ordersApi } from "@/lib/api/orders";
 import { PAYMENT_METHOD_ES } from "@/lib/api/sales-mappers";
+import { useToast } from "@/lib/toast/toast-context";
 import type { ApiOrderDetail, ApiPaymentMethod } from "@/lib/api/types";
 import { fmtMXN } from "@/lib/format";
 
@@ -17,6 +18,7 @@ type OrderRefundModalProps = {
 };
 
 export function OrderRefundModal({ order, onClose, onDone }: OrderRefundModalProps) {
+  const toast = useToast();
   // Tope: no se puede devolver más de lo pagado (neto de devoluciones previas).
   const refundable = Math.max(0, +(order.paid - order.refunded).toFixed(2));
   // Las devoluciones SÍ se permiten en pedidos cancelados (devolver el dinero
@@ -47,6 +49,7 @@ export function OrderRefundModal({ order, onClose, onDone }: OrderRefundModalPro
         amount: +parsed.toFixed(2),
         reason: reason.trim(),
       });
+      toast.success(`Devolución de ${fmtMXN(+parsed.toFixed(2))} aplicada`);
       await onDone();
       onClose();
     } catch (err) {

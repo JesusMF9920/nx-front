@@ -6,6 +6,7 @@ import { I } from "@/components/icons";
 import { PageHeader } from "@/components/page-header";
 import { QuoteNewModal } from "@/components/quote-new-modal";
 import { QuoteStatusPill } from "@/components/quote-status-pill";
+import { SkeletonTable } from "@/components/skeleton";
 import { ApiError } from "@/lib/api/errors";
 import { quotesApi } from "@/lib/api/quotes";
 import { downloadFile } from "@/lib/api/download";
@@ -236,8 +237,8 @@ export default function QuotesPage() {
           <tbody>
             {loading ? (
               <tr>
-                <td colSpan={7} className="text-muted">
-                  Cargando cotizaciones…
+                <td colSpan={7}>
+                  <SkeletonTable rows={6} cols={7} />
                 </td>
               </tr>
             ) : quotes.length === 0 ? (

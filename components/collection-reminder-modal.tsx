@@ -97,6 +97,7 @@ export function CollectionReminderModal({ target, onClose, onSent }: Props) {
           ? { orderId: target.orderId }
           : { clientId: target.clientId },
       );
+      // El padre (onSent) muestra un banner con el destinatario; no duplicamos.
       onSent(res);
     } catch (err) {
       setError(

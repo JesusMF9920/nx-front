@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { Modal } from "./modal";
 import { ordersApi } from "@/lib/api/orders";
+import { useToast } from "@/lib/toast/toast-context";
 import { fmtDate } from "@/lib/format";
 import type { ApiOrder } from "@/lib/api/types";
 
@@ -21,6 +22,7 @@ export function ScheduleDeliveryModal({
   onClose: () => void;
   onScheduled: () => void;
 }) {
+  const toast = useToast();
   const [orders, setOrders] = useState<ApiOrder[]>([]);
   const [orderId, setOrderId] = useState<string>("");
   const [date, setDate] = useState<string>("");
@@ -59,6 +61,7 @@ export function ScheduleDeliveryModal({
       await ordersApi.update(orderId, {
         deliverAt: new Date(`${date}T12:00:00`).toISOString(),
       });
+      toast.success("Entrega programada");
       onScheduled();
     } catch (err) {
       setBusy(false);

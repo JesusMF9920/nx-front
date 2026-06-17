@@ -28,6 +28,8 @@ export function CancelInvoiceModal({ invoice, onClose, onCancelled }: Props) {
     setError(null);
     try {
       const res = await invoicingApi.cancel(invoice.id, motive);
+      // El padre (onCancelled) muestra un banner con el detalle del SAT; no
+      // duplicamos con toast.
       onCancelled(res);
     } catch (err) {
       setError(

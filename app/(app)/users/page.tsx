@@ -9,6 +9,7 @@ import { Kv } from "@/components/kv";
 import { MenuButton, type MenuItem } from "@/components/menu-button";
 import { Modal } from "@/components/modal";
 import { PageHeader } from "@/components/page-header";
+import { SkeletonTable } from "@/components/skeleton";
 import { ApiError } from "@/lib/api/errors";
 import { rolesApi } from "@/lib/api/roles";
 import type { ApiRole, ApiUser } from "@/lib/api/types";
@@ -16,6 +17,7 @@ import { usersApi } from "@/lib/api/users";
 import { useApiList } from "@/lib/hooks/use-api-list";
 import { useAuth, usePermission } from "@/lib/auth/auth-context";
 import { generateTempPassword } from "@/lib/auth/generate-password";
+import { useToast } from "@/lib/toast/toast-context";
 
 const dateFmt = new Intl.DateTimeFormat("es-MX", {
   dateStyle: "medium",
@@ -37,6 +39,7 @@ function rolesOfUser(user: ApiUser, rolesById: Map<string, ApiRole>): ApiRole[] 
 const PAGE_SIZE = 25;
 
 export default function UsersPage() {
+  const toast = useToast();
   const [roles, setRoles] = useState<ApiRole[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [showNew, setShowNew] = useState(false);
@@ -91,6 +94,7 @@ export default function UsersPage() {
     setActionError(null);
     try {
       await usersApi.activate(u.id);
+      toast.success("Usuario activado");
       await reload();
     } catch (err) {
       setActionError(
@@ -281,7 +285,9 @@ export default function UsersPage() {
             </div>
           </div>
           {loading ? (
-            <div className="card__body text-muted text-sm">Cargando…</div>
+            <div className="card__body">
+              <SkeletonTable rows={6} cols={5} />
+            </div>
           ) : (
             <div className="overflow-x-auto">
               <table className="tbl min-w-[760px]">
@@ -578,6 +584,7 @@ export default function UsersPage() {
           onConfirm={async () => {
             try {
               await usersApi.deactivate(deactivateTarget.id);
+              toast.success("Usuario desactivado");
               setDeactivateTarget(null);
               await reload();
             } catch (err) {
@@ -635,6 +642,7 @@ function NewUserModal({
   onClose: () => void;
   onCreated: () => void | Promise<void>;
 }) {
+  const toast = useToast();
   const [mode, setMode] = useState<"temporary" | "invite">("temporary");
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -681,6 +689,9 @@ function NewUserModal({
             })
           : await usersApi.invite({ email: email.trim(), name: name.trim() });
       await rolesApi.assign(roleId, id);
+      toast.success(
+        mode === "invite" ? "Invitación enviada" : "Usuario creado",
+      );
       await onCreated();
     } catch (err) {
       const message =
@@ -868,6 +879,7 @@ function ResetPasswordModal({
   onClose: () => void;
   onDone: () => void | Promise<void>;
 }) {
+  const toast = useToast();
   const [password, setPassword] = useState("");
   const [confirmPwd, setConfirmPwd] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -888,6 +900,7 @@ function ResetPasswordModal({
     setSubmitting(true);
     try {
       await usersApi.resetPassword(user.id, password);
+      toast.success("Contraseña restablecida");
       await onDone();
     } catch (err) {
       const message =
@@ -986,6 +999,7 @@ function EditUserModal({
   onClose: () => void;
   onDone: () => void | Promise<void>;
 }) {
+  const toast = useToast();
   const [name, setName] = useState(user.name);
   const [email, setEmail] = useState(user.email);
   const [selectedRoleIds, setSelectedRoleIds] = useState<Set<string>>(
@@ -1044,6 +1058,7 @@ function EditUserModal({
       for (const roleId of toRemove) {
         await rolesApi.revoke(roleId, user.id);
       }
+      toast.success("Usuario actualizado");
       await onDone();
     } catch (err) {
       const message =
