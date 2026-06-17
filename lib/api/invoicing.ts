@@ -51,6 +51,17 @@ export type CancelInvoiceResult = {
   satStatus: string;
 };
 
+export type RefreshCancellationResult = {
+  invoiceId: string;
+  /** Estado local tras refrescar ('cancelled' | 'stamped'). */
+  status: ApiInvoice["status"];
+  cancelStatus: string | null;
+  /** Estatus normalizado consultado al PAC/SAT. */
+  satStatus: "canceled" | "pending" | "active";
+  /** true si el refresco cambió el estado de la factura. */
+  changed: boolean;
+};
+
 export type CoverageBucket = { count: number; amount: number };
 
 export type InvoiceCoverage = {
@@ -96,6 +107,16 @@ export const invoicingApi = {
     return apiFetch<CancelInvoiceResult>(`/invoices/${id}/cancel`, {
       method: "POST",
       body: JSON.stringify({ motive }),
+    });
+  },
+
+  /**
+   * Re-consulta al SAT el estatus de una cancelación que quedó pendiente de
+   * aceptación (CFDI 4.0) y resuelve la factura.
+   */
+  refreshCancellation(id: string): Promise<RefreshCancellationResult> {
+    return apiFetch<RefreshCancellationResult>(`/invoices/${id}/cancel/status`, {
+      method: "POST",
     });
   },
 
