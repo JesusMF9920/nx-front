@@ -67,6 +67,7 @@ export default function InvoicesPage() {
   const [cancelTarget, setCancelTarget] = useState<ApiInvoice | null>(null);
   const [detailInvoice, setDetailInvoice] = useState<ApiInvoice | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const [refreshingId, setRefreshingId] = useState<string | null>(null);
 
   const {
     items: invoices,
@@ -115,6 +116,28 @@ export default function InvoicesPage() {
       setDetailInvoice((cur) => (cur && cur.id === fresh.id ? fresh : cur));
     } catch {
       /* se queda con los datos de la fila */
+    }
+  };
+
+  // Re-consulta al SAT una cancelación pendiente (CFDI 4.0) y refresca la lista.
+  const refreshCancellation = async (inv: ApiInvoice) => {
+    setRefreshingId(inv.id);
+    try {
+      const res = await invoicingApi.refreshCancellation(inv.id);
+      setNotice(
+        res.satStatus === "canceled"
+          ? "Cancelación confirmada por el SAT."
+          : res.satStatus === "active"
+            ? "El receptor rechazó la cancelación: la factura sigue vigente."
+            : "La cancelación sigue en proceso de aceptación del receptor.",
+      );
+      void reload();
+    } catch (e) {
+      setNotice(
+        e instanceof Error ? e.message : "No se pudo consultar el estatus.",
+      );
+    } finally {
+      setRefreshingId(null);
     }
   };
 
@@ -433,6 +456,20 @@ export default function InvoicesPage() {
                               </button>
                             )}
                           </>
+                        ) : canCancel &&
+                          inv.status === "cancelled" &&
+                          inv.cancelStatus === "pending" ? (
+                          <button
+                            className="btn btn--sm btn--ghost"
+                            type="button"
+                            disabled={refreshingId === inv.id}
+                            onClick={() => void refreshCancellation(inv)}
+                            title="Re-consultar al SAT el estatus de esta cancelación"
+                          >
+                            {refreshingId === inv.id
+                              ? "Consultando…"
+                              : "Consultar estatus"}
+                          </button>
                         ) : (
                           <span className="text-muted text-[12px]">—</span>
                         )}
