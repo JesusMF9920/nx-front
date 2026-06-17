@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { usePermission } from "@/lib/auth/auth-context";
 import { Avatar } from "@/components/avatar";
 import { I } from "@/components/icons";
@@ -159,6 +159,35 @@ export default function POSPage() {
   const hasInvalidAdHoc = cart.some(
     (l) => l.isAdHoc && (l.name.trim() === "" || l.price <= 0),
   );
+
+  // Condición única de "se puede cobrar" (reusada por los botones y el atajo F8).
+  const canCheckout =
+    cart.length > 0 && !!client && canSell && !hasInvalidAdHoc;
+
+  // Atajos de teclado: F3 enfoca el buscador, F8 abre el cobro (si procede).
+  // Inactivos mientras hay un modal abierto para no robar foco ni doble-disparar.
+  const searchRef = useRef<HTMLInputElement | null>(null);
+  const anyModalOpen =
+    showPay ||
+    showClientPicker ||
+    showDiscount ||
+    showDeliver ||
+    variantPicker !== null;
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (anyModalOpen) return;
+      if (e.key === "F3") {
+        e.preventDefault();
+        searchRef.current?.focus();
+        searchRef.current?.select();
+      } else if (e.key === "F8") {
+        e.preventDefault();
+        if (canCheckout) setShowPay(true);
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [anyModalOpen, canCheckout]);
 
   const totalPages = Math.max(1, Math.ceil(productsTotal / PAGE_SIZE));
 
@@ -450,6 +479,7 @@ export default function POSPage() {
           <div className="topbar__search flex-1 m-0" style={{ width: "auto", minWidth: 160, maxWidth: 460 }}>
             {I.search}
             <input
+              ref={searchRef}
               placeholder="Buscar producto, SKU o escanear código de barras…"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
@@ -623,7 +653,7 @@ export default function POSPage() {
               e.stopPropagation();
               setShowPay(true);
             }}
-            disabled={cart.length === 0 || !client || !canSell || hasInvalidAdHoc}
+            disabled={!canCheckout}
           >
             {I.cash} Cobrar
           </button>
@@ -885,7 +915,7 @@ export default function POSPage() {
           <button
             className="btn btn--accent btn--lg w-full justify-center mt-2 hidden md:flex"
             onClick={() => setShowPay(true)}
-            disabled={cart.length === 0 || !client || !canSell || hasInvalidAdHoc}
+            disabled={!canCheckout}
             title={
               !canSell
                 ? "No tienes permiso para cobrar (sales.pos.sell)"
