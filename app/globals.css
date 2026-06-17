@@ -734,7 +734,6 @@ input, select, textarea { font-family: inherit; font-size: inherit; color: inher
     animation: fadeIn 0.15s ease;
   }
 }
-}
 
 /* Solo para lectores de pantalla (oculto visualmente, accesible al SR). */
 .sr-only {
