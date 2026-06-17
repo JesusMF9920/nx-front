@@ -28,6 +28,7 @@ import {
   PAYMENT_METHOD_ES,
   SALES_AUDIT_ACTION_ES,
   paymentLabel,
+  stationLabel,
 } from "@/lib/api/sales-mappers";
 import type {
   ApiClient,
@@ -736,6 +737,7 @@ export default function OrderDetailPage() {
                   <th>Job</th>
                   <th className="text-right">Cant.</th>
                   <th>Origen</th>
+                  <th>Estación</th>
                   <th>Diseño</th>
                   <th>Status</th>
                   <th className="text-right">Importe</th>
@@ -781,6 +783,13 @@ export default function OrderDetailPage() {
                         <span className="pill pill--supplier">{j.supplierName ?? "Proveedor"}</span>
                       ) : (
                         <span className="pill pill--neutral">Interno</span>
+                      )}
+                    </td>
+                    <td>
+                      {j.station ? (
+                        <span className="tag">{stationLabel(j.station)}</span>
+                      ) : (
+                        <span className="text-muted text-[11px]">Sin asignar</span>
                       )}
                     </td>
                     <td>

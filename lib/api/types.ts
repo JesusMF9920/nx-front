@@ -427,6 +427,8 @@ export type ApiOrderItem = {
   needsApproval: boolean;
   status: ApiOrderStatus;
   designVersion: number;
+  /** Estación del taller del job; null = "Sin asignar" (o línea no producible). */
+  station: ApiProductionStation | null;
   lineTotal: number;
 };
 
