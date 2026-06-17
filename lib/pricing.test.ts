@@ -85,3 +85,43 @@ describe("tierRanges", () => {
     ]);
   });
 });
+
+/**
+ * Paridad con el backend. `getPriceForQty` es el espejo front del resolver de
+ * tiers de mayoreo que vive (replicado) en el back:
+ *   catalog · price-tiers.vo.ts          → resolveTierUnitPrice
+ *   sales   · pricing.service.ts         → resolveTierUnitPrice
+ * Es lógica money-critical: si el front muestra un precio que el back no cobra,
+ * el cliente ve una cosa y paga otra. Estos vectores golden son IDÉNTICOS a los
+ * de `nxpos-api/.../pricing-tiers-parity.spec.ts` (GOLDEN_TIER_CASES): si
+ * cambias un caso allá, cámbialo aquí.
+ */
+const GOLDEN_TIER_CASES: {
+  name: string;
+  basePrice: number;
+  tiers: ApiPriceTier[] | null;
+  qty: number;
+  expected: number;
+}[] = [
+  { name: "sin tiers → precio base", basePrice: 55, tiers: [], qty: 100, expected: 55 },
+  { name: "tiers null → precio base", basePrice: 55, tiers: null, qty: 100, expected: 55 },
+  { name: "bajo el primer umbral → base", basePrice: 55, tiers: [{ minQty: 10, unitPrice: 45 }, { minQty: 50, unitPrice: 38 }], qty: 9, expected: 55 },
+  { name: "umbral inferior exacto", basePrice: 55, tiers: [{ minQty: 10, unitPrice: 45 }, { minQty: 50, unitPrice: 38 }], qty: 10, expected: 45 },
+  { name: "entre umbrales → escalón inferior", basePrice: 55, tiers: [{ minQty: 10, unitPrice: 45 }, { minQty: 50, unitPrice: 38 }], qty: 49, expected: 45 },
+  { name: "umbral superior exacto", basePrice: 55, tiers: [{ minQty: 10, unitPrice: 45 }, { minQty: 50, unitPrice: 38 }], qty: 50, expected: 38 },
+  { name: "sobre el último umbral", basePrice: 55, tiers: [{ minQty: 10, unitPrice: 45 }, { minQty: 50, unitPrice: 38 }], qty: 200, expected: 38 },
+  { name: "dimension decimal bajo umbral", basePrice: 200, tiers: [{ minQty: 5, unitPrice: 180 }, { minQty: 20, unitPrice: 150 }], qty: 4.99, expected: 200 },
+  { name: "dimension decimal en umbral", basePrice: 200, tiers: [{ minQty: 5, unitPrice: 180 }, { minQty: 20, unitPrice: 150 }], qty: 6, expected: 180 },
+  { name: "dimension decimal alto", basePrice: 200, tiers: [{ minQty: 5, unitPrice: 180 }, { minQty: 20, unitPrice: 150 }], qty: 25, expected: 150 },
+  { name: "tiers DESORDENADOS, qty media", basePrice: 55, tiers: [{ minQty: 50, unitPrice: 38 }, { minQty: 10, unitPrice: 45 }], qty: 12, expected: 45 },
+  { name: "tiers DESORDENADOS, qty alta", basePrice: 55, tiers: [{ minQty: 50, unitPrice: 38 }, { minQty: 10, unitPrice: 45 }], qty: 60, expected: 38 },
+  { name: "tiers DESORDENADOS, bajo umbral", basePrice: 55, tiers: [{ minQty: 50, unitPrice: 38 }, { minQty: 10, unitPrice: 45 }], qty: 9, expected: 55 },
+];
+
+describe("paridad con el backend (vectores golden)", () => {
+  for (const c of GOLDEN_TIER_CASES) {
+    it(`${c.name}: getPriceForQty = ${c.expected}`, () => {
+      expect(getPriceForQty(c.basePrice, c.tiers, c.qty)).toBe(c.expected);
+    });
+  }
+});
