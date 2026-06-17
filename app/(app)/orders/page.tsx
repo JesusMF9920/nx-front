@@ -6,6 +6,7 @@ import { Suspense, useState } from "react";
 import { I } from "@/components/icons";
 import { PageHeader } from "@/components/page-header";
 import { PaymentPill } from "@/components/payment-pill";
+import { SkeletonTable } from "@/components/skeleton";
 import { StatusPill } from "@/components/status-pill";
 import { usePermission } from "@/lib/auth/auth-context";
 import { ordersApi, type ListOrdersParams } from "@/lib/api/orders";
@@ -350,7 +351,9 @@ function OrdersPageInner() {
           <tbody>
             {loading ? (
               <tr>
-                <td colSpan={7} className="text-muted">Cargando pedidos…</td>
+                <td colSpan={7} style={{ padding: 0 }}>
+                  <SkeletonTable rows={6} cols={7} />
+                </td>
               </tr>
             ) : orders.length === 0 ? (
               <tr>

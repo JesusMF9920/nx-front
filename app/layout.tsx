@@ -4,6 +4,7 @@ import "./globals.css";
 
 import { AuthProvider } from "@/lib/auth/auth-context";
 import { ThemeProvider } from "@/lib/theme/theme-context";
+import { ToastProvider } from "@/lib/toast/toast-context";
 import { themeInitScript } from "@/lib/theme/init-script";
 
 const interTight = Inter_Tight({
@@ -50,7 +51,9 @@ export default function RootLayout({
       </head>
       <body>
         <ThemeProvider>
-          <AuthProvider>{children}</AuthProvider>
+          <ToastProvider>
+            <AuthProvider>{children}</AuthProvider>
+          </ToastProvider>
         </ThemeProvider>
       </body>
     </html>

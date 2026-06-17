@@ -7,6 +7,7 @@ import { ApprovalNewModal } from "@/components/approval-new-modal";
 import { ApprovalPill } from "@/components/approval-pill";
 import { I } from "@/components/icons";
 import { PageHeader } from "@/components/page-header";
+import { SkeletonTable } from "@/components/skeleton";
 import { designApi } from "@/lib/api/design";
 import { APPROVAL_CHANNEL_ES } from "@/lib/api/design-mappers";
 import type {
@@ -123,7 +124,9 @@ export default function ApprovalsPage() {
 
           <div style={{ borderTop: "1px solid var(--line)" }}>
             {loading && (
-              <div className="empty m-4 p-6">Cargando fichas…</div>
+              <div className="p-4">
+                <SkeletonTable rows={6} cols={3} />
+              </div>
             )}
             {!loading && error && (
               <div

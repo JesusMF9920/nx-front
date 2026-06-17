@@ -7,6 +7,7 @@ import { ApiError } from "@/lib/api/errors";
 import { inventoryApi, type MaterialVariantInput } from "@/lib/api/inventory";
 import { suppliersApi } from "@/lib/api/suppliers";
 import type { ApiSupplier } from "@/lib/api/types";
+import { useToast } from "@/lib/toast/toast-context";
 
 type VariantRow = { code: string; label: string };
 
@@ -20,6 +21,7 @@ export function InventoryNewMaterialModal({
   onClose: () => void;
   onDone: (createdId?: string) => void | Promise<void>;
 }) {
+  const toast = useToast();
   const [sku, setSku] = useState("");
   const [name, setName] = useState("");
   const [category, setCategory] = useState("");
@@ -123,6 +125,7 @@ export function InventoryNewMaterialModal({
       if (cleanVariants.length > 0) {
         await inventoryApi.setVariants(id, cleanVariants);
       }
+      toast.success("Material dado de alta");
       await onDone(id);
     } catch (err) {
       if (id) {

@@ -2,11 +2,13 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { I } from "@/components/icons";
+import { SkeletonTable } from "@/components/skeleton";
 import { ApiError } from "@/lib/api/errors";
 import { purchasesApi } from "@/lib/api/purchases";
 import { suppliersApi } from "@/lib/api/suppliers";
 import type { ApiMaterialDemand, ApiSupplier } from "@/lib/api/types";
 import { fmtMXN } from "@/lib/format";
+import { useToast } from "@/lib/toast/toast-context";
 
 type Group = { supplier: ApiSupplier; demands: ApiMaterialDemand[] };
 
@@ -23,6 +25,7 @@ export function PurchaseDemandPanel({
   /** Navega a la OC creada cuando se generó exactamente una. */
   onCreated: (folio: string) => void;
 }) {
+  const toast = useToast();
   const [demands, setDemands] = useState<ApiMaterialDemand[]>([]);
   const [suppliers, setSuppliers] = useState<ApiSupplier[]>([]);
   const [loading, setLoading] = useState(true);
@@ -124,6 +127,7 @@ export function PurchaseDemandPanel({
       }
     }
     if (created === 1 && failed === 0) {
+      toast.success("Orden de compra creada");
       onCreated(lastFolio);
       return;
     }
@@ -182,7 +186,7 @@ export function PurchaseDemandPanel({
       </div>
 
       {loading ? (
-        <div className="text-muted text-sm">Cargando demanda…</div>
+        <SkeletonTable rows={6} cols={4} />
       ) : groups.length === 0 ? (
         <div className="text-muted text-sm">
           No hay insumos pendientes por comprar.

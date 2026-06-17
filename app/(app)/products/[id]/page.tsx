@@ -6,6 +6,7 @@ import { useCallback, useEffect, useState } from "react";
 import { I } from "@/components/icons";
 import { PageHeader } from "@/components/page-header";
 import { ProductDetail } from "@/components/product-detail";
+import { SkeletonText } from "@/components/skeleton";
 import { catalogApi } from "@/lib/api/catalog";
 import { ApiError } from "@/lib/api/errors";
 import type { ApiProductDetail } from "@/lib/api/types";
@@ -65,8 +66,8 @@ export default function ProductDetailPage() {
       <>
         <PageHeader title="Producto" sub={breadcrumb} actions={backLink} />
         <div className="card">
-          <div className="card__body text-muted text-sm">
-            Cargando producto…
+          <div className="card__body">
+            <SkeletonText lines={6} />
           </div>
         </div>
       </>

@@ -7,6 +7,7 @@ import { SummaryRow } from "@/components/summary-row";
 import { usePermission } from "@/lib/auth/auth-context";
 import { ApiError } from "@/lib/api/errors";
 import { ordersApi, type CheckoutLineInput } from "@/lib/api/orders";
+import { useToast } from "@/lib/toast/toast-context";
 import type { ApiOrderDetail, ApiOrderItem } from "@/lib/api/types";
 import { fmtMXN } from "@/lib/format";
 import { cartTotals, lineSubtotal } from "@/lib/pos-cart";
@@ -94,6 +95,7 @@ function toInput(line: CartLine): CheckoutLineInput {
 }
 
 export function OrderEditLinesModal({ order, onClose, onDone }: Props) {
+  const toast = useToast();
   const canDiscount = usePermission("sales.discount.apply");
   const [lines, setLines] = useState<CartLine[]>(() =>
     order.items.map(lineFromItem),
@@ -141,6 +143,7 @@ export function OrderEditLinesModal({ order, onClose, onDone }: Props) {
         lines: lines.map(toInput),
         discount,
       });
+      toast.success("Líneas del pedido actualizadas");
       await onDone();
       onClose();
     } catch (err) {

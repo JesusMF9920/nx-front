@@ -6,6 +6,7 @@ import { ApiError } from "@/lib/api/errors";
 import { inventoryApi } from "@/lib/api/inventory";
 import type { ApiMaterial } from "@/lib/api/types";
 import { fmtInt } from "@/lib/format";
+import { useToast } from "@/lib/toast/toast-context";
 
 /** Delta con signo y hasta 3 decimales (el backend rechaza más). */
 const DELTA_RE = /^-?\d+(\.\d{1,3})?$/;
@@ -19,6 +20,7 @@ export function InventoryStockAdjustModal({
   onClose: () => void;
   onDone: () => void | Promise<void>;
 }) {
+  const toast = useToast();
   const hasVariants = material.variants.length > 0;
   const [variantId, setVariantId] = useState("");
   const [delta, setDelta] = useState("");
@@ -64,6 +66,7 @@ export function InventoryStockAdjustModal({
         ref: ref.trim() || null,
         note: note.trim() || null,
       });
+      toast.success("Existencias ajustadas");
       await onDone();
     } catch (err) {
       setError(

@@ -27,6 +27,7 @@ import type {
   ApiQuotePreview,
 } from "@/lib/api/types";
 import { fmtMXN } from "@/lib/format";
+import { useToast } from "@/lib/toast/toast-context";
 import { effectiveQty, lineSubtotal } from "@/lib/pos-cart";
 import { getPriceForQty, hasPriceTiers } from "@/lib/pricing";
 import type { CartLine, ProductSource, SizeBreakdownEntry } from "@/lib/types";
@@ -88,6 +89,7 @@ function linesFromQuote(quote: ApiQuoteDetail): BuilderLine[] {
 }
 
 export function QuoteNewModal({ onClose, onSaved, editQuote }: Props) {
+  const toast = useToast();
   const isEdit = !!editQuote;
   const [client, setClient] = useState<{ id: string; name: string } | null>(
     editQuote ? { id: editQuote.clientId, name: editQuote.clientName } : null,
@@ -465,9 +467,11 @@ export function QuoteNewModal({ onClose, onSaved, editQuote }: Props) {
     try {
       if (isEdit && editQuote) {
         await quotesApi.update(editQuote.id, payload);
+        toast.success("Cotización actualizada");
         onSaved({ quoteId: editQuote.id, folio: editQuote.folio });
       } else {
         const res = await quotesApi.create(payload);
+        toast.success("Cotización creada");
         onSaved(res);
       }
     } catch (err) {

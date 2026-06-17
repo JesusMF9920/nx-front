@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { I } from "@/components/icons";
 import { PageHeader } from "@/components/page-header";
+import { SkeletonTable } from "@/components/skeleton";
 import { StatusPill } from "@/components/status-pill";
 import { usePermission } from "@/lib/auth/auth-context";
 import { ApiError } from "@/lib/api/errors";
@@ -20,6 +21,7 @@ import type {
   ApiProductionStation,
 } from "@/lib/api/types";
 import { fmtDate, fmtInt } from "@/lib/format";
+import { useToast } from "@/lib/toast/toast-context";
 
 /** Etapas del taller en orden de avance (los entregados no entran a la cola). */
 const PIPELINE: ApiOrderStatus[] = [
@@ -35,6 +37,7 @@ type StationFilter = ApiProductionStation | "all" | "unassigned";
 const PAGE_SIZE = 50;
 
 export default function ProductionPage() {
+  const toast = useToast();
   const canAdvance = usePermission("sales.production.advance");
   const canAssign = usePermission("sales.production.assign");
   const [items, setItems] = useState<ApiProductionItem[]>([]);
@@ -87,6 +90,7 @@ export default function ProductionPage() {
     setActionError(null);
     try {
       await ordersApi.transitionItemStatus(item.orderId, item.itemId, status);
+      toast.success(`Job avanzado a "${ORDER_STATUS_ES[status]}"`);
       await load();
     } catch (err) {
       // El backend rechaza retrocesos con un error crudo en inglés
@@ -112,6 +116,11 @@ export default function ProductionPage() {
     setActionError(null);
     try {
       await productionApi.assignStation(item.orderId, item.itemId, station);
+      toast.success(
+        station
+          ? `Estación asignada: ${PRODUCTION_STATION_ES[station]}`
+          : "Estación retirada del job",
+      );
       await load();
     } catch (err) {
       setActionError(
@@ -201,7 +210,9 @@ export default function ProductionPage() {
 
       {loading ? (
         <div className="card">
-          <div className="card__body text-muted">Cargando cola…</div>
+          <div className="card__body">
+            <SkeletonTable rows={6} cols={7} />
+          </div>
         </div>
       ) : items.length === 0 ? (
         <div className="card">

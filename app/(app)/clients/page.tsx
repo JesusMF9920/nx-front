@@ -9,6 +9,7 @@ import { I } from "@/components/icons";
 import { MenuButton, type MenuItem } from "@/components/menu-button";
 import { Modal } from "@/components/modal";
 import { PageHeader } from "@/components/page-header";
+import { SkeletonTable, SkeletonText } from "@/components/skeleton";
 import { auditApi, type ApiAuditEntry } from "@/lib/api/audit";
 import {
   clientsApi,
@@ -29,6 +30,7 @@ import type {
 import { usePermission } from "@/lib/auth/auth-context";
 import { usersApi } from "@/lib/api/users";
 import { fmtDate, fmtMXN } from "@/lib/format";
+import { useToast } from "@/lib/toast/toast-context";
 
 type FilterKey = "Todos" | "Frecuentes" | "Con crédito" | "Inactivos";
 type TypeFilter = "all" | ApiClientType;
@@ -142,6 +144,7 @@ export default function ClientsPage() {
 }
 
 function ClientsPageInner() {
+  const toast = useToast();
   const searchParams = useSearchParams();
   const preselectId = searchParams.get("cliente");
   const canWrite = usePermission("clients.write");
@@ -367,6 +370,7 @@ function ClientsPageInner() {
             setActionError(null);
             try {
               await clientsApi.activate(c.id);
+              toast.success("Cliente activado");
               await reload(page);
             } catch (err) {
               setActionError(
@@ -528,7 +532,9 @@ function ClientsPageInner() {
           </div>
 
           {loading ? (
-            <div className="card__body text-muted text-sm">Cargando…</div>
+            <div className="card__body">
+              <SkeletonTable rows={6} cols={5} />
+            </div>
           ) : clients.length === 0 ? (
             <div className="card__body text-muted text-sm">
               {debounced || filter !== "Todos"
@@ -666,6 +672,7 @@ function ClientsPageInner() {
               setActionError(null);
               try {
                 await clientsApi.activate(selected.id);
+                toast.success("Cliente activado");
                 await reload(page);
                 await refreshSelected();
               } catch (err) {
@@ -730,6 +737,7 @@ function ClientsPageInner() {
           onConfirm={async () => {
             try {
               await clientsApi.deactivate(deactivateTarget.id);
+              toast.success("Cliente desactivado");
               setDeactivateTarget(null);
               await reload(page);
             } catch (err) {
@@ -777,6 +785,7 @@ function ClientsPageInner() {
                 removeAddressTarget.client.id,
                 removeAddressTarget.address.id,
               );
+              toast.success("Dirección eliminada");
               setRemoveAddressTarget(null);
               await refreshSelected();
             } catch (err) {
@@ -915,7 +924,10 @@ function ClientDetailPanel({
             <DetailKV
               icon={I.receipt}
               label="Régimen fiscal"
-              v={client.taxRegimen}
+              v={
+                REGIMEN_FISCAL.find((r) => r.code === client.taxRegimen)
+                  ?.label ?? client.taxRegimen
+              }
             />
           )}
           {client.postalCode && (
@@ -1114,7 +1126,9 @@ function ClientDetailPanel({
         )}
       </div>
       {ordersLoading ? (
-        <div className="card__body text-muted text-sm py-2">Cargando…</div>
+        <div className="card__body py-2">
+          <SkeletonText lines={4} />
+        </div>
       ) : ordersError ? (
         <div className="card__body py-2">
           <div
@@ -1214,6 +1228,7 @@ function ClientFormModal({
   onClose: () => void;
   onDone: (createdId?: string) => void | Promise<void>;
 }) {
+  const toast = useToast();
   const [type, setType] = useState<ApiClientType>(client?.type ?? "business");
   const [name, setName] = useState(client?.name ?? "");
   const [rfc, setRfc] = useState(client?.rfc ?? "");
@@ -1290,9 +1305,11 @@ function ClientFormModal({
     try {
       if (mode === "create") {
         const { id } = await clientsApi.create(payload);
+        toast.success("Cliente creado");
         await onDone(id);
       } else if (client) {
         await clientsApi.update(client.id, payload);
+        toast.success("Cliente guardado");
         await onDone();
       }
     } catch (err) {
@@ -1611,6 +1628,7 @@ function AddressFormModal({
   onClose: () => void;
   onDone: () => void | Promise<void>;
 }) {
+  const toast = useToast();
   const mode = address ? "edit" : "create";
   const [type, setType] = useState<ApiClientAddressType>(
     address?.type ?? "billing",
@@ -1647,8 +1665,10 @@ function AddressFormModal({
     try {
       if (mode === "create") {
         await clientsApi.addAddress(clientId, payload);
+        toast.success("Dirección agregada");
       } else if (address) {
         await clientsApi.updateAddress(clientId, address.id, payload);
+        toast.success("Dirección actualizada");
       }
       await onDone();
     } catch (err) {
