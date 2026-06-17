@@ -915,7 +915,10 @@ function ClientDetailPanel({
             <DetailKV
               icon={I.receipt}
               label="Régimen fiscal"
-              v={client.taxRegimen}
+              v={
+                REGIMEN_FISCAL.find((r) => r.code === client.taxRegimen)
+                  ?.label ?? client.taxRegimen
+              }
             />
           )}
           {client.postalCode && (
