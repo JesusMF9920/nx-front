@@ -17,5 +17,27 @@ export default defineConfig({
       "app/**/*.test.tsx",
     ],
     environment: "node",
+    coverage: {
+      provider: "v8",
+      reporter: ["text", "json", "html"],
+      reportsDirectory: "./coverage",
+      // Fase 1: medimos lib/ (app/ y components/ aún no tienen tests de
+      // página/componentes). Se amplía conforme crezca la cobertura.
+      include: ["lib/**/*.{ts,tsx}"],
+      exclude: [
+        "**/*.d.ts",
+        "**/*.test.{ts,tsx}",
+        "**/node_modules/**",
+        "**/*.config.*",
+      ],
+      // Umbrales baseline (basados en lib/ actual); subir conforme se
+      // agreguen tests de api/, auth/, hooks/, theme/, etc.
+      thresholds: {
+        statements: 34,
+        branches: 32,
+        functions: 28,
+        lines: 34,
+      },
+    },
   },
 });
