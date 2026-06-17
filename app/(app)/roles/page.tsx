@@ -50,6 +50,7 @@ function actionLabel(action: string): string {
 export default function RolesPage() {
   const toast = useToast();
   const canWrite = usePermission("iam.roles.write");
+  const canAssign = usePermission("iam.roles.assign");
   const [roles, setRoles] = useState<ApiRole[]>([]);
   const [permissions, setPermissions] = useState<ApiPermission[]>([]);
   const [allUsers, setAllUsers] = useState<ApiUser[]>([]);
@@ -255,20 +256,28 @@ export default function RolesPage() {
     }
   };
 
-  const buildRoleMenu = (r: ApiRole): MenuItem[] => [
-    { label: "Editar", icon: I.edit, onClick: () => setEditTarget(r) },
-    {
-      label: "Asignar usuario",
-      icon: I.plus,
-      onClick: () => setAssignTarget(r),
-    },
-    {
-      label: "Eliminar",
-      icon: I.x,
-      kind: "danger",
-      onClick: () => setDeleteTarget(r),
-    },
-  ];
+  const buildRoleMenu = (r: ApiRole): MenuItem[] => {
+    const items: MenuItem[] = [];
+    if (canWrite) {
+      items.push({ label: "Editar", icon: I.edit, onClick: () => setEditTarget(r) });
+    }
+    if (canAssign) {
+      items.push({
+        label: "Asignar usuario",
+        icon: I.plus,
+        onClick: () => setAssignTarget(r),
+      });
+    }
+    if (canWrite) {
+      items.push({
+        label: "Eliminar",
+        icon: I.x,
+        kind: "danger",
+        onClick: () => setDeleteTarget(r),
+      });
+    }
+    return items;
+  };
 
   const renderAuditLine = (entry: ApiAuditEntry) => {
     const actor = entry.actorId ? actorById.get(entry.actorId) : null;
@@ -386,7 +395,7 @@ export default function RolesPage() {
                         {count === 1 ? "usuario" : "usuarios"}
                       </div>
                     </div>
-                    {canWrite && (
+                    {(canWrite || canAssign) && (
                       <MenuButton trigger={I.more} items={buildRoleMenu(r)} />
                     )}
                   </div>
@@ -517,7 +526,7 @@ export default function RolesPage() {
                   </span>
                 </div>
                 <div className="spacer" />
-                {canWrite && (
+                {canAssign && (
                   <button
                     className="btn btn--sm btn--accent"
                     onClick={() => setAssignTarget(selected)}
@@ -550,7 +559,7 @@ export default function RolesPage() {
                       {!u.isActive && (
                         <span className="pill pill--neutral">Inactivo</span>
                       )}
-                      {canWrite && (
+                      {canAssign && (
                         <button
                           className="btn btn--sm btn--ghost"
                           onClick={() => revokeUser(selected, u)}
