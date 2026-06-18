@@ -44,6 +44,13 @@ export type EmitGlobalInvoiceResult = EmitInvoiceResult & {
   total: number;
 };
 
+export type SendInvoiceResult = {
+  invoiceId: string;
+  uuid: string;
+  /** Correo al que se envió finalmente la factura. */
+  sentTo: string;
+};
+
 export type CancelInvoiceResult = {
   invoiceId: string;
   status: string;
@@ -99,6 +106,18 @@ export const invoicingApi = {
     return apiFetch<EmitPaymentComplementResult>("/invoices/payment-complement", {
       method: "POST",
       body: JSON.stringify({ orderId }),
+    });
+  },
+
+  /**
+   * Reenvía la factura por correo al cliente (XML+PDF). `to` opcional pisa el
+   * correo del cliente — necesario para la global o si el cliente no tiene uno
+   * (en ese caso el API responde 422 y la UI pide capturarlo).
+   */
+  send(id: string, to?: string): Promise<SendInvoiceResult> {
+    return apiFetch<SendInvoiceResult>(`/invoices/${id}/send`, {
+      method: "POST",
+      body: to ? JSON.stringify({ to }) : undefined,
     });
   },
 
