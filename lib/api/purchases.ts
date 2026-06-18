@@ -44,6 +44,29 @@ type StatusResult = { purchaseOrderId: string; status: ApiPurchaseStatus };
 /** Resultado de enviar la OC al proveedor: incluye el correo destino. */
 export type SendPurchaseResult = StatusResult & { sentTo: string };
 
+/** Renglón de una recepción parcial: qué línea de catálogo y cuánto llegó. */
+export type ReceivePartialLine = { purchaseOrderItemId: string; qty: number };
+
+export type ReceivePartialInput = {
+  /** UUID de idempotencia (uno por intento): reintentos no duplican stock. */
+  idempotencyKey: string;
+  note?: string;
+  lines: ReceivePartialLine[];
+};
+
+/** Resultado de POST /purchases/:id/receive-partial. */
+export type ApiGoodsReceipt = {
+  id: string;
+  purchaseOrderId: string;
+  seq: number;
+  ref: string;
+  note: string | null;
+  status: ApiPurchaseStatus;
+  isFull: boolean;
+  createdAt: string;
+  lines: { purchaseOrderItemId: string; receivedQty: number; unitCost: number }[];
+};
+
 export const purchasesApi = {
   list(params: ListPurchasesParams = {}): Promise<ApiList<ApiPurchaseOrder>> {
     const search = new URLSearchParams();
@@ -97,6 +120,14 @@ export const purchasesApi = {
     id: string,
   ): Promise<{ purchaseOrderId: string; status: ApiPurchaseStatus; received: boolean }> {
     return apiFetch(`/purchases/${id}/receive`, { method: "POST" });
+  },
+
+  /** Recepción parcial: registra una recepción de mercancía con cantidades. */
+  receivePartial(id: string, input: ReceivePartialInput): Promise<ApiGoodsReceipt> {
+    return apiFetch<ApiGoodsReceipt>(`/purchases/${id}/receive-partial`, {
+      method: "POST",
+      body: JSON.stringify(input),
+    });
   },
 
   cancel(id: string, reason?: string): Promise<StatusResult> {

@@ -4,6 +4,7 @@ import type { ApiPurchaseStatus } from "./types";
 export const PURCHASE_STATUS_ES: Record<ApiPurchaseStatus, string> = {
   draft: "Borrador",
   sent: "Enviada",
+  partially_received: "Recibida parcial",
   received: "Recibida",
   cancelled: "Cancelada",
 };
@@ -17,6 +18,7 @@ export const PURCHASE_AUDIT_ACTION_ES: Record<string, string> = {
   "inventory.purchase_order.created": "Orden de compra creada",
   "inventory.purchase_order.sent": "Enviada al proveedor",
   "inventory.purchase_order.received": "Mercancía recibida",
+  "inventory.goods_receipt.recorded": "Recepción registrada",
   "inventory.purchase_order.cancelled": "Orden cancelada",
   "inventory.stock.moved": "Entrada de stock",
 };

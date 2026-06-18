@@ -590,7 +590,12 @@ export type ApiConvertResult = {
 
 // ── Compras / Órdenes de compra (Fase D) ──────────────────────────────────
 
-export type ApiPurchaseStatus = "draft" | "sent" | "received" | "cancelled";
+export type ApiPurchaseStatus =
+  | "draft"
+  | "sent"
+  | "partially_received"
+  | "received"
+  | "cancelled";
 
 export type ApiPurchaseLineKind = "catalog" | "free";
 
@@ -609,6 +614,10 @@ export type ApiPurchaseLine = {
   qty: number;
   unitCost: number;
   lineTotal: number;
+  /** Cantidad ya recibida en parcialidades (0 en líneas libres). */
+  receivedQty: number;
+  /** Saldo pendiente de recibir (qty − receivedQty; 0 en líneas libres). */
+  remainingQty: number;
 };
 
 /** Forma del GET /purchases (lista). */
