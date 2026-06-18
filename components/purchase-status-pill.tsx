@@ -4,6 +4,7 @@ import type { ApiPurchaseStatus } from "@/lib/api/types";
 const CLS: Record<ApiPurchaseStatus, string> = {
   draft: "pill--neutral",
   sent: "pill--info",
+  partially_received: "pill--warn",
   received: "pill--ok",
   cancelled: "pill--danger",
 };

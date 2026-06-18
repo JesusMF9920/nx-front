@@ -27,6 +27,7 @@ type Tab =
   | "Todas"
   | "Borradores"
   | "Enviadas"
+  | "Parciales"
   | "Recibidas"
   | "Canceladas";
 
@@ -35,6 +36,7 @@ const TABS: Tab[] = [
   "Todas",
   "Borradores",
   "Enviadas",
+  "Parciales",
   "Recibidas",
   "Canceladas",
 ];
@@ -44,6 +46,7 @@ const TAB_TO_STATUS: Record<Tab, ApiPurchaseStatus | null> = {
   Todas: null,
   Borradores: "draft",
   Enviadas: "sent",
+  Parciales: "partially_received",
   Recibidas: "received",
   Canceladas: "cancelled",
 };

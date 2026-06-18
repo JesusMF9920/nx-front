@@ -15,6 +15,7 @@ import { I } from "@/components/icons";
 import { Modal } from "@/components/modal";
 import { PageHeader } from "@/components/page-header";
 import { PurchaseNewModal } from "@/components/purchase-new-modal";
+import { PurchasePartialReceiveModal } from "@/components/purchase-partial-receive-modal";
 import { PurchaseStatusPill } from "@/components/purchase-status-pill";
 import { SkeletonText } from "@/components/skeleton";
 import { SummaryRow } from "@/components/summary-row";
@@ -31,6 +32,7 @@ import { useToast } from "@/lib/toast/toast-context";
 const ACTION_ICON: Record<string, ReactNode> = {
   "inventory.purchase_order.created": I.receipt,
   "inventory.purchase_order.sent": I.truck,
+  "inventory.goods_receipt.recorded": I.box,
   "inventory.purchase_order.received": I.download,
   "inventory.purchase_order.cancelled": I.x,
   "inventory.stock.moved": I.layers,
@@ -57,6 +59,13 @@ function timelineSub(entry: ApiAuditEntry): string | null {
       return typeof md.stockedLines === "number"
         ? `${md.stockedLines} insumo${md.stockedLines === 1 ? "" : "s"} al stock`
         : null;
+    case "inventory.goods_receipt.recorded": {
+      const parts: string[] = [];
+      if (typeof md.lineCount === "number")
+        parts.push(`${md.lineCount} línea${md.lineCount === 1 ? "" : "s"}`);
+      parts.push(md.isFull === true ? "completa" : "parcial");
+      return parts.join(" · ");
+    }
     case "inventory.purchase_order.cancelled":
       return typeof md.reason === "string" && md.reason ? md.reason : null;
     default:
@@ -190,16 +199,6 @@ export default function PurchaseDetailPage() {
     })();
   };
 
-  const receive = () => {
-    if (!detail) return;
-    setShowReceive(false);
-    void runAction(
-      () => purchasesApi.receive(detail.id),
-      "No se pudo recibir la mercancía.",
-      "Mercancía recibida",
-    );
-  };
-
   const cancel = () => {
     if (!detail) return;
     const reason = cancelReason.trim();
@@ -284,6 +283,9 @@ export default function PurchaseDetailPage() {
 
   const isDraft = detail.status === "draft";
   const isSent = detail.status === "sent";
+  const isPartial = detail.status === "partially_received";
+  // ¿Mostrar el progreso de recepción por línea? (sólo con recepciones en curso)
+  const showReceived = isPartial || detail.status === "received";
 
   return (
     <>
@@ -325,14 +327,14 @@ export default function PurchaseDetailPage() {
                 {I.truck} Enviar al proveedor
               </button>
             )}
-            {canReceive && isSent && (
+            {canReceive && (isSent || isPartial) && (
               <button
                 className="btn btn--accent"
                 type="button"
                 disabled={busy}
                 onClick={() => setShowReceive(true)}
               >
-                {I.download} Recibir mercancía
+                {I.download} {isPartial ? "Recibir saldo" : "Recibir mercancía"}
               </button>
             )}
             {canManage && (isDraft || isSent) && (
@@ -390,6 +392,7 @@ export default function PurchaseDetailPage() {
                 <tr>
                   <th>Insumo</th>
                   <th className="text-right">Cant.</th>
+                  {showReceived && <th className="text-right">Recibido</th>}
                   <th className="text-right">Costo u.</th>
                   <th className="text-right">Importe</th>
                 </tr>
@@ -413,6 +416,19 @@ export default function PurchaseDetailPage() {
                       )}
                     </td>
                     <td className="num text-right">{it.qty}</td>
+                    {showReceived && (
+                      <td
+                        className="num text-right"
+                        style={{
+                          color:
+                            it.kind === "catalog" && it.remainingQty > 0
+                              ? "var(--warn)"
+                              : undefined,
+                        }}
+                      >
+                        {it.kind === "free" ? "—" : it.receivedQty}
+                      </td>
+                    )}
                     <td className="num text-right">{fmtMXN(it.unitCost)}</td>
                     <td className="num text-right">{fmtMXN(it.lineTotal)}</td>
                   </tr>
@@ -553,34 +569,14 @@ export default function PurchaseDetailPage() {
       )}
 
       {showReceive && (
-        <Modal
-          title="Recibir mercancía"
+        <PurchasePartialReceiveModal
+          order={detail}
           onClose={() => setShowReceive(false)}
-          width={420}
-          footer={
-            <>
-              <button
-                className="btn btn--ghost"
-                onClick={() => setShowReceive(false)}
-              >
-                Cancelar
-              </button>
-              <button
-                className="btn btn--accent"
-                onClick={receive}
-                disabled={busy}
-              >
-                {I.download} Confirmar recepción
-              </button>
-            </>
-          }
-        >
-          <div className="text-[13px]">
-            Se marcará la orden como recibida y se generarán las entradas de
-            stock de las líneas de catálogo. El costo de cada material se
-            actualizará al de esta compra.
-          </div>
-        </Modal>
+          onReceived={() => {
+            setShowReceive(false);
+            void load();
+          }}
+        />
       )}
 
       {showCancel && (
