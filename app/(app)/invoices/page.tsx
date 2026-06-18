@@ -11,6 +11,7 @@ import { CancelInvoiceModal } from "@/components/cancel-invoice-modal";
 import { InvoiceCoverageModal } from "@/components/invoice-coverage-modal";
 import { useFeature, usePermission } from "@/lib/auth/auth-context";
 import { invoicingApi } from "@/lib/api/invoicing";
+import { ApiError } from "@/lib/api/errors";
 import { downloadFile } from "@/lib/api/download";
 import type {
   ApiInvoice,
@@ -58,6 +59,7 @@ export default function InvoicesPage() {
   const canRead = usePermission("invoicing.read");
   const canCreate = usePermission("invoicing.create");
   const canCancel = usePermission("invoicing.cancel");
+  const canSend = usePermission("invoicing.send");
 
   const [tab, setTab] = useState<Tab>("Todas");
   const [query, setQuery] = useState("");
@@ -69,6 +71,10 @@ export default function InvoicesPage() {
   const [detailInvoice, setDetailInvoice] = useState<ApiInvoice | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [refreshingId, setRefreshingId] = useState<string | null>(null);
+  const [sendingId, setSendingId] = useState<string | null>(null);
+  // Captura de correo cuando el cliente no tiene uno (o es factura global).
+  const [emailPrompt, setEmailPrompt] = useState<ApiInvoice | null>(null);
+  const [emailInput, setEmailInput] = useState("");
 
   const {
     items: invoices,
@@ -139,6 +145,29 @@ export default function InvoicesPage() {
       );
     } finally {
       setRefreshingId(null);
+    }
+  };
+
+  // Envía/reenvía la factura por correo. Si el API responde 422 (cliente sin
+  // correo, o factura global sin destinatario) abre la captura de correo.
+  const sendInvoice = async (inv: ApiInvoice, to?: string) => {
+    setSendingId(inv.id);
+    try {
+      const res = await invoicingApi.send(inv.id, to);
+      setEmailPrompt(null);
+      setEmailInput("");
+      setNotice(`Factura enviada a ${res.sentTo}.`);
+      void reload();
+    } catch (e) {
+      if (e instanceof ApiError && e.status === 422) {
+        setEmailPrompt(inv);
+      } else {
+        setNotice(
+          e instanceof Error ? e.message : "No se pudo enviar la factura.",
+        );
+      }
+    } finally {
+      setSendingId(null);
     }
   };
 
@@ -446,6 +475,22 @@ export default function InvoicesPage() {
                             >
                               XML
                             </button>
+                            {canSend && (
+                              <button
+                                className="btn btn--sm btn--ghost"
+                                type="button"
+                                disabled={sendingId === inv.id}
+                                onClick={() => void sendInvoice(inv)}
+                                title="Enviar la factura por correo al cliente"
+                              >
+                                {I.send}{" "}
+                                {sendingId === inv.id
+                                  ? "Enviando…"
+                                  : inv.status === "sent"
+                                    ? "Reenviar"
+                                    : "Enviar"}
+                              </button>
+                            )}
                             {canCancel && (
                               <button
                                 className="btn btn--sm btn--ghost"
@@ -567,12 +612,30 @@ export default function InvoicesPage() {
           onClose={() => setDetailInvoice(null)}
           width={460}
           footer={
-            <button
-              className="btn btn--accent"
-              onClick={() => setDetailInvoice(null)}
-            >
-              Cerrar
-            </button>
+            <>
+              {canSend &&
+                (detailInvoice.status === "stamped" ||
+                  detailInvoice.status === "sent") && (
+                  <button
+                    className="btn"
+                    type="button"
+                    disabled={sendingId === detailInvoice.id}
+                    onClick={() => void sendInvoice(detailInvoice)}
+                  >
+                    {sendingId === detailInvoice.id
+                      ? "Enviando…"
+                      : detailInvoice.status === "sent"
+                        ? "Reenviar por correo"
+                        : "Enviar por correo"}
+                  </button>
+                )}
+              <button
+                className="btn btn--accent"
+                onClick={() => setDetailInvoice(null)}
+              >
+                Cerrar
+              </button>
+            </>
           }
         >
           <div className="grid gap-2 text-sm">
@@ -634,6 +697,60 @@ export default function InvoicesPage() {
                 value={detailInvoice.cancelReason}
               />
             )}
+          </div>
+        </Modal>
+      )}
+
+      {emailPrompt && (
+        <Modal
+          title="Enviar factura por correo"
+          onClose={() => {
+            setEmailPrompt(null);
+            setEmailInput("");
+          }}
+          width={420}
+          footer={
+            <>
+              <button
+                className="btn"
+                type="button"
+                onClick={() => {
+                  setEmailPrompt(null);
+                  setEmailInput("");
+                }}
+              >
+                Cancelar
+              </button>
+              <button
+                className="btn btn--accent"
+                type="button"
+                disabled={
+                  !emailInput.includes("@") || sendingId === emailPrompt.id
+                }
+                onClick={() => void sendInvoice(emailPrompt, emailInput.trim())}
+              >
+                {sendingId === emailPrompt.id ? "Enviando…" : "Enviar"}
+              </button>
+            </>
+          }
+        >
+          <div className="grid gap-2 text-sm">
+            <p className="text-muted">
+              {emailPrompt.type === "global"
+                ? "La factura global no tiene cliente. Escribe el correo al que se enviará."
+                : "El cliente no tiene un correo registrado. Escribe uno para enviar la factura."}
+            </p>
+            <label className="field">
+              Correo
+              <input
+                type="email"
+                className="input"
+                placeholder="cliente@dominio.com"
+                value={emailInput}
+                onChange={(e) => setEmailInput(e.target.value)}
+                autoFocus
+              />
+            </label>
           </div>
         </Modal>
       )}
