@@ -187,6 +187,7 @@ export function PosClientPicker({ onClose, onSelect }: Props) {
         usoCFDI: null,
         postalCode: null,
         notes: null,
+        creditTermsDays: null,
         tags: [],
         additionalPhones: [],
         additionalEmails: [],

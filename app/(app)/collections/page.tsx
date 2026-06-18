@@ -42,6 +42,15 @@ const BUCKET_COLOR: Record<ReceivableBucket, string> = {
 };
 
 function BucketBadge({ bucket, days }: { bucket: ReceivableBucket; days: number }) {
+  // days = días desde el vencimiento; negativo ⇒ aún no vence (crédito vigente).
+  if (days < 0) {
+    return (
+      <span style={{ color: "var(--muted)", fontWeight: 500, fontSize: 12 }}>
+        Por vencer
+        <span className="text-muted text-[11px]"> · en {fmtInt(-days)} d</span>
+      </span>
+    );
+  }
   return (
     <span style={{ color: BUCKET_COLOR[bucket], fontWeight: 500, fontSize: 12 }}>
       {BUCKET_ES[bucket]}
@@ -164,7 +173,7 @@ export default function CollectionsPage() {
     );
   }
 
-  const colCount = view === "client" ? 5 : 8;
+  const colCount = view === "client" ? 6 : 10;
 
   // `useApiList` conserva los items previos mientras refetchea al cambiar de
   // vista; como las dos vistas tienen FORMA distinta, filtramos por la forma
@@ -299,6 +308,7 @@ export default function CollectionsPage() {
                   <th style={{ textAlign: "right" }}>Pedidos</th>
                   <th>Antigüedad</th>
                   <th style={{ textAlign: "right" }}>Saldo</th>
+                  <th>Recordatorio</th>
                   <th style={{ textAlign: "right" }}>Acciones</th>
                 </tr>
               ) : (
@@ -306,10 +316,12 @@ export default function CollectionsPage() {
                   <th>Folio</th>
                   <th>Cliente</th>
                   <th>Venta</th>
+                  <th>Vence</th>
                   <th>Antigüedad</th>
                   <th style={{ textAlign: "right" }}>Total</th>
                   <th style={{ textAlign: "right" }}>Pagado</th>
                   <th style={{ textAlign: "right" }}>Saldo</th>
+                  <th>Recordatorio</th>
                   <th style={{ textAlign: "right" }}>Acciones</th>
                 </tr>
               )}
@@ -343,6 +355,9 @@ export default function CollectionsPage() {
                     </td>
                     <td className="num" style={{ textAlign: "right", fontWeight: 600 }}>
                       {fmtMXN(c.debt)}
+                    </td>
+                    <td className="num text-muted text-[12px]">
+                      {c.lastRemindedAt ? fmtDate(c.lastRemindedAt) : "—"}
                     </td>
                     <td style={{ textAlign: "right", whiteSpace: "nowrap" }}>
                       <button
@@ -381,6 +396,13 @@ export default function CollectionsPage() {
                     </td>
                     <td>{o.clientName}</td>
                     <td className="num">{fmtDate(o.createdAt)}</td>
+                    <td className="num">
+                      {o.dueDate === o.createdAt ? (
+                        <span className="text-muted">Contado</span>
+                      ) : (
+                        fmtDate(o.dueDate)
+                      )}
+                    </td>
                     <td>
                       <BucketBadge bucket={o.bucket} days={o.ageDays} />
                     </td>
@@ -392,6 +414,9 @@ export default function CollectionsPage() {
                     </td>
                     <td className="num" style={{ textAlign: "right", fontWeight: 600 }}>
                       {fmtMXN(o.balance)}
+                    </td>
+                    <td className="num text-muted text-[12px]">
+                      {o.lastRemindedAt ? fmtDate(o.lastRemindedAt) : "—"}
                     </td>
                     <td style={{ textAlign: "right", whiteSpace: "nowrap" }}>
                       {canPay && (
