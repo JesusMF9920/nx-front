@@ -41,6 +41,8 @@ export type ListPurchasesParams = {
 };
 
 type StatusResult = { purchaseOrderId: string; status: ApiPurchaseStatus };
+/** Resultado de enviar la OC al proveedor: incluye el correo destino. */
+export type SendPurchaseResult = StatusResult & { sentTo: string };
 
 export const purchasesApi = {
   list(params: ListPurchasesParams = {}): Promise<ApiList<ApiPurchaseOrder>> {
@@ -85,8 +87,10 @@ export const purchasesApi = {
     });
   },
 
-  send(id: string): Promise<StatusResult> {
-    return apiFetch<StatusResult>(`/purchases/${id}/send`, { method: "POST" });
+  send(id: string): Promise<SendPurchaseResult> {
+    return apiFetch<SendPurchaseResult>(`/purchases/${id}/send`, {
+      method: "POST",
+    });
   },
 
   receive(

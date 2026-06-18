@@ -166,11 +166,28 @@ export default function PurchaseDetailPage() {
   // (OC-…), así que se usa SIEMPRE detail.id (UUID), no el route param.
   const send = () => {
     if (!detail) return;
-    void runAction(
-      () => purchasesApi.send(detail.id),
-      "No se pudo enviar la orden.",
-      "Orden enviada al proveedor",
-    );
+    void (async () => {
+      setBusy(true);
+      setActionError(null);
+      try {
+        const res = await purchasesApi.send(detail.id);
+        toast.success(`Orden enviada a ${res.sentTo}`);
+        await load();
+      } catch (err) {
+        // 422 = el proveedor no tiene correo: dirige al usuario a su ficha.
+        if (err instanceof ApiError && err.status === 422) {
+          setActionError(
+            "El proveedor no tiene un correo registrado. Agrégalo en su ficha y vuelve a enviar la orden.",
+          );
+        } else {
+          setActionError(
+            err instanceof ApiError ? err.message : "No se pudo enviar la orden.",
+          );
+        }
+      } finally {
+        setBusy(false);
+      }
+    })();
   };
 
   const receive = () => {
