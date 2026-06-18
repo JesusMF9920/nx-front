@@ -10,13 +10,18 @@ export type ApiReceivableOrder = {
   clientId: string;
   clientName: string;
   createdAt: string;
+  /** Vencimiento del saldo (snapshot = venta + crédito). Contado ⇒ = createdAt. */
+  dueDate: string;
   total: number;
   /** Σ pagos. */
   paid: number;
   /** total − paid. */
   balance: number;
+  /** Días desde el vencimiento. Negativo = aún no vence. */
   ageDays: number;
   bucket: ReceivableBucket;
+  /** Último recordatorio que cubrió este pedido. null = nunca. */
+  lastRemindedAt: string | null;
 };
 
 export type ApiReceivableClient = {
@@ -26,6 +31,8 @@ export type ApiReceivableClient = {
   orderCount: number;
   oldestAgeDays: number;
   oldestBucket: ReceivableBucket;
+  /** Último recordatorio enviado al cliente. null = nunca. */
+  lastRemindedAt: string | null;
 };
 
 export type CollectionsSummary = {

@@ -13,6 +13,8 @@ export type CreateClientInput = {
   usoCFDI?: string | null;
   postalCode?: string | null;
   notes?: string | null;
+  /** Días de crédito (términos de pago). null/0 = contado. */
+  creditTermsDays?: number | null;
   tags?: string[];
   additionalPhones?: string[];
   additionalEmails?: string[];

@@ -195,6 +195,8 @@ export type ApiClient = {
   /** CFDI — CP del domicilio fiscal del receptor (DomicilioFiscalReceptor). */
   postalCode: string | null;
   notes: string | null;
+  /** Días de crédito (términos de pago). null = contado. */
+  creditTermsDays: number | null;
   tags: string[];
   additionalPhones: string[];
   additionalEmails: string[];

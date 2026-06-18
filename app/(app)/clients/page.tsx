@@ -920,6 +920,15 @@ function ClientDetailPanel({
           <DetailKV icon={I.mail} label="Correo" v={client.email ?? "—"} />
           <DetailKV icon={I.tag} label="RFC" v={client.rfc ?? "—"} />
           <DetailKV icon={I.user} label="Contacto" v={client.contact ?? "—"} />
+          <DetailKV
+            icon={I.clock}
+            label="Días de crédito"
+            v={
+              client.creditTermsDays && client.creditTermsDays > 0
+                ? `${client.creditTermsDays} días`
+                : "Contado"
+            }
+          />
           {client.taxRegimen && (
             <DetailKV
               icon={I.receipt}
@@ -1239,6 +1248,9 @@ function ClientFormModal({
   const [fiscalName, setFiscalName] = useState(client?.fiscalName ?? "");
   const [usoCFDI, setUsoCFDI] = useState(client?.usoCFDI ?? "");
   const [postalCode, setPostalCode] = useState(client?.postalCode ?? "");
+  const [creditTermsDays, setCreditTermsDays] = useState(
+    client?.creditTermsDays != null ? String(client.creditTermsDays) : "",
+  );
   const [notes, setNotes] = useState(client?.notes ?? "");
   const [tags, setTags] = useState<Set<string>>(
     () => new Set(client?.tags ?? []),
@@ -1285,6 +1297,10 @@ function ClientFormModal({
       setError("El nombre es obligatorio.");
       return;
     }
+    if (creditTermsDays.trim() !== "" && Number(creditTermsDays) > 365) {
+      setError("Los días de crédito no pueden superar 365.");
+      return;
+    }
     const payload = {
       name: trimmedName,
       type,
@@ -1296,6 +1312,8 @@ function ClientFormModal({
       fiscalName: fiscalName.trim() || null,
       usoCFDI: usoCFDI.trim() || null,
       postalCode: postalCode.trim() || null,
+      creditTermsDays:
+        creditTermsDays.trim() === "" ? null : Number(creditTermsDays),
       notes: notes.trim() || null,
       tags: [...tags],
       additionalPhones,
@@ -1473,6 +1491,23 @@ function ClientFormModal({
             onChange={(e) => setFiscalName(e.target.value)}
             maxLength={160}
           />
+        </div>
+        <div className="field">
+          <span className="label">Días de crédito</span>
+          <input
+            className="input"
+            placeholder="0 = contado"
+            value={creditTermsDays}
+            onChange={(e) =>
+              setCreditTermsDays(e.target.value.replace(/\D/g, "").slice(0, 3))
+            }
+            inputMode="numeric"
+            maxLength={3}
+          />
+          <span className="text-muted text-[11px]">
+            Términos de pago: el vencimiento de cada venta se calcula como fecha
+            de venta + estos días. Vacío o 0 = contado.
+          </span>
         </div>
         <div className="field col-span-full">
           <span className="label">Notas internas</span>
