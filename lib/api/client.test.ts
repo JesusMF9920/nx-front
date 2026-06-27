@@ -128,6 +128,24 @@ describe("apiFetch — flujo 401/refresh", () => {
     expect(window.location.href).toContain("/login");
   });
 
+  it("401 → refresh falla en página pública (?token=) → NO rebota a /login", async () => {
+    // El destinatario de un link de invitación/reset/verificación llega sin
+    // sesión: el probe /me 401ea, el refresh falla, y un redirect descartaría el
+    // ?token=. redirectToLogin debe ser no-op en estas rutas → el token se salva.
+    window.location.href = "http://localhost:3000/set-password?token=abc";
+    route({
+      refresh: () => json({ message: "nope" }, 401),
+      other: () => json({ message: "expired" }, 401),
+    });
+
+    const err = await apiFetch("/me").catch((e: unknown) => e);
+
+    expect(err).toBeInstanceOf(ApiError);
+    expect((err as ApiError).status).toBe(401);
+    expect(window.location.pathname).toBe("/set-password");
+    expect(window.location.href).not.toContain("/login");
+  });
+
   it("retry que vuelve a dar 401 NO entra en loop (un solo refresh)", async () => {
     let refreshCalls = 0;
     route({

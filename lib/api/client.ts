@@ -42,8 +42,27 @@ function ensureRefresh(): Promise<boolean> {
   return refreshInFlight;
 }
 
+// Páginas públicas que viven bajo el AuthProvider global. El probe /me del boot
+// (y cualquier llamada auth:true) llega aquí sin sesión y, salvo en estas rutas,
+// rebota a /login. Pero esas rutas portan un ?token= en la URL (invitación,
+// reset, verificación, aprobación de diseño): un redirect lo descartaría y
+// rompería el flujo. Exentas → no-op; en el resto, 401 sin sesión sí va a /login.
+const PUBLIC_PATH_PREFIXES = [
+  "/login",
+  "/set-password",
+  "/password-reset",
+  "/verify-email",
+  "/approve",
+];
+
+function isPublicPath(pathname: string): boolean {
+  return PUBLIC_PATH_PREFIXES.some(
+    (pre) => pathname === pre || pathname.startsWith(`${pre}/`),
+  );
+}
+
 function redirectToLogin(): void {
-  if (typeof window !== "undefined" && window.location.pathname !== "/login") {
+  if (typeof window !== "undefined" && !isPublicPath(window.location.pathname)) {
     window.location.href = "/login";
   }
 }
