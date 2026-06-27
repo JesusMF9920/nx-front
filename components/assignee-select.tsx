@@ -1,9 +1,8 @@
-import type { ApiUser } from "@/lib/api/types";
-
 /**
  * Selector de responsable de una etapa (diseño/producción). Controlado:
  * value = id del usuario o null ("Sin asignar"). La lista de usuarios la pasa
  * el padre (se carga una sola vez) para no disparar un fetch por cada select.
+ * Acepta cualquier lista con `{id, name}` (ApiUser o ApiAssignableUser).
  */
 export function AssigneeSelect({
   label,
@@ -14,7 +13,7 @@ export function AssigneeSelect({
 }: {
   label: string;
   value: string | null;
-  users: ApiUser[];
+  users: { id: string; name: string }[];
   disabled?: boolean;
   onChange: (userId: string | null) => void;
 }) {

@@ -11,6 +11,7 @@ import { useAuth } from "@/lib/auth/auth-context";
 import { designApi } from "@/lib/api/design";
 import { productionApi } from "@/lib/api/production";
 import { inventoryApi } from "@/lib/api/inventory";
+import { ordersApi } from "@/lib/api/orders";
 
 function crumbsFor(pathname: string): string[] {
   const segments = pathname.split("/").filter(Boolean);
@@ -50,12 +51,28 @@ export function Topbar({ onMenuClick }: { onMenuClick?: () => void }) {
   const canDesign = perms.has("design.proofs.read");
   const canProduction = perms.has("sales.production.advance");
   const canInventory = perms.has("inventory.materials.read");
+  const canOrders = perms.has("sales.orders.read");
 
   // Señales reales para el panel de notificaciones (fail-closed por permiso).
   useEffect(() => {
     let cancelled = false;
     void (async () => {
       const next: Notif[] = [];
+      if (canOrders) {
+        try {
+          const a = await ordersApi.alerts();
+          if (a.myDay.length > 0) {
+            next.push({
+              key: "assigned",
+              label: "Pedidos asignados a ti",
+              count: a.myDay.length,
+              href: "/board",
+            });
+          }
+        } catch {
+          /* ignore */
+        }
+      }
       if (canDesign) {
         try {
           const r = await designApi.list("awaiting_client");
@@ -106,7 +123,7 @@ export function Topbar({ onMenuClick }: { onMenuClick?: () => void }) {
     return () => {
       cancelled = true;
     };
-  }, [canDesign, canProduction, canInventory]);
+  }, [canOrders, canDesign, canProduction, canInventory]);
 
   const notifTotal = notifs.reduce((s, n) => s + n.count, 0);
 

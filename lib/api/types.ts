@@ -498,6 +498,20 @@ export type ApiOrderInternalNote = {
   createdAt: string;
 };
 
+/** Usuario asignable como responsable (GET /orders/assignable-users). */
+export type ApiAssignableUser = {
+  id: string;
+  name: string;
+};
+
+/** Carga de un responsable (GET /orders/workload). */
+export type ApiTeamWorkloadRow = {
+  personId: string;
+  personName: string;
+  asDesigner: number;
+  asProducer: number;
+};
+
 /** Bandeja del día / alertas (GET /orders/alerts). */
 export type ApiOrderAlerts = {
   unassigned: number;

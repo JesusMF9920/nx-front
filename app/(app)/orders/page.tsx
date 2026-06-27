@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Suspense, useState, type ReactNode } from "react";
+import { Suspense, useEffect, useState, type ReactNode } from "react";
 import { I } from "@/components/icons";
 import { PageHeader } from "@/components/page-header";
 import { PaymentPill } from "@/components/payment-pill";
@@ -13,7 +13,7 @@ import { usePermission } from "@/lib/auth/auth-context";
 import { ordersApi, type ListOrdersParams } from "@/lib/api/orders";
 import { downloadFile } from "@/lib/api/download";
 import { ORDER_STATUS_ES, paymentLabel } from "@/lib/api/sales-mappers";
-import type { ApiOrder, ApiOrderStatus } from "@/lib/api/types";
+import type { ApiAssignableUser, ApiOrder, ApiOrderStatus } from "@/lib/api/types";
 import { fmtDate, fmtInt, fmtMXN } from "@/lib/format";
 import { useApiList } from "@/lib/hooks/use-api-list";
 
@@ -81,8 +81,25 @@ function OrdersPageInner() {
     overdue: false,
     urgent: false,
   });
+  const [assigneeId, setAssigneeId] = useState("");
+  const [people, setPeople] = useState<ApiAssignableUser[]>([]);
   const [actionError, setActionError] = useState<string | null>(null);
   const [exporting, setExporting] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      try {
+        const res = await ordersApi.assignableUsers();
+        if (!cancelled) setPeople(res.items);
+      } catch {
+        /* sin lista si falla */
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const {
     items: orders,
@@ -104,9 +121,10 @@ function OrdersPageInner() {
         unassigned: quick.unassigned || undefined,
         overdue: quick.overdue || undefined,
         priority: quick.urgent ? "urgent" : undefined,
+        assigneeId: assigneeId || undefined,
         ...filters,
       }),
-    filterKey: `${tab}|${clienteId ?? ""}|${quick.mine}|${quick.unassigned}|${quick.overdue}|${quick.urgent}|${filters.from ?? ""}|${filters.to ?? ""}|${filters.deliverFrom ?? ""}|${filters.deliverTo ?? ""}`,
+    filterKey: `${tab}|${clienteId ?? ""}|${quick.mine}|${quick.unassigned}|${quick.overdue}|${quick.urgent}|${assigneeId}|${filters.from ?? ""}|${filters.to ?? ""}|${filters.deliverFrom ?? ""}|${filters.deliverTo ?? ""}`,
     search: query,
     pageSize: PAGE_SIZE,
     errorMessage: "No se pudieron cargar los pedidos.",
@@ -137,6 +155,7 @@ function OrdersPageInner() {
           unassigned: quick.unassigned || undefined,
           overdue: quick.overdue || undefined,
           priority: quick.urgent ? "urgent" : undefined,
+          assigneeId: assigneeId || undefined,
           ...filters,
         } satisfies ListOrdersParams),
         "pedidos.csv",
@@ -372,12 +391,32 @@ function OrdersPageInner() {
               aria-pressed={quick[key]}
               onClick={() => {
                 setQuick((q) => ({ ...q, [key]: !q[key] }));
+                // "Mis pedidos" y el filtro por persona se excluyen.
+                if (key === "mine") setAssigneeId("");
                 setPage(1);
               }}
             >
               {label}
             </button>
           ))}
+          <select
+            className="select"
+            style={{ fontSize: 13, padding: "4px 8px", width: "auto" }}
+            aria-label="Filtrar por responsable"
+            value={assigneeId}
+            onChange={(e) => {
+              setAssigneeId(e.target.value);
+              if (e.target.value) setQuick((q) => ({ ...q, mine: false }));
+              setPage(1);
+            }}
+          >
+            <option value="">Responsable: todos</option>
+            {people.map((u) => (
+              <option key={u.id} value={u.id}>
+                {u.name}
+              </option>
+            ))}
+          </select>
         </div>
         {/* Responsive tablet (H3): la tabla no colapsa columnas — scrollea. */}
         <div className="overflow-x-auto">

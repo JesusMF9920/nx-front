@@ -13,7 +13,11 @@ import { ordersApi } from "@/lib/api/orders";
 import { reportsApi } from "@/lib/api/reports";
 import { settingsApi } from "@/lib/api/settings";
 import { ORDER_STATUS_ES } from "@/lib/api/sales-mappers";
-import type { ApiDashboard, ApiOrderAlerts } from "@/lib/api/types";
+import type {
+  ApiDashboard,
+  ApiOrderAlerts,
+  ApiTeamWorkloadRow,
+} from "@/lib/api/types";
 import { useAuth, usePermission } from "@/lib/auth/auth-context";
 import { fmtDate, fmtMXN } from "@/lib/format";
 
@@ -35,6 +39,7 @@ export default function DashboardPage() {
   const [error, setError] = useState<string | null>(null);
   const [orgName, setOrgName] = useState<string | null>(null);
   const [alerts, setAlerts] = useState<ApiOrderAlerts | null>(null);
+  const [workload, setWorkload] = useState<ApiTeamWorkloadRow[]>([]);
 
   useEffect(() => {
     let cancelled = false;
@@ -78,8 +83,14 @@ export default function DashboardPage() {
     let cancelled = false;
     void (async () => {
       try {
-        const res = await ordersApi.alerts();
-        if (!cancelled) setAlerts(res);
+        const [a, w] = await Promise.all([
+          ordersApi.alerts(),
+          ordersApi.teamWorkload(),
+        ]);
+        if (!cancelled) {
+          setAlerts(a);
+          setWorkload(w.items);
+        }
       } catch {
         /* sin bandeja si falla */
       }
@@ -159,6 +170,42 @@ export default function DashboardPage() {
     </div>
   );
 
+  const workloadSection = canOrders && workload.length > 0 && (
+    <div className="card mb-5">
+      <div className="card__head">
+        <div className="card__title">Carga del equipo</div>
+        <div className="spacer" />
+        <Link className="btn btn--ghost btn--sm" href="/board">
+          Ver tablero {I.chevronRight}
+        </Link>
+      </div>
+      <div className="overflow-x-auto">
+        <table className="tbl min-w-[420px]">
+          <thead>
+            <tr>
+              <th>Responsable</th>
+              <th className="text-right">Diseño</th>
+              <th className="text-right">Producción</th>
+              <th className="text-right">Total</th>
+            </tr>
+          </thead>
+          <tbody>
+            {workload.map((w) => (
+              <tr key={w.personId}>
+                <td>{w.personName}</td>
+                <td className="num text-right">{w.asDesigner || "—"}</td>
+                <td className="num text-right">{w.asProducer || "—"}</td>
+                <td className="num text-right font-medium">
+                  {w.asDesigner + w.asProducer}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+
   const header = (
     <PageHeader
       title={`Buen día, ${firstName}`}
@@ -182,6 +229,7 @@ export default function DashboardPage() {
       <>
         {header}
         {alertsSection}
+        {workloadSection}
         <div className="empty m-3.5">
           No tienes acceso a las métricas. Ve al{" "}
           <Link href="/pos" className="text-accent">
@@ -234,6 +282,7 @@ export default function DashboardPage() {
       )}
 
       {alertsSection}
+      {workloadSection}
 
       {loading || !data ? (
         <SkeletonText lines={5} />

@@ -1,6 +1,7 @@
 import { apiFetch } from "./client";
 import type { ApiAuditEntry } from "./audit";
 import type {
+  ApiAssignableUser,
   ApiConsumptionLine,
   ApiList,
   ApiOrder,
@@ -11,6 +12,7 @@ import type {
   ApiOrderStatus,
   ApiPaymentMethod,
   ApiStockShortage,
+  ApiTeamWorkloadRow,
   ApiToPurchaseLine,
 } from "./types";
 
@@ -198,6 +200,16 @@ export const ordersApi = {
   /** Bandeja del día / alertas para el dashboard. */
   alerts(): Promise<ApiOrderAlerts> {
     return apiFetch<ApiOrderAlerts>(`/orders/alerts`);
+  },
+
+  /** Usuarios asignables como responsables (activos). */
+  assignableUsers(): Promise<{ items: ApiAssignableUser[] }> {
+    return apiFetch<{ items: ApiAssignableUser[] }>(`/orders/assignable-users`);
+  },
+
+  /** Carga del equipo: pedidos activos por responsable. */
+  teamWorkload(): Promise<{ items: ApiTeamWorkloadRow[] }> {
+    return apiFetch<{ items: ApiTeamWorkloadRow[] }>(`/orders/workload`);
   },
 
   /**

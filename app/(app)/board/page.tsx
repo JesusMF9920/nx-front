@@ -24,12 +24,11 @@ import { ApiError } from "@/lib/api/errors";
 import { ordersApi } from "@/lib/api/orders";
 import { ORDER_STATUS_ES } from "@/lib/api/sales-mappers";
 import type {
+  ApiAssignableUser,
   ApiOrder,
   ApiOrderPriority,
   ApiOrderStatus,
-  ApiUser,
 } from "@/lib/api/types";
-import { usersApi } from "@/lib/api/users";
 import { fmtInt } from "@/lib/format";
 import { useToast } from "@/lib/toast/toast-context";
 
@@ -166,7 +165,8 @@ export default function BoardPage() {
   const [error, setError] = useState<string | null>(null);
   const [mine, setMine] = useState(false);
   const [urgentOnly, setUrgentOnly] = useState(false);
-  const [users, setUsers] = useState<ApiUser[]>([]);
+  const [assigneeId, setAssigneeId] = useState("");
+  const [users, setUsers] = useState<ApiAssignableUser[]>([]);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [assignTarget, setAssignTarget] = useState<ApiOrder | null>(null);
   const [savingAssign, setSavingAssign] = useState(false);
@@ -195,6 +195,7 @@ export default function BoardPage() {
               status,
               take: PER_COLUMN,
               mine: mine || undefined,
+              assigneeId: assigneeId || undefined,
               priority: urgentOnly ? "urgent" : undefined,
             }),
           ),
@@ -215,7 +216,7 @@ export default function BoardPage() {
         if (!opts?.silent) setLoading(false);
       }
     },
-    [mine, urgentOnly],
+    [mine, urgentOnly, assigneeId],
   );
 
   useEffect(() => {
@@ -223,23 +224,22 @@ export default function BoardPage() {
     void load();
   }, [load]);
 
-  // Lista de usuarios para el modal de asignación (sólo si puede asignar).
-  // Falla en silencio si el rol no tiene iam.users.read (selector vacío).
+  // Usuarios asignables (para el filtro por persona y el modal). Endpoint
+  // gateado por sales.orders.read, así no exige iam.users.read.
   useEffect(() => {
-    if (!canAssign) return;
     let cancelled = false;
     void (async () => {
       try {
-        const res = await usersApi.list({ take: 100 });
+        const res = await ordersApi.assignableUsers();
         if (!cancelled) setUsers(res.items);
       } catch {
-        /* sin lista si no hay permiso */
+        /* sin lista si falla */
       }
     })();
     return () => {
       cancelled = true;
     };
-  }, [canAssign]);
+  }, []);
 
   const allOrders = useMemo(
     () => Object.values(columns).flatMap((c) => c.items),
@@ -364,10 +364,30 @@ export default function BoardPage() {
           type="button"
           className={`btn btn--sm ${mine ? "btn--primary" : ""}`}
           aria-pressed={mine}
-          onClick={() => setMine((v) => !v)}
+          onClick={() => {
+            setMine((v) => !v);
+            setAssigneeId(""); // "Mis pedidos" y filtro por persona se excluyen
+          }}
         >
           Mis pedidos
         </button>
+        <select
+          className="select"
+          style={{ fontSize: 13, padding: "4px 8px", width: "auto" }}
+          aria-label="Filtrar por responsable"
+          value={assigneeId}
+          onChange={(e) => {
+            setAssigneeId(e.target.value);
+            if (e.target.value) setMine(false);
+          }}
+        >
+          <option value="">Responsable: todos</option>
+          {users.map((u) => (
+            <option key={u.id} value={u.id}>
+              {u.name}
+            </option>
+          ))}
+        </select>
         <button
           type="button"
           className={`btn btn--sm ${urgentOnly ? "btn--primary" : ""}`}
