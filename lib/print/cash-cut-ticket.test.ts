@@ -97,6 +97,17 @@ describe("buildCashCutTicketHtml", () => {
     );
   });
 
+  it("corte X en vivo (sin cerrar): muestra esperado pero NO contado/cuadre falso", () => {
+    const html = buildCashCutTicketHtml(
+      cut({ status: "open", closedAt: null, countedCash: null, difference: null }),
+      business,
+    );
+    expect(html).toContain("Esperado en caja");
+    expect(html).toContain("Corte X en vivo");
+    expect(html).not.toContain("Cuadra exacto");
+    expect(html).not.toContain("Contado");
+  });
+
   it("XSS: las razones de movimientos van escapadas", () => {
     const html = buildCashCutTicketHtml(cut(), business);
     expect(html).not.toContain("<b>extra</b>");

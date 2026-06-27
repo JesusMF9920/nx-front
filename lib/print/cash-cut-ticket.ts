@@ -56,8 +56,12 @@ export function buildCashCutTicketHtml(
   ${withdrawals.length > 0 ? `<div class="sm b" style="margin-top:4px">Retiros</div>${movementRows(withdrawals, "−")}` : ""}
   <div class="div"></div>
   <div class="row"><span>Esperado en caja</span><span>${fmtMXN(cut.expectedCash ?? 0)}</span></div>
-  <div class="row"><span>Contado</span><span>${fmtMXN(cut.countedCash ?? 0)}</span></div>
-  <div class="row total"><span>${escapeHtml(diffLabel)}</span><span>${escapeHtml(fmtSigned(difference))}</span></div>
+  ${
+    cut.closedAt
+      ? `<div class="row"><span>Contado</span><span>${fmtMXN(cut.countedCash ?? 0)}</span></div>
+  <div class="row total"><span>${escapeHtml(diffLabel)}</span><span>${escapeHtml(fmtSigned(difference))}</span></div>`
+      : `<div class="row sm"><span>Corte X en vivo — aún sin contar</span></div>`
+  }
   <div class="div"></div>
   <div class="row sm"><span>Terminal (informativo, ${cut.terminalCount ?? 0})</span><span>${fmtMXN(cut.terminalTotal ?? 0)}</span></div>
   <div class="row sm"><span>Transferencia (informativo, ${cut.transferCount ?? 0})</span><span>${fmtMXN(cut.transferTotal ?? 0)}</span></div>
