@@ -59,6 +59,58 @@ function compareCards(a: ApiOrder, b: ApiOrder): number {
   return ta - tb;
 }
 
+/** Mueve un pedido a la columna `target` (optimista): lo saca de su columna
+ *  actual, ajusta su status y reordena el destino. Sin tocar el resto. */
+function moveOrder(
+  cols: Record<string, ColumnState>,
+  orderId: string,
+  target: ApiOrderStatus,
+): Record<string, ColumnState> {
+  const next: Record<string, ColumnState> = { ...cols };
+  let moved: ApiOrder | undefined;
+  for (const status of COLUMNS) {
+    const col = next[status];
+    const found = col?.items.find((o) => o.id === orderId);
+    if (found) {
+      moved = { ...found, status: target };
+      next[status] = {
+        items: col.items.filter((o) => o.id !== orderId),
+        total: Math.max(0, col.total - 1),
+      };
+      break;
+    }
+  }
+  if (moved) {
+    const col = next[target] ?? { items: [], total: 0 };
+    next[target] = {
+      items: [...col.items, moved].sort(compareCards),
+      total: col.total + 1,
+    };
+  }
+  return next;
+}
+
+/** Actualiza un pedido en su columna (optimista) y la reordena. */
+function patchOrder(
+  cols: Record<string, ColumnState>,
+  orderId: string,
+  patch: Partial<ApiOrder>,
+): Record<string, ColumnState> {
+  const next: Record<string, ColumnState> = { ...cols };
+  for (const status of COLUMNS) {
+    const col = next[status];
+    if (!col) continue;
+    const idx = col.items.findIndex((o) => o.id === orderId);
+    if (idx >= 0) {
+      const items = [...col.items];
+      items[idx] = { ...items[idx], ...patch };
+      next[status] = { items: items.sort(compareCards), total: col.total };
+      break;
+    }
+  }
+  return next;
+}
+
 /** Columna soltable (droppable) — resalta cuando es un destino válido. */
 function Column({
   status,
@@ -128,34 +180,43 @@ export default function BoardPage() {
     }),
   );
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const results = await Promise.all(
-        COLUMNS.map((status) =>
-          ordersApi.list({
-            status,
-            take: PER_COLUMN,
-            mine: mine || undefined,
-            priority: urgentOnly ? "urgent" : undefined,
-          }),
-        ),
-      );
-      const next: Record<string, ColumnState> = {};
-      COLUMNS.forEach((status, i) => {
-        next[status] = {
-          items: [...results[i].items].sort(compareCards),
-          total: results[i].total,
-        };
-      });
-      setColumns(next);
-    } catch {
-      setError("No se pudo cargar el tablero.");
-    } finally {
-      setLoading(false);
-    }
-  }, [mine, urgentOnly]);
+  const load = useCallback(
+    async (opts?: { silent?: boolean }) => {
+      // Refresco silencioso (tras una acción): no blanquea el tablero con el
+      // skeleton de "Cargando…"; sólo intercambia los datos al volver.
+      if (!opts?.silent) {
+        setLoading(true);
+        setError(null);
+      }
+      try {
+        const results = await Promise.all(
+          COLUMNS.map((status) =>
+            ordersApi.list({
+              status,
+              take: PER_COLUMN,
+              mine: mine || undefined,
+              priority: urgentOnly ? "urgent" : undefined,
+            }),
+          ),
+        );
+        const next: Record<string, ColumnState> = {};
+        COLUMNS.forEach((status, i) => {
+          next[status] = {
+            items: [...results[i].items].sort(compareCards),
+            total: results[i].total,
+          };
+        });
+        setColumns(next);
+      } catch {
+        // En refresco silencioso conservamos el estado optimista (la acción ya
+        // se aplicó en el servidor); sólo mostramos error en la carga inicial.
+        if (!opts?.silent) setError("No se pudo cargar el tablero.");
+      } finally {
+        if (!opts?.silent) setLoading(false);
+      }
+    },
+    [mine, urgentOnly],
+  );
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -189,11 +250,15 @@ export default function BoardPage() {
     : null;
 
   const move = async (orderId: string, status: ApiOrderStatus) => {
+    const snapshot = columns;
+    // Optimista: la tarjeta salta a la columna destino al instante.
+    setColumns((c) => moveOrder(c, orderId, status));
     try {
       await ordersApi.transitionStatus(orderId, status);
       toast.success(`Pedido movido a ${ORDER_STATUS_ES[status]}`);
-      await load();
+      await load({ silent: true });
     } catch (err) {
+      setColumns(snapshot); // revierte si el servidor rechaza
       let msg = "No se pudo mover el pedido.";
       if (err instanceof ApiError) {
         msg = /invalid status transition/i.test(err.message)
@@ -205,11 +270,14 @@ export default function BoardPage() {
   };
 
   const setPriority = async (orderId: string, priority: ApiOrderPriority) => {
+    const snapshot = columns;
+    setColumns((c) => patchOrder(c, orderId, { priority }));
     try {
       await ordersApi.setPriority(orderId, priority);
       toast.success("Prioridad actualizada");
-      await load();
+      await load({ silent: true });
     } catch (err) {
+      setColumns(snapshot);
       toast.error(
         err instanceof ApiError
           ? err.message
@@ -222,16 +290,31 @@ export default function BoardPage() {
     orderId: string,
     patch: { designerId?: string | null; producerId?: string | null },
   ) => {
+    const snapshot = columns;
+    // Optimista: aplica id y nombre (de la lista cargada) de inmediato.
+    const visual: Partial<ApiOrder> = { ...patch };
+    if ("designerId" in patch) {
+      visual.designerName = patch.designerId
+        ? (users.find((u) => u.id === patch.designerId)?.name ?? null)
+        : null;
+    }
+    if ("producerId" in patch) {
+      visual.producerName = patch.producerId
+        ? (users.find((u) => u.id === patch.producerId)?.name ?? null)
+        : null;
+    }
+    setColumns((c) => patchOrder(c, orderId, visual));
+    // Refleja el cambio en el modal abierto sin esperar la recarga.
+    setAssignTarget((prev) =>
+      prev && prev.id === orderId ? { ...prev, ...patch } : prev,
+    );
     setSavingAssign(true);
     try {
       await ordersApi.assign(orderId, patch);
-      // Refleja el cambio en el modal abierto sin esperar la recarga.
-      setAssignTarget((prev) =>
-        prev && prev.id === orderId ? { ...prev, ...patch } : prev,
-      );
       toast.success("Responsable actualizado");
-      await load();
+      await load({ silent: true });
     } catch (err) {
+      setColumns(snapshot);
       toast.error(
         err instanceof ApiError
           ? err.message
