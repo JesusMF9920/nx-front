@@ -11,7 +11,14 @@ import {
   type DragEndEvent,
   type DragStartEvent,
 } from "@dnd-kit/core";
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 import {
   OrderBoardCard,
   OrderBoardCardView,
@@ -43,8 +50,21 @@ const COLUMNS: ApiOrderStatus[] = [
   "delivered",
 ];
 
-/** Tope de tarjetas por columna (el tablero no pagina). */
+/** Etapas donde el "dueño" operativo es el diseñador; el resto, el productor. */
+const DESIGN_STAGES = new Set<ApiOrderStatus>([
+  "pending",
+  "in_design",
+  "client_approval",
+]);
+
+/** Tope de tarjetas por columna activa (el tablero no pagina). */
 const PER_COLUMN = 50;
+/** "Entregado" se acota: sólo los más recientes para no crecer sin fin. */
+const DELIVERED_CAP = 12;
+/** Auto-refresco silencioso del tablero (ms). */
+const REFRESH_MS = 20000;
+/** Clave de la fila "Sin responsable" en la vista por persona. */
+const NO_OWNER = "__none__";
 
 type ColumnState = { items: ApiOrder[]; total: number };
 
@@ -56,6 +76,30 @@ function compareCards(a: ApiOrder, b: ApiOrder): number {
   const ta = a.deliverAt ? new Date(a.deliverAt).getTime() : Number.POSITIVE_INFINITY;
   const tb = b.deliverAt ? new Date(b.deliverAt).getTime() : Number.POSITIVE_INFINITY;
   return ta - tb;
+}
+
+/** En "Entregado" la urgencia ya no aplica: lo más reciente primero. */
+function compareDelivered(a: ApiOrder, b: ApiOrder): number {
+  return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+}
+
+/** Orden adecuado según la etapa (entregados por recencia, el resto urgentes). */
+function sortFor(status: ApiOrderStatus, items: ApiOrder[]): ApiOrder[] {
+  return [...items].sort(
+    status === "delivered" ? compareDelivered : compareCards,
+  );
+}
+
+/** Tope de tarjetas a pedir por columna. */
+function takeFor(status: ApiOrderStatus): number {
+  return status === "delivered" ? DELIVERED_CAP : PER_COLUMN;
+}
+
+/** Responsable "del momento": diseñador en etapas tempranas, productor en taller. */
+function currentOwner(o: ApiOrder): { id: string | null; name: string | null } {
+  return DESIGN_STAGES.has(o.status)
+    ? { id: o.designerId, name: o.designerName }
+    : { id: o.producerId, name: o.producerName };
 }
 
 /** Mueve un pedido a la columna `target` (optimista): lo saca de su columna
@@ -82,7 +126,7 @@ function moveOrder(
   if (moved) {
     const col = next[target] ?? { items: [], total: 0 };
     next[target] = {
-      items: [...col.items, moved].sort(compareCards),
+      items: sortFor(target, [...col.items, moved]),
       total: col.total + 1,
     };
   }
@@ -103,7 +147,7 @@ function patchOrder(
     if (idx >= 0) {
       const items = [...col.items];
       items[idx] = { ...items[idx], ...patch };
-      next[status] = { items: items.sort(compareCards), total: col.total };
+      next[status] = { items: sortFor(status as ApiOrderStatus, items), total: col.total };
       break;
     }
   }
@@ -155,6 +199,38 @@ function Column({
   );
 }
 
+/** Celda soltable de una swimlane (vista por responsable). */
+function LaneCell({
+  id,
+  validTarget,
+  children,
+}: {
+  id: string;
+  validTarget: boolean;
+  children: ReactNode;
+}) {
+  const { setNodeRef, isOver } = useDroppable({ id });
+  const highlight = isOver && validTarget;
+  return (
+    <div
+      ref={setNodeRef}
+      style={{
+        width: 200,
+        flex: "0 0 200px",
+        minHeight: 44,
+        borderRadius: 6,
+        padding: 4,
+        outline: highlight ? "2px dashed var(--accent)" : "2px dashed transparent",
+        background: highlight ? "var(--surface-2)" : undefined,
+        transition: "background .12s, outline-color .12s",
+      }}
+      className="flex flex-col gap-2"
+    >
+      {children}
+    </div>
+  );
+}
+
 export default function BoardPage() {
   const toast = useToast();
   const canManage = usePermission("sales.orders.manage");
@@ -166,6 +242,10 @@ export default function BoardPage() {
   const [mine, setMine] = useState(false);
   const [urgentOnly, setUrgentOnly] = useState(false);
   const [assigneeId, setAssigneeId] = useState("");
+  const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [autoRefresh, setAutoRefresh] = useState(true);
+  const [groupBy, setGroupBy] = useState<"stage" | "person">("stage");
   const [users, setUsers] = useState<ApiAssignableUser[]>([]);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [assignTarget, setAssignTarget] = useState<ApiOrder | null>(null);
@@ -180,10 +260,16 @@ export default function BoardPage() {
     }),
   );
 
+  // Debounce del buscador (folio/cliente) antes de pegarle al backend.
+  useEffect(() => {
+    const id = setTimeout(() => setDebouncedSearch(search.trim()), 300);
+    return () => clearTimeout(id);
+  }, [search]);
+
   const load = useCallback(
     async (opts?: { silent?: boolean }) => {
-      // Refresco silencioso (tras una acción): no blanquea el tablero con el
-      // skeleton de "Cargando…"; sólo intercambia los datos al volver.
+      // Refresco silencioso (tras una acción o auto-refresco): no blanquea el
+      // tablero con el skeleton de "Cargando…"; sólo intercambia los datos.
       if (!opts?.silent) {
         setLoading(true);
         setError(null);
@@ -193,17 +279,18 @@ export default function BoardPage() {
           COLUMNS.map((status) =>
             ordersApi.list({
               status,
-              take: PER_COLUMN,
+              take: takeFor(status),
               mine: mine || undefined,
               assigneeId: assigneeId || undefined,
               priority: urgentOnly ? "urgent" : undefined,
+              search: debouncedSearch || undefined,
             }),
           ),
         );
         const next: Record<string, ColumnState> = {};
         COLUMNS.forEach((status, i) => {
           next[status] = {
-            items: [...results[i].items].sort(compareCards),
+            items: sortFor(status, results[i].items),
             total: results[i].total,
           };
         });
@@ -216,13 +303,38 @@ export default function BoardPage() {
         if (!opts?.silent) setLoading(false);
       }
     },
-    [mine, urgentOnly, assigneeId],
+    [mine, urgentOnly, assigneeId, debouncedSearch],
   );
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     void load();
   }, [load]);
+
+  // Auto-refresco: un solo intervalo estable que lee el estado vivo por refs,
+  // para no reiniciar el timer en cada cambio. Se pausa mientras se arrastra,
+  // con el modal de responsables abierto, o con la pestaña en segundo plano.
+  const loadRef = useRef(load);
+  const activeIdRef = useRef(activeId);
+  const assignTargetRef = useRef(assignTarget);
+  useEffect(() => {
+    loadRef.current = load;
+  }, [load]);
+  useEffect(() => {
+    activeIdRef.current = activeId;
+  }, [activeId]);
+  useEffect(() => {
+    assignTargetRef.current = assignTarget;
+  }, [assignTarget]);
+  useEffect(() => {
+    if (!autoRefresh) return;
+    const id = setInterval(() => {
+      if (typeof document !== "undefined" && document.hidden) return;
+      if (activeIdRef.current || assignTargetRef.current) return;
+      void loadRef.current({ silent: true });
+    }, REFRESH_MS);
+    return () => clearInterval(id);
+  }, [autoRefresh]);
 
   // Usuarios asignables (para el filtro por persona y el modal). Endpoint
   // gateado por sales.orders.read, así no exige iam.users.read.
@@ -248,6 +360,36 @@ export default function BoardPage() {
   const activeOrder = activeId
     ? (allOrders.find((o) => o.id === activeId) ?? null)
     : null;
+
+  // Filas por responsable "del momento" (vista swimlane). Orden: por carga
+  // activa desc; "Sin responsable" siempre al final.
+  const lanes = useMemo(() => {
+    const map = new Map<
+      string,
+      { key: string; name: string; orders: ApiOrder[]; active: number }
+    >();
+    for (const o of allOrders) {
+      const { id, name } = currentOwner(o);
+      const key = id ?? NO_OWNER;
+      let lane = map.get(key);
+      if (!lane) {
+        lane = {
+          key,
+          name: id ? (name ?? "Responsable") : "Sin responsable",
+          orders: [],
+          active: 0,
+        };
+        map.set(key, lane);
+      }
+      lane.orders.push(o);
+      if (o.status !== "delivered") lane.active += 1;
+    }
+    return [...map.values()].sort((a, b) => {
+      if (a.key === NO_OWNER) return 1;
+      if (b.key === NO_OWNER) return -1;
+      return b.active - a.active;
+    });
+  }, [allOrders]);
 
   const move = async (orderId: string, status: ApiOrderStatus) => {
     const snapshot = columns;
@@ -332,7 +474,11 @@ export default function BoardPage() {
     const { active, over } = e;
     if (!over) return;
     const orderId = String(active.id);
-    const target = String(over.id) as ApiOrderStatus;
+    // En swimlane el droppable es "laneKey|status"; en columnas, sólo "status".
+    const overId = String(over.id);
+    const target = (overId.includes("|")
+      ? overId.split("|")[1]
+      : overId) as ApiOrderStatus;
     const order = allOrders.find((o) => o.id === orderId);
     if (!order || order.status === target) return;
     if (COLUMNS.indexOf(target) < COLUMNS.indexOf(order.status)) {
@@ -347,6 +493,19 @@ export default function BoardPage() {
     ? COLUMNS.indexOf(activeOrder.status)
     : -1;
 
+  const renderCard = (o: ApiOrder, index: number) => (
+    <OrderBoardCard
+      key={o.id}
+      order={o}
+      canManage={canManage}
+      canAssign={canAssign}
+      forwardStages={COLUMNS.slice(index + 1)}
+      onMove={(id, s) => void move(id, s)}
+      onSetPriority={(id, p) => void setPriority(id, p)}
+      onAssign={(ord) => setAssignTarget(ord)}
+    />
+  );
+
   return (
     <>
       <PageHeader
@@ -360,6 +519,15 @@ export default function BoardPage() {
       />
 
       <div className="flex flex-wrap items-center gap-1.5 mb-3" role="group">
+        <input
+          type="search"
+          className="input"
+          style={{ fontSize: 13, padding: "4px 8px", width: 180 }}
+          placeholder="Buscar folio o cliente…"
+          aria-label="Buscar pedidos"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+        />
         <button
           type="button"
           className={`btn btn--sm ${mine ? "btn--primary" : ""}`}
@@ -396,12 +564,36 @@ export default function BoardPage() {
         >
           Solo urgentes
         </button>
-        {canManage && (
-          <span className="text-muted text-xs ml-1">
-            Arrastra una tarjeta para avanzar su etapa.
-          </span>
-        )}
+
+        <div className="spacer" />
+
+        <button
+          type="button"
+          className={`btn btn--sm ${groupBy === "person" ? "btn--primary" : ""}`}
+          aria-pressed={groupBy === "person"}
+          onClick={() =>
+            setGroupBy((g) => (g === "person" ? "stage" : "person"))
+          }
+          title="Agrupar las tarjetas por responsable del momento"
+        >
+          Por responsable
+        </button>
+        <button
+          type="button"
+          className={`btn btn--sm ${autoRefresh ? "btn--primary" : ""}`}
+          aria-pressed={autoRefresh}
+          onClick={() => setAutoRefresh((v) => !v)}
+          title={`Auto-refresco cada ${REFRESH_MS / 1000}s`}
+        >
+          Auto
+        </button>
       </div>
+
+      {canManage && groupBy === "stage" && (
+        <p className="text-muted text-xs mb-2">
+          Arrastra una tarjeta para avanzar su etapa.
+        </p>
+      )}
 
       {error && (
         <div
@@ -431,56 +623,135 @@ export default function BoardPage() {
         onDragEnd={onDragEnd}
         onDragCancel={() => setActiveId(null)}
       >
-        <div className="overflow-x-auto">
-          <div className="flex gap-3" style={{ minWidth: "min-content" }}>
-            {COLUMNS.map((status, index) => {
-              const col = columns[status];
-              const items = col?.items ?? [];
-              const total = col?.total ?? 0;
-              const validTarget = activeStageIndex >= 0 && index > activeStageIndex;
-              return (
-                <Column
-                  key={status}
-                  status={status}
-                  count={total}
-                  validTarget={validTarget}
-                >
-                  {loading ? (
-                    <div className="text-muted text-xs" style={{ padding: 8 }}>
-                      Cargando…
-                    </div>
-                  ) : items.length === 0 ? (
-                    <div className="text-muted text-xs" style={{ padding: 8 }}>
-                      —
-                    </div>
-                  ) : (
-                    items.map((o) => (
-                      <OrderBoardCard
-                        key={o.id}
-                        order={o}
-                        canManage={canManage}
-                        canAssign={canAssign}
-                        forwardStages={COLUMNS.slice(index + 1)}
-                        onMove={(id, s) => void move(id, s)}
-                        onSetPriority={(id, p) => void setPriority(id, p)}
-                        onAssign={(ord) => setAssignTarget(ord)}
-                      />
-                    ))
-                  )}
+        {groupBy === "stage" ? (
+          <div className="overflow-x-auto">
+            <div className="flex gap-3" style={{ minWidth: "min-content" }}>
+              {COLUMNS.map((status, index) => {
+                const col = columns[status];
+                const items = col?.items ?? [];
+                const total = col?.total ?? 0;
+                const validTarget =
+                  activeStageIndex >= 0 && index > activeStageIndex;
+                return (
+                  <Column
+                    key={status}
+                    status={status}
+                    count={total}
+                    validTarget={validTarget}
+                  >
+                    {loading ? (
+                      <div className="text-muted text-xs" style={{ padding: 8 }}>
+                        Cargando…
+                      </div>
+                    ) : items.length === 0 ? (
+                      <div className="text-muted text-xs" style={{ padding: 8 }}>
+                        —
+                      </div>
+                    ) : (
+                      items.map((o) => renderCard(o, index))
+                    )}
 
-                  {!loading && total > items.length && (
-                    <div
-                      className="text-muted text-[11px]"
-                      style={{ padding: 8 }}
-                    >
-                      +{total - items.length} más
-                    </div>
-                  )}
-                </Column>
-              );
-            })}
+                    {!loading && total > items.length && (
+                      <div
+                        className="text-muted text-[11px]"
+                        style={{ padding: 8 }}
+                      >
+                        {status === "delivered"
+                          ? `+${total - items.length} entregados antes`
+                          : `+${total - items.length} más`}
+                      </div>
+                    )}
+                  </Column>
+                );
+              })}
+            </div>
           </div>
-        </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <div style={{ minWidth: "min-content" }}>
+              {/* Encabezado de etapas, alineado con las celdas de cada fila. */}
+              <div className="flex gap-3" style={{ marginBottom: 6 }}>
+                <div
+                  style={{
+                    width: 160,
+                    flex: "0 0 160px",
+                    position: "sticky",
+                    left: 0,
+                    background: "var(--bg)",
+                    zIndex: 1,
+                  }}
+                />
+                {COLUMNS.map((status) => (
+                  <div
+                    key={status}
+                    className="font-medium text-xs text-muted"
+                    style={{ width: 200, flex: "0 0 200px", padding: "0 4px" }}
+                  >
+                    {ORDER_STATUS_ES[status]}
+                  </div>
+                ))}
+              </div>
+
+              {loading ? (
+                <div className="text-muted text-xs" style={{ padding: 8 }}>
+                  Cargando…
+                </div>
+              ) : lanes.length === 0 ? (
+                <div className="text-muted text-xs" style={{ padding: 8 }}>
+                  Sin pedidos.
+                </div>
+              ) : (
+                lanes.map((lane) => (
+                  <div
+                    key={lane.key}
+                    className="flex gap-3"
+                    style={{
+                      borderTop: "1px solid var(--line)",
+                      paddingTop: 8,
+                      paddingBottom: 8,
+                    }}
+                  >
+                    <div
+                      className="flex flex-col"
+                      style={{
+                        width: 160,
+                        flex: "0 0 160px",
+                        position: "sticky",
+                        left: 0,
+                        background: "var(--bg)",
+                        zIndex: 1,
+                        padding: "4px 4px 0",
+                      }}
+                    >
+                      <span className="font-medium text-sm">{lane.name}</span>
+                      <span className="text-muted text-xs">
+                        {fmtInt(lane.active)} activos · {fmtInt(lane.orders.length)} total
+                      </span>
+                    </div>
+                    {COLUMNS.map((status, index) => {
+                      const cards = lane.orders.filter(
+                        (o) => o.status === status,
+                      );
+                      const validTarget =
+                        activeStageIndex >= 0 && index > activeStageIndex;
+                      return (
+                        <LaneCell
+                          key={status}
+                          id={`${lane.key}|${status}`}
+                          validTarget={validTarget}
+                        >
+                          {sortFor(status, cards).map((o) =>
+                            renderCard(o, index),
+                          )}
+                        </LaneCell>
+                      );
+                    })}
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        )}
 
         <DragOverlay>
           {activeOrder ? <OrderBoardCardView order={activeOrder} /> : null}
