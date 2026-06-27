@@ -21,6 +21,7 @@ import { ApiError } from "@/lib/api/errors";
 import { useToast } from "@/lib/toast/toast-context";
 import { CLAVE_UNIDAD, OBJETO_IMPUESTO } from "@/lib/sat-catalogs";
 import type {
+  ApiDimensionConfig,
   ApiMaterial,
   ApiProductSource,
   ApiVariantType,
@@ -36,6 +37,11 @@ const VARIANT_OPTIONS: { id: ApiVariantType; label: string; sub: string }[] = [
     id: "sized_from_material",
     label: "Por talla (desde insumo)",
     sub: "Tallas y stock del insumo",
+  },
+  {
+    id: "dimension",
+    label: "Por dimensión (área/lineal)",
+    sub: "Lonas/banners por m², ancho×alto",
   },
 ];
 
@@ -67,6 +73,15 @@ export function NewProductForm({
   const [variantType, setVariantType] = useState<ApiVariantType>("none");
   const [sizedMaterial, setSizedMaterial] = useState<ApiMaterial | null>(null);
   const [surcharges, setSurcharges] = useState<SurchargeDraft[]>([]);
+
+  // Config de producto por dimensión (lonas por m², etc.). El backend ya lo
+  // soporta; aquí se captura unidad, modo de precio y rango permitido.
+  const [dimUnit, setDimUnit] = useState<ApiDimensionConfig["unit"]>("m");
+  const [dimPriceMode, setDimPriceMode] =
+    useState<ApiDimensionConfig["priceMode"]>("area");
+  const [dimMin, setDimMin] = useState("");
+  const [dimMax, setDimMax] = useState("");
+  const [dimStep, setDimStep] = useState("");
 
   const [showTiers, setShowTiers] = useState(false);
   const [tierRows, setTierRows] = useState<PriceTierRow[]>([]);
@@ -130,6 +145,26 @@ export function NewProductForm({
       sizeSurcharges = Object.keys(rec).length > 0 ? rec : null;
     }
 
+    // Producto por dimensión (área/lineal).
+    let dimensionConfig: ApiDimensionConfig | null = null;
+    if (variantType === "dimension") {
+      const min = Number(dimMin);
+      const max = Number(dimMax);
+      const step = Number(dimStep);
+      if (
+        ![min, max, step].every((n) => Number.isFinite(n)) ||
+        min < 0 ||
+        max <= min ||
+        step <= 0
+      ) {
+        setError(
+          "Revisa las dimensiones: mínimo ≥ 0, máximo > mínimo y paso > 0.",
+        );
+        return;
+      }
+      dimensionConfig = { unit: dimUnit, min, max, step, priceMode: dimPriceMode };
+    }
+
     // Mayoreo opcional.
     const tiersInvalid = validateTierRows(tierRows);
     if (tiersInvalid) {
@@ -165,6 +200,7 @@ export function NewProductForm({
       claveUnidad: claveUnidad.trim() || null,
       objetoImpuesto: objetoImpuesto.trim() || null,
       variantType,
+      dimensionConfig,
       sizeSurcharges,
       priceTiers,
       sizedFromMaterialId,
@@ -600,6 +636,87 @@ export function NewProductForm({
               </div>
             </div>
           )}
+
+        {variantType === "dimension" && (
+          <div className="field col-span-full">
+            <span className="label">Configuración de dimensiones</span>
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "repeat(2, 1fr)",
+                gap: 8,
+              }}
+            >
+              <div className="field">
+                <span className="label">Unidad</span>
+                <select
+                  className="input"
+                  value={dimUnit}
+                  onChange={(e) =>
+                    setDimUnit(e.target.value as ApiDimensionConfig["unit"])
+                  }
+                >
+                  <option value="m">metros (m)</option>
+                  <option value="cm">centímetros (cm)</option>
+                  <option value="in">pulgadas (in)</option>
+                </select>
+              </div>
+              <div className="field">
+                <span className="label">Modo de precio</span>
+                <select
+                  className="input"
+                  value={dimPriceMode}
+                  onChange={(e) =>
+                    setDimPriceMode(
+                      e.target.value as ApiDimensionConfig["priceMode"],
+                    )
+                  }
+                >
+                  <option value="area">Por área (ancho×alto)</option>
+                  <option value="linear">Lineal (un lado)</option>
+                  <option value="flat">Tarifa fija</option>
+                </select>
+              </div>
+              <div className="field">
+                <span className="label">Mínimo</span>
+                <input
+                  className="input num"
+                  type="number"
+                  min={0}
+                  step="0.01"
+                  value={dimMin}
+                  onChange={(e) => setDimMin(e.target.value)}
+                />
+              </div>
+              <div className="field">
+                <span className="label">Máximo</span>
+                <input
+                  className="input num"
+                  type="number"
+                  min={0}
+                  step="0.01"
+                  value={dimMax}
+                  onChange={(e) => setDimMax(e.target.value)}
+                />
+              </div>
+              <div className="field">
+                <span className="label">Paso</span>
+                <input
+                  className="input num"
+                  type="number"
+                  min={0}
+                  step="0.01"
+                  value={dimStep}
+                  onChange={(e) => setDimStep(e.target.value)}
+                />
+              </div>
+            </div>
+            <div className="help">
+              El precio se multiplica por la dimensión (área o lado) capturada al
+              vender; mín/máx acotan lo que el cajero puede ingresar.
+            </div>
+          </div>
+        )}
 
         <div className="field col-span-full">
           <div className="flex items-center gap-2">

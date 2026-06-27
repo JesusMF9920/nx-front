@@ -1313,6 +1313,10 @@ function DimensionEditorModal({
     setSubmitting(true);
     try {
       await catalogApi.update(product.id, {
+        // Mandar variantType junto con la config (espejo de sized_from_material):
+        // así también sirve para CONVERTIR un producto a 'dimension', no solo
+        // editar uno que ya lo es.
+        variantType: "dimension",
         dimensionConfig: { unit, min: minN, max: maxN, step: stepN, priceMode },
       });
       toast.success("Dimensión guardada");
