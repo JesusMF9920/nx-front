@@ -1,10 +1,17 @@
 import type {
+  ApiOrderPriority,
   ApiOrderStatus,
   ApiPaymentMethod,
   ApiProductionStation,
   ApiQuoteChannel,
   ApiQuoteStatus,
 } from "./types";
+
+/** Prioridad operativa (EN → ES). Exhaustivo: el build truena si falta una. */
+export const ORDER_PRIORITY_ES: Record<ApiOrderPriority, string> = {
+  urgent: "Urgente",
+  normal: "Normal",
+};
 
 /** Estaciones/centros de trabajo del taller (EN → ES). */
 export const PRODUCTION_STATION_ES: Record<ApiProductionStation, string> = {
@@ -78,6 +85,9 @@ export const SALES_AUDIT_ACTION_ES: Record<string, string> = {
   "sales.order.item_status_changed": "Estatus de producto actualizado",
   "sales.order.cancelled": "Pedido cancelado",
   "sales.order.deliver_date_changed": "Fecha de entrega actualizada",
+  "sales.order.assignee_changed": "Responsable actualizado",
+  "sales.order.priority_changed": "Prioridad actualizada",
+  "sales.order.internal_note_added": "Nota interna agregada",
   "sales.quote.created": "Cotización creada",
   "sales.quote.sent": "Cotización enviada",
   "sales.quote.approved": "Cotización aprobada",

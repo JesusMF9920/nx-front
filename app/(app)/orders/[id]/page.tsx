@@ -3,14 +3,17 @@
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
+import { AssigneeSelect } from "@/components/assignee-select";
 import { Avatar } from "@/components/avatar";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { I } from "@/components/icons";
 import { Modal } from "@/components/modal";
 import { OrderEditLinesModal } from "@/components/order-edit-lines-modal";
+import { OrderNotes } from "@/components/order-notes";
 import { OrderPaymentModal } from "@/components/order-payment-modal";
 import { OrderRefundModal } from "@/components/order-refund-modal";
 import { OrderStatusBanner } from "@/components/order-status-banner";
+import { PriorityPill } from "@/components/priority-pill";
 import { PageHeader } from "@/components/page-header";
 import { SkeletonText } from "@/components/skeleton";
 import { StatusPill } from "@/components/status-pill";
@@ -25,6 +28,7 @@ import { ordersApi } from "@/lib/api/orders";
 import { openLetterTicket, printThermalTicket } from "@/lib/print/order-ticket";
 import {
   MANUAL_ORDER_TRANSITIONS,
+  ORDER_PRIORITY_ES,
   ORDER_STATUS_ES,
   PAYMENT_METHOD_ES,
   SALES_AUDIT_ACTION_ES,
@@ -35,6 +39,7 @@ import type {
   ApiClient,
   ApiInvoice,
   ApiOrderDetail,
+  ApiOrderPriority,
   ApiOrderStatus,
   ApiPaymentMethod,
   ApiUser,
@@ -55,6 +60,9 @@ const ACTION_ICON: Record<string, ReactNode> = {
   "sales.order.item_status_changed": I.layers,
   "sales.order.cancelled": I.x,
   "sales.order.deliver_date_changed": I.calendar,
+  "sales.order.assignee_changed": I.user,
+  "sales.order.priority_changed": I.clock,
+  "sales.order.internal_note_added": I.edit,
 };
 
 function statusEs(v: unknown): string {
@@ -108,6 +116,18 @@ function timelineSub(entry: ApiAuditEntry): string | null {
       return typeof md.deliverAt === "string"
         ? `Nueva fecha: ${fmtDateLong(md.deliverAt)}`
         : "Sin fecha";
+    case "sales.order.assignee_changed": {
+      const role = md.role === "designer" ? "Diseño" : "Producción";
+      const who =
+        typeof md.assigneeName === "string" && md.assigneeName.length > 0
+          ? md.assigneeName
+          : "Sin asignar";
+      return `${role}: ${who}`;
+    }
+    case "sales.order.priority_changed":
+      return `${String(md.from ?? "—")} → ${String(md.to ?? "—")}`;
+    case "sales.order.internal_note_added":
+      return typeof md.authorName === "string" ? `por ${md.authorName}` : null;
     default:
       return null;
   }
@@ -166,6 +186,9 @@ export default function OrderDetailPage() {
   const canRecordPayment = usePermission("sales.payments.record");
   const canRefund = usePermission("sales.refunds.create");
   const canCancel = usePermission("sales.orders.cancel");
+  // Asignar responsables de etapa y prioridad (organización del taller).
+  const canAssign = usePermission("sales.orders.assign");
+  const [assigning, setAssigning] = useState(false);
   // El select por job ofrece "Entregado" sólo a gestión de orden; el taller
   // (sales.production.advance) avanza un job hasta "listo para entrega".
   const jobStatusOptions = canManage
@@ -361,6 +384,46 @@ export default function OrderDetailPage() {
     }
   };
 
+  const assign = async (
+    patch: { designerId?: string | null; producerId?: string | null },
+  ) => {
+    if (!detail || assigning) return;
+    setAssigning(true);
+    setActionError(null);
+    try {
+      await ordersApi.assign(detail.id, patch);
+      await load();
+      toast.success("Responsable actualizado");
+    } catch (err) {
+      setActionError(
+        err instanceof ApiError
+          ? err.message
+          : "No se pudo actualizar el responsable.",
+      );
+    } finally {
+      setAssigning(false);
+    }
+  };
+
+  const changePriority = async (priority: ApiOrderPriority) => {
+    if (!detail || assigning || priority === detail.priority) return;
+    setAssigning(true);
+    setActionError(null);
+    try {
+      await ordersApi.setPriority(detail.id, priority);
+      await load();
+      toast.success("Prioridad actualizada");
+    } catch (err) {
+      setActionError(
+        err instanceof ApiError
+          ? err.message
+          : "No se pudo actualizar la prioridad.",
+      );
+    } finally {
+      setAssigning(false);
+    }
+  };
+
   const breadcrumb = (
     <div className="flex items-center gap-2.5 mb-2 text-[13px]">
       <Link className="btn btn--ghost btn--sm" href="/orders">
@@ -536,9 +599,10 @@ export default function OrderDetailPage() {
 
       <PageHeader
         title={
-          <>
+          <span className="inline-flex items-center gap-2">
             Pedido <span className="num font-mono">{detail.folio}</span>
-          </>
+            <PriorityPill priority={detail.priority} />
+          </span>
         }
         sub={
           <>
@@ -838,6 +902,8 @@ export default function OrderDetailPage() {
             </table>
           </div>
 
+          <OrderNotes orderId={detail.id} />
+
           <div className="card">
             <div className="card__head">
               <div className="card__title">Actividad</div>
@@ -1021,6 +1087,66 @@ export default function OrderDetailPage() {
                 >
                   {savingMeta ? "Guardando…" : "Guardar cambios"}
                 </button>
+              )}
+            </div>
+          </div>
+
+          <div className="card">
+            <div className="card__head">
+              <div className="card__title">Responsables y prioridad</div>
+            </div>
+            <div className="card__body grid gap-3">
+              {canAssign ? (
+                <>
+                  <AssigneeSelect
+                    label="Responsable de diseño"
+                    value={detail.designerId}
+                    users={users}
+                    disabled={assigning || isCancelled}
+                    onChange={(userId) => void assign({ designerId: userId })}
+                  />
+                  <AssigneeSelect
+                    label="Responsable de producción"
+                    value={detail.producerId}
+                    users={users}
+                    disabled={assigning || isCancelled}
+                    onChange={(userId) => void assign({ producerId: userId })}
+                  />
+                  <label className="field text-xs" style={{ gap: 4 }}>
+                    Prioridad
+                    <select
+                      className="select"
+                      value={detail.priority}
+                      disabled={assigning || isCancelled}
+                      onChange={(e) =>
+                        void changePriority(e.target.value as ApiOrderPriority)
+                      }
+                    >
+                      {(Object.keys(ORDER_PRIORITY_ES) as ApiOrderPriority[]).map(
+                        (p) => (
+                          <option key={p} value={p}>
+                            {ORDER_PRIORITY_ES[p]}
+                          </option>
+                        ),
+                      )}
+                    </select>
+                  </label>
+                </>
+              ) : (
+                <div className="grid gap-1.5 text-sm">
+                  <div>
+                    <span className="text-muted text-xs">Diseño: </span>
+                    {detail.designerName ?? "Sin asignar"}
+                  </div>
+                  <div>
+                    <span className="text-muted text-xs">Producción: </span>
+                    {detail.producerName ?? "Sin asignar"}
+                  </div>
+                  <div>
+                    <span className="text-muted text-xs">Prioridad: </span>
+                    {ORDER_PRIORITY_ES[detail.priority]}
+                  </div>
+                </div>
               )}
             </div>
           </div>

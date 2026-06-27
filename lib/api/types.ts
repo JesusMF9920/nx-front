@@ -367,6 +367,9 @@ export type ApiOrderStatus =
   | "delivered"
   | "cancelled";
 
+/** Prioridad operativa del pedido (EN → label ES en sales-mappers). */
+export type ApiOrderPriority = "urgent" | "normal";
+
 export type ApiPaymentMethod = "cash" | "terminal" | "transfer";
 
 export type ApiPayment = {
@@ -468,6 +471,13 @@ export type ApiOrder = {
   clientId: string;
   clientName: string;
   status: ApiOrderStatus;
+  priority: ApiOrderPriority;
+  /** Responsable de diseño (id + snapshot de nombre); null = sin asignar. */
+  designerId: string | null;
+  designerName: string | null;
+  /** Responsable de producción; null = sin asignar. */
+  producerId: string | null;
+  producerName: string | null;
   total: number;
   /** Σ payments — siempre derivado por el backend. */
   paid: number;
@@ -477,6 +487,24 @@ export type ApiOrder = {
   deliverAt: string | null;
   itemsCount: number;
   createdAt: string;
+};
+
+/** Nota interna del equipo sobre un pedido (staff-only). */
+export type ApiOrderInternalNote = {
+  id: string;
+  authorId: string | null;
+  authorName: string;
+  body: string;
+  createdAt: string;
+};
+
+/** Bandeja del día / alertas (GET /orders/alerts). */
+export type ApiOrderAlerts = {
+  unassigned: number;
+  overdue: number;
+  dueSoon: number;
+  /** "Lo que me toca": pedidos activos donde el usuario es responsable. */
+  myDay: ApiOrder[];
 };
 
 /** Forma del GET /orders/:idOrFolio (detalle). */

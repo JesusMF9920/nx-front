@@ -4,14 +4,16 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { I } from "@/components/icons";
 import { PageHeader } from "@/components/page-header";
+import { PriorityPill } from "@/components/priority-pill";
 import { SalesChart } from "@/components/sales-chart";
 import { SkeletonText } from "@/components/skeleton";
 import { StatusPill } from "@/components/status-pill";
 import { ApiError } from "@/lib/api/errors";
+import { ordersApi } from "@/lib/api/orders";
 import { reportsApi } from "@/lib/api/reports";
 import { settingsApi } from "@/lib/api/settings";
 import { ORDER_STATUS_ES } from "@/lib/api/sales-mappers";
-import type { ApiDashboard } from "@/lib/api/types";
+import type { ApiDashboard, ApiOrderAlerts } from "@/lib/api/types";
 import { useAuth, usePermission } from "@/lib/auth/auth-context";
 import { fmtDate, fmtMXN } from "@/lib/format";
 
@@ -25,12 +27,14 @@ type Stat = {
 export default function DashboardPage() {
   const { user } = useAuth();
   const canRead = usePermission("reports.read");
+  const canOrders = usePermission("sales.orders.read");
   const firstName = (user?.name ?? "").split(" ")[0] || "tú";
 
   const [data, setData] = useState<ApiDashboard | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [orgName, setOrgName] = useState<string | null>(null);
+  const [alerts, setAlerts] = useState<ApiOrderAlerts | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -69,6 +73,92 @@ export default function DashboardPage() {
     };
   }, [canRead]);
 
+  useEffect(() => {
+    if (!canOrders) return;
+    let cancelled = false;
+    void (async () => {
+      try {
+        const res = await ordersApi.alerts();
+        if (!cancelled) setAlerts(res);
+      } catch {
+        /* sin bandeja si falla */
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [canOrders]);
+
+  const alertsSection = canOrders && alerts && (
+    <div className="mb-5">
+      <div className="kpi-grid mb-3">
+        <Link href="/board" className="stat no-underline text-inherit">
+          <div className="stat__label">Sin responsable</div>
+          <div className="stat__value">{alerts.unassigned}</div>
+          <div className="stat__delta" style={{ color: "var(--warn)" }}>
+            asignar en el tablero
+          </div>
+        </Link>
+        <Link href="/board" className="stat no-underline text-inherit">
+          <div className="stat__label">Vencidos</div>
+          <div
+            className="stat__value"
+            style={{ color: alerts.overdue > 0 ? "var(--danger)" : undefined }}
+          >
+            {alerts.overdue}
+          </div>
+          <div className="stat__delta">entrega pasada</div>
+        </Link>
+        <Link href="/calendar" className="stat no-underline text-inherit">
+          <div className="stat__label">Por vencer</div>
+          <div className="stat__value">{alerts.dueSoon}</div>
+          <div className="stat__delta">próximos 3 días</div>
+        </Link>
+      </div>
+
+      <div className="card">
+        <div className="card__head">
+          <div className="card__title">Lo que me toca</div>
+          <div className="spacer" />
+          <span className="text-muted text-xs">{alerts.myDay.length}</span>
+        </div>
+        <div className="card__body p-0">
+          {alerts.myDay.length === 0 ? (
+            <div className="empty m-3.5">
+              No tienes pedidos asignados. ¡Todo en orden!
+            </div>
+          ) : (
+            alerts.myDay.map((o, i) => (
+              <Link
+                key={o.id}
+                href={`/orders/${o.folio}`}
+                className="flex items-center gap-2.5 px-4 py-3 no-underline text-inherit"
+                style={{
+                  borderBottom:
+                    i < alerts.myDay.length - 1
+                      ? "1px solid var(--line)"
+                      : "none",
+                }}
+              >
+                <div className="flex-1 min-w-0">
+                  <div className="font-medium text-[13px] flex items-center gap-1.5">
+                    {o.clientName}
+                    <PriorityPill priority={o.priority} />
+                  </div>
+                  <div className="text-muted text-xs">
+                    {o.folio} · entrega{" "}
+                    {o.deliverAt ? fmtDate(o.deliverAt) : "sin fecha"}
+                  </div>
+                </div>
+                <StatusPill s={ORDER_STATUS_ES[o.status]} />
+              </Link>
+            ))
+          )}
+        </div>
+      </div>
+    </div>
+  );
+
   const header = (
     <PageHeader
       title={`Buen día, ${firstName}`}
@@ -91,6 +181,7 @@ export default function DashboardPage() {
     return (
       <>
         {header}
+        {alertsSection}
         <div className="empty m-3.5">
           No tienes acceso a las métricas. Ve al{" "}
           <Link href="/pos" className="text-accent">
@@ -141,6 +232,8 @@ export default function DashboardPage() {
           {error}
         </div>
       )}
+
+      {alertsSection}
 
       {loading || !data ? (
         <SkeletonText lines={5} />

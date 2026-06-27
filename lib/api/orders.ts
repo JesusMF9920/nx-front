@@ -4,7 +4,10 @@ import type {
   ApiConsumptionLine,
   ApiList,
   ApiOrder,
+  ApiOrderAlerts,
   ApiOrderDetail,
+  ApiOrderInternalNote,
+  ApiOrderPriority,
   ApiOrderStatus,
   ApiPaymentMethod,
   ApiStockShortage,
@@ -115,6 +118,15 @@ export type ListOrdersParams = {
   /** Rango half-open [deliverFrom, deliverTo) sobre deliverAt — calendario. */
   deliverFrom?: string;
   deliverTo?: string;
+  /** Responsable concreto (diseño o producción). */
+  assigneeId?: string;
+  priority?: ApiOrderPriority;
+  /** Sólo pedidos sin responsable de diseño ni de producción. */
+  unassigned?: boolean;
+  /** "Mis pedidos": donde el usuario actual es responsable. */
+  mine?: boolean;
+  /** Sólo pedidos vencidos (entrega pasada, aún no entregados). */
+  overdue?: boolean;
   skip?: number;
   take?: number;
 };
@@ -181,6 +193,51 @@ export const ordersApi = {
     return apiFetch<{ items: ApiAuditEntry[] }>(
       `/orders/${idOrFolio}/timeline`,
     );
+  },
+
+  /** Bandeja del día / alertas para el dashboard. */
+  alerts(): Promise<ApiOrderAlerts> {
+    return apiFetch<ApiOrderAlerts>(`/orders/alerts`);
+  },
+
+  /**
+   * Asigna/reasigna responsables de etapa. Por campo: omitido = sin cambio;
+   * null = quitar; UUID = asignar. Requiere permiso sales.orders.assign.
+   */
+  assign(
+    orderId: string,
+    patch: { designerId?: string | null; producerId?: string | null },
+  ): Promise<{ orderId: string }> {
+    return apiFetch<{ orderId: string }>(`/orders/${orderId}/assignees`, {
+      method: "PATCH",
+      body: JSON.stringify(patch),
+    });
+  },
+
+  /** Cambia la prioridad operativa (urgente/normal). */
+  setPriority(
+    orderId: string,
+    priority: ApiOrderPriority,
+  ): Promise<{ orderId: string; priority: ApiOrderPriority }> {
+    return apiFetch<{ orderId: string; priority: ApiOrderPriority }>(
+      `/orders/${orderId}/priority`,
+      { method: "PATCH", body: JSON.stringify({ priority }) },
+    );
+  },
+
+  /** Notas internas del equipo (de la más vieja a la más reciente). */
+  listNotes(idOrFolio: string): Promise<{ items: ApiOrderInternalNote[] }> {
+    return apiFetch<{ items: ApiOrderInternalNote[] }>(
+      `/orders/${idOrFolio}/notes`,
+    );
+  },
+
+  /** Agrega una nota interna del equipo (append-only). */
+  addNote(orderId: string, body: string): Promise<{ id: string }> {
+    return apiFetch<{ id: string }>(`/orders/${orderId}/notes`, {
+      method: "POST",
+      body: JSON.stringify({ body }),
+    });
   },
 
   /** `idempotencyKey` (header `idempotency-key`): evita doble cobro tras un

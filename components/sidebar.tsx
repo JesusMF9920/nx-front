@@ -34,6 +34,7 @@ const NAV_GROUPS: NavGroup[] = [
       { href: "/cash",      label: "Caja",           icon: I.cash,    perm: "sales.cash.read", feature: "cash_sessions" },
       { href: "/quotes",    label: "Cotizaciones",   icon: I.receipt, perm: "sales.quotes.read" },
       { href: "/orders",    label: "Pedidos",        icon: I.receipt, perm: "sales.orders.read" },
+      { href: "/board",     label: "Tablero",        icon: I.layers,  perm: "sales.orders.read" },
       { href: "/invoices",  label: "Facturas",       icon: I.receipt, perm: "invoicing.read", feature: "cfdi" },
       { href: "/collections", label: "Cobranza",     icon: I.cash,    perm: "sales.collections.read" },
       { href: "/production", label: "Producción",    icon: I.printer, perm: "sales.production.advance" },

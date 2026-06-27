@@ -2,10 +2,11 @@
 
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Suspense, useState } from "react";
+import { Suspense, useState, type ReactNode } from "react";
 import { I } from "@/components/icons";
 import { PageHeader } from "@/components/page-header";
 import { PaymentPill } from "@/components/payment-pill";
+import { PriorityPill } from "@/components/priority-pill";
 import { SkeletonTable } from "@/components/skeleton";
 import { StatusPill } from "@/components/status-pill";
 import { usePermission } from "@/lib/auth/auth-context";
@@ -73,6 +74,13 @@ function OrdersPageInner() {
   const [query, setQuery] = useState("");
   const [filters, setFilters] = useState<OrderFilters>({});
   const [filtersOpen, setFiltersOpen] = useState(false);
+  // Filtros rápidos de organización (chips). Combinables con tab/búsqueda.
+  const [quick, setQuick] = useState({
+    mine: false,
+    unassigned: false,
+    overdue: false,
+    urgent: false,
+  });
   const [actionError, setActionError] = useState<string | null>(null);
   const [exporting, setExporting] = useState(false);
 
@@ -92,9 +100,13 @@ function OrdersPageInner() {
         ...params,
         status: TAB_TO_STATUS[tab] ?? undefined,
         clientId: clienteId ?? undefined,
+        mine: quick.mine || undefined,
+        unassigned: quick.unassigned || undefined,
+        overdue: quick.overdue || undefined,
+        priority: quick.urgent ? "urgent" : undefined,
         ...filters,
       }),
-    filterKey: `${tab}|${clienteId ?? ""}|${filters.from ?? ""}|${filters.to ?? ""}|${filters.deliverFrom ?? ""}|${filters.deliverTo ?? ""}`,
+    filterKey: `${tab}|${clienteId ?? ""}|${quick.mine}|${quick.unassigned}|${quick.overdue}|${quick.urgent}|${filters.from ?? ""}|${filters.to ?? ""}|${filters.deliverFrom ?? ""}|${filters.deliverTo ?? ""}`,
     search: query,
     pageSize: PAGE_SIZE,
     errorMessage: "No se pudieron cargar los pedidos.",
@@ -121,6 +133,10 @@ function OrdersPageInner() {
           status: TAB_TO_STATUS[tab] ?? undefined,
           search: query || undefined,
           clientId: clienteId ?? undefined,
+          mine: quick.mine || undefined,
+          unassigned: quick.unassigned || undefined,
+          overdue: quick.overdue || undefined,
+          priority: quick.urgent ? "urgent" : undefined,
           ...filters,
         } satisfies ListOrdersParams),
         "pedidos.csv",
@@ -334,13 +350,43 @@ function OrdersPageInner() {
             )}
           </div>
         </div>
+        {/* Filtros rápidos de organización (combinables con tab/búsqueda). */}
+        <div
+          className="flex flex-wrap items-center gap-1.5"
+          style={{ padding: "8px 14px", borderTop: "1px solid var(--line)" }}
+          role="group"
+          aria-label="Filtros rápidos"
+        >
+          {(
+            [
+              ["mine", "Mis pedidos"],
+              ["unassigned", "Sin responsable"],
+              ["overdue", "Vencidos"],
+              ["urgent", "Urgentes"],
+            ] as const
+          ).map(([key, label]) => (
+            <button
+              key={key}
+              type="button"
+              className={`btn btn--sm ${quick[key] ? "btn--primary" : "btn--ghost"}`}
+              aria-pressed={quick[key]}
+              onClick={() => {
+                setQuick((q) => ({ ...q, [key]: !q[key] }));
+                setPage(1);
+              }}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
         {/* Responsive tablet (H3): la tabla no colapsa columnas — scrollea. */}
         <div className="overflow-x-auto">
-          <table className="tbl min-w-[760px]">
+          <table className="tbl min-w-[900px]">
           <thead>
             <tr>
               <th>Pedido</th>
               <th>Cliente</th>
+              <th>Responsable</th>
               <th style={{ textAlign: "right" }}>Items</th>
               <th>Pago</th>
               <th style={{ textAlign: "right" }}>Total</th>
@@ -351,13 +397,13 @@ function OrdersPageInner() {
           <tbody>
             {loading ? (
               <tr>
-                <td colSpan={7} style={{ padding: 0 }}>
-                  <SkeletonTable rows={6} cols={7} />
+                <td colSpan={8} style={{ padding: 0 }}>
+                  <SkeletonTable rows={6} cols={8} />
                 </td>
               </tr>
             ) : orders.length === 0 ? (
               <tr>
-                <td colSpan={7} className="text-muted">
+                <td colSpan={8} className="text-muted">
                   {debounced
                     ? `Sin pedidos para “${debounced}”.`
                     : "Sin pedidos."}
@@ -366,8 +412,14 @@ function OrdersPageInner() {
             ) : (
               orders.map((o) => (
                 <tr key={o.id} onClick={() => router.push(`/orders/${o.folio}`)}>
-                  <td className="num">{o.folio}</td>
+                  <td className="num">
+                    <div className="flex items-center gap-1.5">
+                      {o.folio}
+                      <PriorityPill priority={o.priority} />
+                    </div>
+                  </td>
                   <td>{o.clientName}</td>
+                  <td className="text-xs">{responsibleLabel(o)}</td>
                   <td className="num" style={{ textAlign: "right" }}>{o.itemsCount}</td>
                   <td><PaymentPill method={paymentLabel(o)} /></td>
                   <td className="num" style={{ textAlign: "right" }}>{fmtMXN(o.total)}</td>
@@ -420,4 +472,15 @@ function OrdersPageInner() {
       </div>
     </>
   );
+}
+
+/** Etiqueta compacta de responsables de etapa para la columna de la lista. */
+function responsibleLabel(o: ApiOrder): ReactNode {
+  if (!o.designerName && !o.producerName) {
+    return <span style={{ color: "var(--warn)" }}>Sin asignar</span>;
+  }
+  const parts: string[] = [];
+  if (o.designerName) parts.push(`Diseño: ${o.designerName}`);
+  if (o.producerName) parts.push(`Prod.: ${o.producerName}`);
+  return parts.join(" · ");
 }
