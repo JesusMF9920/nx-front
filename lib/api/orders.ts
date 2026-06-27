@@ -281,11 +281,22 @@ export const ordersApi = {
     );
   },
 
-  /** Devolución de dinero (DEV-). SOLO dinero — no revierte stock. */
-  refund(orderId: string, input: RefundInput): Promise<RefundResult> {
+  /**
+   * Devolución de dinero (DEV-). SOLO dinero — no revierte stock.
+   * `idempotencyKey` (header `idempotency-key`): evita pagar el efectivo dos
+   * veces tras un reintento de red. Estable por intento de devolución.
+   */
+  refund(
+    orderId: string,
+    input: RefundInput,
+    idempotencyKey?: string,
+  ): Promise<RefundResult> {
     return apiFetch<RefundResult>(`/orders/${orderId}/refunds`, {
       method: "POST",
       body: JSON.stringify(input),
+      ...(idempotencyKey
+        ? { headers: { "idempotency-key": idempotencyKey } }
+        : {}),
     });
   },
 

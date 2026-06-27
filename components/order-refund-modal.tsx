@@ -30,6 +30,9 @@ export function OrderRefundModal({ order, onClose, onDone }: OrderRefundModalPro
   const [reason, setReason] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Una clave por sesión del modal: un reintento tras un error de red NO emite
+  // una segunda devolución (no paga el efectivo dos veces).
+  const [idemKey] = useState(() => crypto.randomUUID());
 
   const parsed = Number(amount);
   const valid =
@@ -44,11 +47,15 @@ export function OrderRefundModal({ order, onClose, onDone }: OrderRefundModalPro
     setSubmitting(true);
     setError(null);
     try {
-      await ordersApi.refund(order.id, {
-        method,
-        amount: +parsed.toFixed(2),
-        reason: reason.trim(),
-      });
+      await ordersApi.refund(
+        order.id,
+        {
+          method,
+          amount: +parsed.toFixed(2),
+          reason: reason.trim(),
+        },
+        idemKey,
+      );
       toast.success(`Devolución de ${fmtMXN(+parsed.toFixed(2))} aplicada`);
       await onDone();
       onClose();
