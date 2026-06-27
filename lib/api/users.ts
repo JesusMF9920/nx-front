@@ -5,6 +5,8 @@ export type CreateUserInput = {
   email: string;
   name: string;
   password: string;
+  /** Roles asignados atómicamente al crear (el backend los conecta en el alta). */
+  roleIds?: string[];
 };
 
 export type UpdateUserInput = {
@@ -42,7 +44,11 @@ export const usersApi = {
   },
 
   /** Alta por invitación: crea el usuario sin contraseña y le manda el correo. */
-  invite(input: { email: string; name: string }): Promise<{ id: string }> {
+  invite(input: {
+    email: string;
+    name: string;
+    roleIds?: string[];
+  }): Promise<{ id: string }> {
     return apiFetch<{ id: string }>("/users/invite", {
       method: "POST",
       body: JSON.stringify(input),

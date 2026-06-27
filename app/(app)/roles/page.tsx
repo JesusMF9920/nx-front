@@ -123,15 +123,15 @@ export default function RolesPage() {
     let cancelled = false;
     const load = async () => {
       setDetailLoading(true);
+      // Usuarios del rol = dato crítico del detalle.
       try {
-        const [usersRes, auditRes] = await Promise.all([
-          usersApi.list({ roleId: selectedId, take: USERS_PAGE_SIZE }),
-          auditApi.list({ target: `role:${selectedId}`, take: 1 }),
-        ]);
+        const usersRes = await usersApi.list({
+          roleId: selectedId,
+          take: USERS_PAGE_SIZE,
+        });
         if (cancelled) return;
         setRoleUsers(usersRes.items);
         setRoleUsersTotal(usersRes.total);
-        setLatestAudit(auditRes.items[0] ?? null);
       } catch (err) {
         if (cancelled) return;
         setActionError(
@@ -141,6 +141,17 @@ export default function RolesPage() {
         );
       } finally {
         if (!cancelled) setDetailLoading(false);
+      }
+      // Última modificación (auditoría) = informativa. Si el actor no tiene
+      // audit.read, NO debe romper el detalle del rol: best-effort y silencioso.
+      try {
+        const auditRes = await auditApi.list({
+          target: `role:${selectedId}`,
+          take: 1,
+        });
+        if (!cancelled) setLatestAudit(auditRes.items[0] ?? null);
+      } catch {
+        if (!cancelled) setLatestAudit(null);
       }
     };
     void load();
@@ -214,22 +225,30 @@ export default function RolesPage() {
     try {
       await rolesApi.update(role.id, { permissions: next });
       toast.success(currentlyHas ? "Permiso retirado" : "Permiso otorgado");
-      // Refrescar última modificación.
-      const auditRes = await auditApi.list({
-        target: `role:${role.id}`,
-        take: 1,
-      });
-      setLatestAudit(auditRes.items[0] ?? null);
     } catch (err) {
+      // SOLO revertir si falló el GUARDADO real.
       updateRoleLocal(role.id, { permissions: prev });
       setActionError(
         err instanceof ApiError
           ? err.message
           : "No se pudo guardar el permiso.",
       );
-    } finally {
       setSavingPermKey(null);
+      return;
     }
+    // Refrescar última modificación (informativo) FUERA del try del guardado:
+    // si falla (p.ej. sin audit.read), el permiso YA quedó guardado — antes esto
+    // revertía en pantalla un cambio que sí persistió en el backend.
+    try {
+      const auditRes = await auditApi.list({
+        target: `role:${role.id}`,
+        take: 1,
+      });
+      setLatestAudit(auditRes.items[0] ?? null);
+    } catch {
+      // best-effort
+    }
+    setSavingPermKey(null);
   };
 
   const revokeUser = async (role: ApiRole, user: ApiUser) => {

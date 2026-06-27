@@ -680,15 +680,23 @@ function NewUserModal({
     }
     setSubmitting(true);
     try {
-      const { id } =
-        mode === "temporary"
-          ? await usersApi.create({
-              email: email.trim(),
-              name: name.trim(),
-              password,
-            })
-          : await usersApi.invite({ email: email.trim(), name: name.trim() });
-      await rolesApi.assign(roleId, id);
+      // Alta + rol en UNA sola llamada atómica: el backend conecta el rol en el
+      // mismo save. Antes era create + assign en 2 llamadas y un fallo de la 2ª
+      // dejaba un usuario sin rol.
+      if (mode === "temporary") {
+        await usersApi.create({
+          email: email.trim(),
+          name: name.trim(),
+          password,
+          roleIds: [roleId],
+        });
+      } else {
+        await usersApi.invite({
+          email: email.trim(),
+          name: name.trim(),
+          roleIds: [roleId],
+        });
+      }
       toast.success(
         mode === "invite" ? "Invitación enviada" : "Usuario creado",
       );
