@@ -157,7 +157,9 @@ export function OrderEditLinesModal({ order, onClose, onDone }: Props) {
           `El nuevo total queda por debajo de lo ya pagado (${fmtMXN(order.paid)}). Registra una devolución primero.`,
         );
       } else if (code === "InsufficientStockForSaleError") {
-        setError("Stock insuficiente para las nuevas líneas.");
+        setError(
+          "Stock insuficiente para las nuevas líneas; ajusta las cantidades y reintenta. El pedido no se modificó.",
+        );
       } else {
         setError(
           err instanceof ApiError ? err.message : "No se pudo editar el pedido.",
