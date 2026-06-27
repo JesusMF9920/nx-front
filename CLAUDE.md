@@ -14,8 +14,13 @@ Next.js 16 (App Router) + React 19 + Tailwind CSS v4 + TypeScript, managed with 
 - `pnpm build` — production build
 - `pnpm start` — serve the production build
 - `pnpm lint` — run ESLint
+- `pnpm test` — run Vitest once (`vitest run`)
+- `pnpm test:watch` — Vitest in watch mode
+- `pnpm exec vitest run path/to/file.test.ts` — a single file
 
-No test runner is configured.
+Tests live in `lib/`, `components/`, and `app/` (`*.test.ts`/`*.test.tsx`). The default
+environment is `node`; specs needing the DOM opt in per-file with
+`// @vitest-environment happy-dom`. See `vitest.config.ts`.
 
 ## Conventions
 
