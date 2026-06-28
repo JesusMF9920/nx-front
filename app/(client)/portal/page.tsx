@@ -8,6 +8,7 @@ import { clientOrdersApi } from "@/lib/api/client-portal/orders";
 import type { ClientOrderListItem } from "@/lib/api/client-portal/types";
 import { useClientAuth } from "@/lib/auth/client-auth-context";
 import { fmtDate, fmtMXN } from "@/lib/format";
+import { PortalNav } from "./portal-nav";
 import { StatusBadge } from "./status-badge";
 
 export default function PortalOrdersPage() {
@@ -57,6 +58,8 @@ export default function PortalOrdersPage() {
           Salir
         </button>
       </header>
+
+      <PortalNav active="pedidos" />
 
       {error && (
         <p className="text-sm text-[var(--danger,#c0392b)]">

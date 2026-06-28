@@ -46,6 +46,29 @@ export type ClientOrderPayment = {
   createdAt: string;
 };
 
+export type ClientReceivableBucket = "0-30" | "31-60" | "61-90" | "90+";
+
+export type ClientReceivableOrder = {
+  folio: string;
+  total: number;
+  paid: number;
+  balance: number;
+  ageDays: number;
+  bucket: ClientReceivableBucket;
+  dueDate: string;
+  createdAt: string;
+};
+
+export type ClientDebtSummary = {
+  totalBalance: number;
+  overdueBalance: number;
+  orderCount: number;
+  b030: number;
+  b3160: number;
+  b6190: number;
+  b90: number;
+};
+
 export type ClientOrderDetail = {
   id: string;
   folio: string;
