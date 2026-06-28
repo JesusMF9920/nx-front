@@ -53,6 +53,10 @@ const PUBLIC_PATH_PREFIXES = [
   "/password-reset",
   "/verify-email",
   "/approve",
+  // Portal del cliente: vive bajo el AuthProvider global de staff, pero su
+  // sesión es OTRA (cookies client_*). El probe /me de staff aquí 401ea sin
+  // sesión de staff; sin esta exención rebotaría el portal a /login.
+  "/portal",
 ];
 
 function isPublicPath(pathname: string): boolean {

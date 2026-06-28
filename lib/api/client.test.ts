@@ -146,6 +146,24 @@ describe("apiFetch — flujo 401/refresh", () => {
     expect(window.location.href).not.toContain("/login");
   });
 
+  it("401 → refresh falla en el portal del cliente → NO rebota a /login", async () => {
+    // El portal del cliente vive bajo el AuthProvider de staff; su probe /me de
+    // staff 401ea sin sesión de staff. `/portal` está en el allowlist → el
+    // redirect a /login es no-op (la sesión del portal es otra).
+    window.location.href = "http://localhost:3000/portal";
+    route({
+      refresh: () => json({ message: "nope" }, 401),
+      other: () => json({ message: "expired" }, 401),
+    });
+
+    const err = await apiFetch("/me").catch((e: unknown) => e);
+
+    expect(err).toBeInstanceOf(ApiError);
+    expect((err as ApiError).status).toBe(401);
+    expect(window.location.pathname).toBe("/portal");
+    expect(window.location.href).not.toContain("/login");
+  });
+
   it("retry que vuelve a dar 401 NO entra en loop (un solo refresh)", async () => {
     let refreshCalls = 0;
     route({
