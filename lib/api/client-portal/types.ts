@@ -69,6 +69,45 @@ export type ClientDebtSummary = {
   b90: number;
 };
 
+export type ClientApprovalStatus =
+  | "draft"
+  | "awaiting_client"
+  | "changes_requested"
+  | "approved";
+
+export type ClientApprovalListItem = {
+  id: string;
+  folio: string;
+  orderFolio: string;
+  productName: string;
+  status: ClientApprovalStatus;
+  currentVersion: number;
+  needsDecision: boolean;
+  lastSentAt: string | null;
+};
+
+export type ClientApprovalComment = {
+  authorType: string;
+  authorName: string;
+  body: string;
+  createdAt: string;
+};
+
+export type ClientApprovalDetail = {
+  id: string;
+  folio: string;
+  orderFolio: string;
+  productName: string;
+  status: ClientApprovalStatus;
+  version: number;
+  versionNote: string | null;
+  contentType: string;
+  previewUrl: string;
+  decidedAt: string | null;
+  canDecide: boolean;
+  comments: ClientApprovalComment[];
+};
+
 export type ClientOrderDetail = {
   id: string;
   folio: string;

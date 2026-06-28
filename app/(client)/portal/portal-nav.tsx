@@ -1,8 +1,10 @@
 import Link from "next/link";
 
-/** Navegación del portal entre pedidos y adeudos. */
-export function PortalNav({ active }: { active: "pedidos" | "adeudos" }) {
-  const tab = (href: string, label: string, key: "pedidos" | "adeudos") => (
+type Tab = "pedidos" | "adeudos" | "aprobaciones";
+
+/** Navegación del portal entre pedidos, adeudos y aprobaciones. */
+export function PortalNav({ active }: { active: Tab }) {
+  const tab = (href: string, label: string, key: Tab) => (
     <Link
       href={href}
       className={[
@@ -16,9 +18,10 @@ export function PortalNav({ active }: { active: "pedidos" | "adeudos" }) {
     </Link>
   );
   return (
-    <nav className="mb-6 mt-3 flex gap-2">
+    <nav className="mb-6 mt-3 flex flex-wrap gap-2">
       {tab("/portal", "Pedidos", "pedidos")}
       {tab("/portal/adeudos", "Adeudos", "adeudos")}
+      {tab("/portal/aprobaciones", "Aprobaciones", "aprobaciones")}
     </nav>
   );
 }
