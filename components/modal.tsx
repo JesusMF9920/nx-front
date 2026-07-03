@@ -29,6 +29,13 @@ export function Modal({ title, onClose, children, footer, width = 720 }: ModalPr
   const panelRef = useRef<HTMLDivElement>(null);
   // Elemento que tenía el foco antes de abrir, para devolvérselo al cerrar.
   const restoreFocusTo = useRef<HTMLElement | null>(null);
+  // `onClose` suele venir como arrow inline: cambia de identidad en cada render
+  // del padre. Lo leemos por ref para que el efecto de setup NO dependa de él y
+  // no se re-ejecute (re-enfocando el primer campo) cuando el padre re-renderiza.
+  const onCloseRef = useRef(onClose);
+  useEffect(() => {
+    onCloseRef.current = onClose;
+  }, [onClose]);
 
   useEffect(() => {
     // `titleId` (de useId) es único por instancia: sirve de token en la pila.
@@ -75,7 +82,7 @@ export function Modal({ title, onClose, children, footer, width = 720 }: ModalPr
       if (!isTop()) return;
       if (e.key === "Escape") {
         e.stopPropagation();
-        onClose();
+        onCloseRef.current();
         return;
       }
       if (e.key === "Tab") {
@@ -120,7 +127,10 @@ export function Modal({ title, onClose, children, footer, width = 720 }: ModalPr
       const target = restoreFocusTo.current;
       if (target && document.contains(target)) target.focus();
     };
-  }, [onClose, titleId]);
+    // Setup de una sola vez (enfoque inicial, scroll-lock, inert, pila, trap):
+    // depende sólo de `titleId` (estable por `useId`), así corre al montar y no
+    // se re-ejecuta en cada render. `onClose` se lee por `onCloseRef`.
+  }, [titleId]);
 
   // Durante SSR no hay document; el modal solo se monta en cliente.
   if (typeof document === "undefined") return null;
