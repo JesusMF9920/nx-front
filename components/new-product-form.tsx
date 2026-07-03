@@ -665,6 +665,28 @@ export function NewProductForm({
               <span className="font-mono">talla|color</span>. Déjalo vacío si el
               producto no maneja color.
             </div>
+            {colors.length > 0 &&
+              !sizedMaterial.variants.some((v) => v.code.includes("|")) && (
+                <div
+                  className="rounded-md text-xs flex gap-2 items-start mt-2"
+                  style={{
+                    padding: "10px 12px",
+                    border: "1px solid var(--warn)",
+                    color: "var(--warn)",
+                    background: "var(--warn-soft, var(--surface-2))",
+                  }}
+                  role="status"
+                >
+                  <span aria-hidden>⚠️</span>
+                  <div>
+                    El insumo <strong>{sizedMaterial.name}</strong> aún no tiene
+                    la matriz <span className="font-mono">talla|color</span>. Al
+                    guardar, este producto se venderá <strong>por talla</strong>{" "}
+                    hasta que generes las combinaciones y cargues su stock en{" "}
+                    <strong>Inventario</strong>.
+                  </div>
+                </div>
+              )}
           </div>
         )}
 

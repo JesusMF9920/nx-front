@@ -1109,7 +1109,14 @@ export default function POSPage() {
 
       {variantPicker &&
         (variantPicker.detail.variantType === "sized_from_material" && variantPicker.material ? (
-          variantPicker.detail.colors && variantPicker.detail.colors.length > 0 ? (
+          // Matriz talla×color sólo si el producto declara colores Y el insumo ya
+          // tiene variantes compuestas "talla|color". Si declara colores pero el
+          // insumo aún no migró (sin variantes con "|"), caemos al desglose por
+          // talla plana para no dejar la venta atorada — el picker por talla
+          // muestra el aviso de que falta configurar la matriz.
+          variantPicker.detail.colors &&
+          variantPicker.detail.colors.length > 0 &&
+          variantPicker.material.variants.some((v) => v.code.includes("|")) ? (
             <PosSizeColorMatrixPicker
               product={variantPicker.detail}
               material={variantPicker.material}

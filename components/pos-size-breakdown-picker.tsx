@@ -29,8 +29,15 @@ const COLS = "80px 1fr 110px 110px 130px";
 
 export function PosSizeBreakdownPicker({ product, material, editLineId, editBreakdown, onClose, onAdd }: Props) {
   // El sizeId del breakdown es el CODE de la variante del material (no su UUID).
-  const sizes = [...material.variants].sort((a, b) => a.sortOrder - b.sortOrder);
+  // Excluimos variantes compuestas "talla|color": este desglose es por talla
+  // plana, así que una celda compuesta nunca debe aparecer como talla.
+  const sizes = [...material.variants]
+    .filter((v) => !v.code.includes("|"))
+    .sort((a, b) => a.sortOrder - b.sortOrder);
   const surcharges = product.sizeSurcharges ?? {};
+  // Fallback de color: el producto declara colores pero su insumo aún no tiene la
+  // matriz talla×color, así que se vende por talla (sin distinguir color).
+  const colorsPendingMatrix = (product.colors?.length ?? 0) > 0;
 
   const initial: Record<string, number> = editBreakdown
     ? Object.fromEntries(editBreakdown.map((b) => [b.sizeId, b.qty]))
@@ -73,6 +80,29 @@ export function PosSizeBreakdownPicker({ product, material, editLineId, editBrea
             Stock se descuenta por talla.
           </div>
         </div>
+
+        {colorsPendingMatrix && (
+          <div
+            className="rounded-md text-[11px] flex gap-2 items-start"
+            style={{
+              padding: "10px 12px",
+              border: "1px solid var(--warn)",
+              color: "var(--warn)",
+              background: "var(--warn-soft, var(--surface-2))",
+            }}
+            role="status"
+          >
+            <span aria-hidden>⚠️</span>
+            <div>
+              Este producto declara colores, pero el insumo{" "}
+              <strong>{material.name}</strong> aún no tiene la matriz{" "}
+              <span className="font-mono">talla|color</span>. Se está vendiendo{" "}
+              <strong>por talla</strong> (sin distinguir color). Para vender por
+              color, crea las combinaciones en{" "}
+              <strong>Inventario → {material.name}</strong>.
+            </div>
+          </div>
+        )}
 
         <div className="overflow-x-auto">
         <div className="border border-line rounded-md overflow-hidden min-w-[520px]">

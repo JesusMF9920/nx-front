@@ -1332,6 +1332,28 @@ function ColorsEditorModal({
   );
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Insumo de tallas: para avisar si aún NO tiene la matriz talla×color. Sin
+  // ella, declarar colores no basta — el POS caería al desglose por talla.
+  const [material, setMaterial] = useState<ApiMaterial | null>(null);
+  useEffect(() => {
+    const id = product.sizedFromMaterialId;
+    if (!id) return;
+    let alive = true;
+    void inventoryApi
+      .get(id)
+      .then((m) => {
+        if (alive) setMaterial(m);
+      })
+      .catch(() => {
+        /* el aviso es best-effort: si no carga, no bloqueamos la edición */
+      });
+    return () => {
+      alive = false;
+    };
+  }, [product.sizedFromMaterialId]);
+  const materialHasMatrix =
+    material?.variants.some((v) => v.code.includes("|")) ?? null;
+  const showMatrixWarning = colors.length > 0 && materialHasMatrix === false;
 
   const save = async (e: FormEvent) => {
     e.preventDefault();
@@ -1385,6 +1407,29 @@ function ColorsEditorModal({
             usa el desglose de una sola dimensión.
           </small>
         </div>
+
+        {showMatrixWarning && (
+          <div
+            className="rounded-md text-xs flex gap-2 items-start"
+            style={{
+              padding: "10px 12px",
+              border: "1px solid var(--warn)",
+              color: "var(--warn)",
+              background: "var(--warn-soft, var(--surface-2))",
+            }}
+            role="status"
+          >
+            <span aria-hidden>⚠️</span>
+            <div>
+              El insumo{" "}
+              <strong>{material?.name ?? "de tallas"}</strong> todavía no tiene la
+              matriz <span className="font-mono">talla|color</span>. Mientras no
+              la crees en <strong>Inventario</strong>, este producto se venderá{" "}
+              <strong>por talla</strong> (sin distinguir color). Genera la matriz
+              en el insumo y carga el stock por combinación para vender por color.
+            </div>
+          </div>
+        )}
 
         {error && (
           <div
