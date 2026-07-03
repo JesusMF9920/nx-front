@@ -20,6 +20,10 @@ export type SizeBreakdownEntry = {
   sizeId: string;
   qty: number;
   surcharge: number;
+  /** Código de color de la celda (talla×color); ausente si el producto no tiene color. */
+  colorCode?: string;
+  /** Etiqueta legible del color (display). */
+  colorLabel?: string;
 };
 
 export type PaymentMethod =

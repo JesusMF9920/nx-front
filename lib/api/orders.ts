@@ -36,8 +36,12 @@ export type CheckoutLineInput = {
   qty?: number;
   /** Requerido para variantType preset/size. */
   variantCode?: string;
-  /** Requerido para sized_from_material — los sobreprecios los resuelve el backend. */
-  sizeBreakdown?: { sizeId: string; qty: number }[];
+  /**
+   * Requerido para sized_from_material — los sobreprecios los resuelve el backend.
+   * `colorCode` (opcional) selecciona la celda talla×color; requerido si el
+   * producto declara colores (lo valida el backend).
+   */
+  sizeBreakdown?: { sizeId: string; colorCode?: string; qty: number }[];
   /** Requerido para variantType dimension. */
   dimension?: { width: number; height: number };
 };

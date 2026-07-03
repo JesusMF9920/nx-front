@@ -274,11 +274,19 @@ export type ApiProduct = {
   updatedAt: string;
 };
 
+/** Un color disponible del producto (eje ortogonal a la talla). */
+export type ApiProductColor = {
+  code: string;
+  label: string;
+};
+
 /** Forma del GET /products/:id — la lista sólo trae ApiProduct. */
 export type ApiProductDetail = ApiProduct & {
   variants: ApiProductVariant[];
   dimensionConfig: ApiDimensionConfig | null;
   sizeSurcharges: Record<string, number> | null;
+  /** Colores disponibles (sólo con sized_from_material); null/[] = producto sin color. */
+  colors: ApiProductColor[] | null;
   sizedFromMaterialId: string | null;
   recipeItems: ApiRecipeItem[];
 };

@@ -15,6 +15,7 @@ import {
   PosSizeBreakdownPicker,
   type SizeBreakdownLineData,
 } from "@/components/pos-size-breakdown-picker";
+import { PosSizeColorMatrixPicker } from "@/components/pos-size-color-matrix-picker";
 import {
   PosVariantPicker,
   type VariantLineData,
@@ -387,7 +388,11 @@ export default function POSPage() {
               productId: line.id,
               sizeBreakdown: line.sizeBreakdown
                 .filter((b) => b.qty > 0)
-                .map((b) => ({ sizeId: b.sizeId, qty: b.qty })),
+                .map((b) => ({
+                  sizeId: b.sizeId,
+                  qty: b.qty,
+                  ...(b.colorCode ? { colorCode: b.colorCode } : {}),
+                })),
               ...design,
               ...note,
             },
@@ -748,8 +753,13 @@ export default function POSPage() {
                       {line.sizeBreakdown
                         .filter((b) => b.qty > 0)
                         .map((b) => (
-                          <span key={b.sizeId} className="tag text-[10px]">
-                            {b.sizeId}×{b.qty}
+                          <span
+                            key={`${b.sizeId}|${b.colorCode ?? ""}`}
+                            className="tag text-[10px]"
+                          >
+                            {b.sizeId}
+                            {b.colorCode ? ` · ${b.colorLabel ?? b.colorCode}` : ""}×
+                            {b.qty}
                             {b.surcharge > 0 && (
                               <span className="text-muted"> +${b.surcharge}</span>
                             )}
@@ -1099,14 +1109,25 @@ export default function POSPage() {
 
       {variantPicker &&
         (variantPicker.detail.variantType === "sized_from_material" && variantPicker.material ? (
-          <PosSizeBreakdownPicker
-            product={variantPicker.detail}
-            material={variantPicker.material}
-            editLineId={variantPicker.editLineId}
-            editBreakdown={variantPicker.editBreakdown}
-            onClose={() => setVariantPicker(null)}
-            onAdd={addOrUpdateBreakdown}
-          />
+          variantPicker.detail.colors && variantPicker.detail.colors.length > 0 ? (
+            <PosSizeColorMatrixPicker
+              product={variantPicker.detail}
+              material={variantPicker.material}
+              editLineId={variantPicker.editLineId}
+              editBreakdown={variantPicker.editBreakdown}
+              onClose={() => setVariantPicker(null)}
+              onAdd={addOrUpdateBreakdown}
+            />
+          ) : (
+            <PosSizeBreakdownPicker
+              product={variantPicker.detail}
+              material={variantPicker.material}
+              editLineId={variantPicker.editLineId}
+              editBreakdown={variantPicker.editBreakdown}
+              onClose={() => setVariantPicker(null)}
+              onAdd={addOrUpdateBreakdown}
+            />
+          )
         ) : (
           <PosVariantPicker
             product={variantPicker.detail}
