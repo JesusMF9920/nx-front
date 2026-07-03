@@ -276,6 +276,19 @@ function Kv({ label, v }: { label: string; v: React.ReactNode }) {
 
 type VariantRow = { code: string; label: string; stock: number | null };
 
+/** Separa por comas, recorta y descarta vacíos. */
+function splitTokens(raw: string): string[] {
+  return raw
+    .split(",")
+    .map((t) => t.trim())
+    .filter(Boolean);
+}
+
+/** Código de color estable: MAYÚSCULAS, sin espacios ni el separador `|`. */
+function colorCodeFromLabel(label: string): string {
+  return label.trim().toUpperCase().replace(/\|/g, "").replace(/\s+/g, "_");
+}
+
 function VariantsManagerModal({
   material,
   onClose,
@@ -291,6 +304,33 @@ function VariantsManagerModal({
   );
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Generador de matriz talla×color: produce variantes compuestas "TALLA|COLOR".
+  const [showGen, setShowGen] = useState(false);
+  const [genSizes, setGenSizes] = useState("");
+  const [genColors, setGenColors] = useState("");
+
+  const generateMatrix = () => {
+    const sizes = splitTokens(genSizes).map((s) => s.toUpperCase());
+    const colorLabels = splitTokens(genColors);
+    if (sizes.length === 0 || colorLabels.length === 0) return;
+    setRows((rs) => {
+      const byCode = new Map(rs.map((r) => [r.code, r]));
+      const next = [...rs];
+      for (const size of sizes) {
+        for (const cl of colorLabels) {
+          const code = `${size}|${colorCodeFromLabel(cl)}`;
+          if (byCode.has(code)) continue;
+          const row = { code, label: `${size} · ${cl}`, stock: null };
+          byCode.set(code, row);
+          next.push(row);
+        }
+      }
+      return next;
+    });
+    setGenSizes("");
+    setGenColors("");
+    setShowGen(false);
+  };
 
   const firstTransitionBlocked =
     material.variants.length === 0 && rows.length > 0 && material.stock !== 0;
@@ -362,6 +402,52 @@ function VariantsManagerModal({
         <div className="text-sm text-muted">
           Material:{" "}
           <span className="font-medium text-ink-2">{material.name}</span>
+        </div>
+
+        <div className="border border-line rounded-md p-2.5 bg-surface-2">
+          <button
+            type="button"
+            className="btn btn--sm btn--ghost"
+            onClick={() => setShowGen((s) => !s)}
+          >
+            {I.layers} Generar matriz talla×color
+          </button>
+          {showGen && (
+            <div className="grid gap-2 mt-2.5">
+              <div className="field">
+                <span className="label">Tallas (separadas por coma)</span>
+                <input
+                  className="input"
+                  placeholder="CH, M, G, EG, EEG"
+                  value={genSizes}
+                  onChange={(e) => setGenSizes(e.target.value)}
+                />
+              </div>
+              <div className="field">
+                <span className="label">Colores (separados por coma)</span>
+                <input
+                  className="input"
+                  placeholder="Rojo, Verde, Amarillo"
+                  value={genColors}
+                  onChange={(e) => setGenColors(e.target.value)}
+                />
+              </div>
+              <button
+                type="button"
+                className="btn btn--sm justify-self-start"
+                onClick={generateMatrix}
+                disabled={!genSizes.trim() || !genColors.trim()}
+              >
+                {I.plus} Generar combinaciones
+              </button>
+              <div className="help">
+                Crea una variante <span className="font-mono">TALLA|COLOR</span>{" "}
+                por combinación (p. ej. <span className="font-mono">G|VERDE</span>).
+                Las existentes se conservan; luego carga el stock por combinación
+                con entradas/ajustes.
+              </div>
+            </div>
+          )}
         </div>
 
         {rows.length === 0 ? (

@@ -29,6 +29,19 @@ import type {
 
 type SurchargeDraft = { code: string; label: string; amount: string };
 
+/**
+ * Deriva un código de color estable desde su etiqueta: MAYÚSCULAS, sin espacios
+ * ni el separador reservado `|` (que el backend usa para la variante compuesta
+ * "{talla}|{color}"). "Rojo óxido" → "ROJO_OXIDO".
+ */
+function colorCodeFromLabel(label: string): string {
+  return label
+    .trim()
+    .toUpperCase()
+    .replace(/\|/g, "")
+    .replace(/\s+/g, "_");
+}
+
 // Un producto es simple o hereda sus tallas de un insumo. Las variantes
 // (tallas + stock) viven SOLO en el inventario, no en el producto.
 const VARIANT_OPTIONS: { id: ApiVariantType; label: string; sub: string }[] = [
@@ -73,6 +86,21 @@ export function NewProductForm({
   const [variantType, setVariantType] = useState<ApiVariantType>("none");
   const [sizedMaterial, setSizedMaterial] = useState<ApiMaterial | null>(null);
   const [surcharges, setSurcharges] = useState<SurchargeDraft[]>([]);
+  // Colores disponibles (eje ortogonal a la talla; sólo sized_from_material).
+  const [colors, setColors] = useState<{ code: string; label: string }[]>([]);
+  const [colorDraft, setColorDraft] = useState("");
+
+  const addColor = () => {
+    const label = colorDraft.trim();
+    if (!label) return;
+    const code = colorCodeFromLabel(label);
+    if (!code || colors.some((c) => c.code === code)) {
+      setColorDraft("");
+      return;
+    }
+    setColors([...colors, { code, label }]);
+    setColorDraft("");
+  };
 
   // Config de producto por dimensión (lonas por m², etc.). El backend ya lo
   // soporta; aquí se captura unidad, modo de precio y rango permitido.
@@ -145,6 +173,20 @@ export function NewProductForm({
       sizeSurcharges = Object.keys(rec).length > 0 ? rec : null;
     }
 
+    // Colores disponibles (sólo sized_from_material). Códigos únicos.
+    let colorsPayload: { code: string; label: string }[] | null = null;
+    if (variantType === "sized_from_material" && colors.length > 0) {
+      const seen = new Set<string>();
+      for (const c of colors) {
+        if (seen.has(c.code)) {
+          setError(`Color duplicado: ${c.label}.`);
+          return;
+        }
+        seen.add(c.code);
+      }
+      colorsPayload = colors.map((c) => ({ code: c.code, label: c.label }));
+    }
+
     // Producto por dimensión (área/lineal).
     let dimensionConfig: ApiDimensionConfig | null = null;
     if (variantType === "dimension") {
@@ -203,6 +245,7 @@ export function NewProductForm({
       dimensionConfig,
       sizeSurcharges,
       priceTiers,
+      colors: colorsPayload,
       sizedFromMaterialId,
     };
 
@@ -636,6 +679,60 @@ export function NewProductForm({
               </div>
             </div>
           )}
+
+        {variantType === "sized_from_material" && sizedMaterial && (
+          <div className="field col-span-full">
+            <span className="label">Colores disponibles (opcional)</span>
+            <div className="flex gap-2">
+              <input
+                className="input"
+                placeholder="Nombre del color (p. ej. Rojo)"
+                value={colorDraft}
+                onChange={(e) => setColorDraft(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    addColor();
+                  }
+                }}
+              />
+              <button
+                type="button"
+                className="btn btn--sm"
+                onClick={addColor}
+                disabled={!colorDraft.trim()}
+              >
+                Agregar
+              </button>
+            </div>
+            {colors.length > 0 && (
+              <div className="flex flex-wrap gap-1.5 mt-2">
+                {colors.map((c) => (
+                  <span key={c.code} className="tag flex items-center gap-1.5">
+                    {c.label}
+                    <span className="text-muted font-mono text-[10px]">{c.code}</span>
+                    <button
+                      type="button"
+                      className="text-muted hover:text-ink"
+                      aria-label={`Quitar ${c.label}`}
+                      onClick={() =>
+                        setColors(colors.filter((x) => x.code !== c.code))
+                      }
+                    >
+                      ×
+                    </button>
+                  </span>
+                ))}
+              </div>
+            )}
+            <div className="help">
+              Con colores, el POS pedirá una matriz talla×color. El stock por
+              combinación se carga en el insumo como variantes{" "}
+              <span className="font-mono">talla|color</span>. Déjalo vacío si el
+              producto no maneja color.
+            </div>
+          </div>
+        )}
 
         {variantType === "dimension" && (
           <div className="field col-span-full">

@@ -31,6 +31,8 @@ export type CreateProductInput = {
   sizeSurcharges?: Record<string, number> | null;
   /** Mayoreo por volumen. Independiente del variantType. */
   priceTiers?: ApiPriceTier[] | null;
+  /** Colores disponibles (sólo con sized_from_material); null/[] = sin color. */
+  colors?: { code: string; label: string }[] | null;
   sizedFromMaterialId?: string | null;
 };
 

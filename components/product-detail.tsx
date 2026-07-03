@@ -96,6 +96,7 @@ export function ProductDetail({
   const [editingSized, setEditingSized] = useState(false);
   const [editingTiers, setEditingTiers] = useState(false);
   const [editingDimension, setEditingDimension] = useState(false);
+  const [editingColors, setEditingColors] = useState(false);
   const canWrite = usePermission("catalog.products.write");
 
   const detail: ApiProductDetail | null = isDetail(product)
@@ -202,6 +203,11 @@ export function ProductDetail({
             ? () => setEditingDimension(true)
             : undefined
         }
+        onEditColors={
+          canWrite && detail.variantType === "sized_from_material"
+            ? () => setEditingColors(true)
+            : undefined
+        }
       />
       <div className="divider" />
       <PriceTiersSection
@@ -282,6 +288,16 @@ export function ProductDetail({
           onClose={() => setEditingDimension(false)}
           onSaved={async () => {
             setEditingDimension(false);
+            await refreshAfterSave();
+          }}
+        />
+      )}
+      {editingColors && detail && (
+        <ColorsEditorModal
+          product={detail}
+          onClose={() => setEditingColors(false)}
+          onSaved={async () => {
+            setEditingColors(false);
             await refreshAfterSave();
           }}
         />
@@ -479,6 +495,7 @@ function VariantsSection({
   onEditVariants,
   onConfigureSized,
   onConfigureDimension,
+  onEditColors,
 }: {
   detail: ApiProductDetail;
   materials: Record<string, ApiMaterial>;
@@ -487,6 +504,8 @@ function VariantsSection({
   onConfigureSized?: () => void;
   /** Configurar/editar el rango y modo de cobro de un producto por dimensión. */
   onConfigureDimension?: () => void;
+  /** Editar los colores disponibles (sólo sized_from_material). */
+  onEditColors?: () => void;
 }) {
   const isPredef =
     detail.variantType === "size" || detail.variantType === "preset";
@@ -524,6 +543,14 @@ function VariantsSection({
           <button className="btn btn--sm" onClick={onConfigureDimension}>
             {I.edit}{" "}
             {detail.dimensionConfig ? "Editar dimensión" : "Configurar dimensión"}
+          </button>
+        )}
+        {onEditColors && (
+          <button className="btn btn--sm" onClick={onEditColors}>
+            {I.edit}{" "}
+            {detail.colors && detail.colors.length > 0
+              ? "Editar colores"
+              : "Agregar colores"}
           </button>
         )}
       </div>
@@ -645,6 +672,24 @@ function VariantsSection({
                   {size}: {extra > 0 ? `+${fmtMXN(extra)}` : fmtMXN(extra)}
                 </span>
               ))}
+            </div>
+          )}
+          <div className="help mt-2.5 mb-1">
+            Colores disponibles (el POS pedirá una matriz talla×color; el stock
+            por combinación vive en el insumo como variantes{" "}
+            <span className="font-mono">talla|color</span>):
+          </div>
+          {detail.colors && detail.colors.length > 0 ? (
+            <div className="flex gap-1.5 flex-wrap">
+              {detail.colors.map((c) => (
+                <span key={c.code} className="tag">
+                  {c.label}
+                </span>
+              ))}
+            </div>
+          ) : (
+            <div className="text-muted text-xs">
+              Sin colores. El producto se vende sólo por talla.
             </div>
           )}
         </div>
@@ -1247,6 +1292,162 @@ function PriceTiersEditorModal({
             onChange={setRows}
           />
         </div>
+        {error && (
+          <div
+            className="rounded-md text-xs"
+            style={{
+              padding: "10px 12px",
+              border: "1px solid var(--danger)",
+              color: "var(--danger)",
+              background: "var(--danger-soft)",
+            }}
+            role="alert"
+          >
+            {error}
+          </div>
+        )}
+      </form>
+    </Modal>
+  );
+}
+
+/**
+ * Deriva un código de color estable desde su etiqueta: MAYÚSCULAS, sin espacios
+ * ni el separador reservado `|` de la variante compuesta "{talla}|{color}".
+ */
+function colorCodeFromLabel(label: string): string {
+  return label.trim().toUpperCase().replace(/\|/g, "").replace(/\s+/g, "_");
+}
+
+/**
+ * Configura los colores disponibles de un producto sized_from_material vía
+ * PATCH /products/:id. `colors: null` quita el eje de color (el POS vuelve al
+ * desglose de una sola dimensión).
+ */
+function ColorsEditorModal({
+  product,
+  onClose,
+  onSaved,
+}: {
+  product: ApiProductDetail;
+  onClose: () => void;
+  onSaved: () => void | Promise<void>;
+}) {
+  const toast = useToast();
+  const [colors, setColors] = useState<{ code: string; label: string }[]>(
+    () => product.colors?.map((c) => ({ code: c.code, label: c.label })) ?? [],
+  );
+  const [draft, setDraft] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const addColor = () => {
+    const label = draft.trim();
+    if (!label) return;
+    const code = colorCodeFromLabel(label);
+    if (!code || colors.some((c) => c.code === code)) {
+      setDraft("");
+      return;
+    }
+    setColors([...colors, { code, label }]);
+    setDraft("");
+  };
+
+  const save = async (e: FormEvent) => {
+    e.preventDefault();
+    if (submitting) return;
+    setError(null);
+    setSubmitting(true);
+    try {
+      await catalogApi.update(product.id, {
+        colors: colors.length > 0 ? colors : null,
+      });
+      toast.success("Colores guardados");
+      await onSaved();
+    } catch (err) {
+      setError(
+        err instanceof ApiError
+          ? err.message
+          : "No se pudieron guardar los colores.",
+      );
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <Modal
+      title={`Colores disponibles — ${product.name}`}
+      onClose={onClose}
+      width={520}
+      footer={
+        <>
+          <button className="btn btn--ghost" type="button" onClick={onClose}>
+            Cancelar
+          </button>
+          <button
+            className="btn btn--accent"
+            type="submit"
+            form="colors-form"
+            disabled={submitting}
+          >
+            {submitting ? "Guardando…" : "Guardar"}
+          </button>
+        </>
+      }
+    >
+      <form id="colors-form" onSubmit={save} className="grid gap-3.5">
+        <div className="field">
+          <span className="label">Agregar color</span>
+          <div className="flex gap-2">
+            <input
+              className="input"
+              placeholder="Nombre del color (p. ej. Rojo)"
+              value={draft}
+              onChange={(e) => setDraft(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  addColor();
+                }
+              }}
+            />
+            <button
+              type="button"
+              className="btn"
+              onClick={addColor}
+              disabled={!draft.trim()}
+            >
+              Agregar
+            </button>
+          </div>
+          <small className="help mt-1.5 block">
+            El stock por talla×color se carga en el insumo como variantes{" "}
+            <span className="font-mono">talla|color</span>. Sin colores, el POS
+            usa el desglose de una sola dimensión.
+          </small>
+        </div>
+
+        {colors.length > 0 && (
+          <div className="flex flex-wrap gap-1.5">
+            {colors.map((c) => (
+              <span key={c.code} className="tag flex items-center gap-1.5">
+                {c.label}
+                <span className="text-muted font-mono text-[10px]">{c.code}</span>
+                <button
+                  type="button"
+                  className="text-muted hover:text-ink"
+                  aria-label={`Quitar ${c.label}`}
+                  onClick={() =>
+                    setColors(colors.filter((x) => x.code !== c.code))
+                  }
+                >
+                  ×
+                </button>
+              </span>
+            ))}
+          </div>
+        )}
+
         {error && (
           <div
             className="rounded-md text-xs"
