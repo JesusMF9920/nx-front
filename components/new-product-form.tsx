@@ -16,6 +16,7 @@ import {
   validateRecipeRows,
   type RecipeRow,
 } from "@/components/recipe-editor";
+import { ColorPalettePicker } from "@/components/color-palette-picker";
 import { catalogApi, type CreateProductInput } from "@/lib/api/catalog";
 import { ApiError } from "@/lib/api/errors";
 import { useToast } from "@/lib/toast/toast-context";
@@ -28,19 +29,6 @@ import type {
 } from "@/lib/api/types";
 
 type SurchargeDraft = { code: string; label: string; amount: string };
-
-/**
- * Deriva un código de color estable desde su etiqueta: MAYÚSCULAS, sin espacios
- * ni el separador reservado `|` (que el backend usa para la variante compuesta
- * "{talla}|{color}"). "Rojo óxido" → "ROJO_OXIDO".
- */
-function colorCodeFromLabel(label: string): string {
-  return label
-    .trim()
-    .toUpperCase()
-    .replace(/\|/g, "")
-    .replace(/\s+/g, "_");
-}
 
 // Un producto es simple o hereda sus tallas de un insumo. Las variantes
 // (tallas + stock) viven SOLO en el inventario, no en el producto.
@@ -88,19 +76,6 @@ export function NewProductForm({
   const [surcharges, setSurcharges] = useState<SurchargeDraft[]>([]);
   // Colores disponibles (eje ortogonal a la talla; sólo sized_from_material).
   const [colors, setColors] = useState<{ code: string; label: string }[]>([]);
-  const [colorDraft, setColorDraft] = useState("");
-
-  const addColor = () => {
-    const label = colorDraft.trim();
-    if (!label) return;
-    const code = colorCodeFromLabel(label);
-    if (!code || colors.some((c) => c.code === code)) {
-      setColorDraft("");
-      return;
-    }
-    setColors([...colors, { code, label }]);
-    setColorDraft("");
-  };
 
   // Config de producto por dimensión (lonas por m², etc.). El backend ya lo
   // soporta; aquí se captura unidad, modo de precio y rango permitido.
@@ -683,49 +658,8 @@ export function NewProductForm({
         {variantType === "sized_from_material" && sizedMaterial && (
           <div className="field col-span-full">
             <span className="label">Colores disponibles (opcional)</span>
-            <div className="flex gap-2">
-              <input
-                className="input"
-                placeholder="Nombre del color (p. ej. Rojo)"
-                value={colorDraft}
-                onChange={(e) => setColorDraft(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    e.preventDefault();
-                    addColor();
-                  }
-                }}
-              />
-              <button
-                type="button"
-                className="btn btn--sm"
-                onClick={addColor}
-                disabled={!colorDraft.trim()}
-              >
-                Agregar
-              </button>
-            </div>
-            {colors.length > 0 && (
-              <div className="flex flex-wrap gap-1.5 mt-2">
-                {colors.map((c) => (
-                  <span key={c.code} className="tag flex items-center gap-1.5">
-                    {c.label}
-                    <span className="text-muted font-mono text-[10px]">{c.code}</span>
-                    <button
-                      type="button"
-                      className="text-muted hover:text-ink"
-                      aria-label={`Quitar ${c.label}`}
-                      onClick={() =>
-                        setColors(colors.filter((x) => x.code !== c.code))
-                      }
-                    >
-                      ×
-                    </button>
-                  </span>
-                ))}
-              </div>
-            )}
-            <div className="help">
+            <ColorPalettePicker value={colors} onChange={setColors} />
+            <div className="help mt-1.5">
               Con colores, el POS pedirá una matriz talla×color. El stock por
               combinación se carga en el insumo como variantes{" "}
               <span className="font-mono">talla|color</span>. Déjalo vacío si el

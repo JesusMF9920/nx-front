@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState, type FormEvent } from "react";
+import { ColorPalettePicker } from "@/components/color-palette-picker";
 import { I } from "@/components/icons";
 import { Kv } from "@/components/kv";
 import { Modal } from "@/components/modal";
@@ -1312,14 +1313,6 @@ function PriceTiersEditorModal({
 }
 
 /**
- * Deriva un código de color estable desde su etiqueta: MAYÚSCULAS, sin espacios
- * ni el separador reservado `|` de la variante compuesta "{talla}|{color}".
- */
-function colorCodeFromLabel(label: string): string {
-  return label.trim().toUpperCase().replace(/\|/g, "").replace(/\s+/g, "_");
-}
-
-/**
  * Configura los colores disponibles de un producto sized_from_material vía
  * PATCH /products/:id. `colors: null` quita el eje de color (el POS vuelve al
  * desglose de una sola dimensión).
@@ -1337,21 +1330,8 @@ function ColorsEditorModal({
   const [colors, setColors] = useState<{ code: string; label: string }[]>(
     () => product.colors?.map((c) => ({ code: c.code, label: c.label })) ?? [],
   );
-  const [draft, setDraft] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  const addColor = () => {
-    const label = draft.trim();
-    if (!label) return;
-    const code = colorCodeFromLabel(label);
-    if (!code || colors.some((c) => c.code === code)) {
-      setDraft("");
-      return;
-    }
-    setColors([...colors, { code, label }]);
-    setDraft("");
-  };
 
   const save = async (e: FormEvent) => {
     e.preventDefault();
@@ -1397,56 +1377,14 @@ function ColorsEditorModal({
     >
       <form id="colors-form" onSubmit={save} className="grid gap-3.5">
         <div className="field">
-          <span className="label">Agregar color</span>
-          <div className="flex gap-2">
-            <input
-              className="input"
-              placeholder="Nombre del color (p. ej. Rojo)"
-              value={draft}
-              onChange={(e) => setDraft(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  e.preventDefault();
-                  addColor();
-                }
-              }}
-            />
-            <button
-              type="button"
-              className="btn"
-              onClick={addColor}
-              disabled={!draft.trim()}
-            >
-              Agregar
-            </button>
-          </div>
+          <span className="label">Colores disponibles</span>
+          <ColorPalettePicker value={colors} onChange={setColors} />
           <small className="help mt-1.5 block">
             El stock por talla×color se carga en el insumo como variantes{" "}
             <span className="font-mono">talla|color</span>. Sin colores, el POS
             usa el desglose de una sola dimensión.
           </small>
         </div>
-
-        {colors.length > 0 && (
-          <div className="flex flex-wrap gap-1.5">
-            {colors.map((c) => (
-              <span key={c.code} className="tag flex items-center gap-1.5">
-                {c.label}
-                <span className="text-muted font-mono text-[10px]">{c.code}</span>
-                <button
-                  type="button"
-                  className="text-muted hover:text-ink"
-                  aria-label={`Quitar ${c.label}`}
-                  onClick={() =>
-                    setColors(colors.filter((x) => x.code !== c.code))
-                  }
-                >
-                  ×
-                </button>
-              </span>
-            ))}
-          </div>
-        )}
 
         {error && (
           <div

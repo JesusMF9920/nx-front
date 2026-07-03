@@ -1,6 +1,10 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
+import {
+  ColorPalettePicker,
+  type PickedColor,
+} from "@/components/color-palette-picker";
 import { I } from "@/components/icons";
 import { Modal } from "@/components/modal";
 import { ApiError } from "@/lib/api/errors";
@@ -284,11 +288,6 @@ function splitTokens(raw: string): string[] {
     .filter(Boolean);
 }
 
-/** Código de color estable: MAYÚSCULAS, sin espacios ni el separador `|`. */
-function colorCodeFromLabel(label: string): string {
-  return label.trim().toUpperCase().replace(/\|/g, "").replace(/\s+/g, "_");
-}
-
 function VariantsManagerModal({
   material,
   onClose,
@@ -307,20 +306,19 @@ function VariantsManagerModal({
   // Generador de matriz talla×color: produce variantes compuestas "TALLA|COLOR".
   const [showGen, setShowGen] = useState(false);
   const [genSizes, setGenSizes] = useState("");
-  const [genColors, setGenColors] = useState("");
+  const [genColors, setGenColors] = useState<PickedColor[]>([]);
 
   const generateMatrix = () => {
     const sizes = splitTokens(genSizes).map((s) => s.toUpperCase());
-    const colorLabels = splitTokens(genColors);
-    if (sizes.length === 0 || colorLabels.length === 0) return;
+    if (sizes.length === 0 || genColors.length === 0) return;
     setRows((rs) => {
       const byCode = new Map(rs.map((r) => [r.code, r]));
       const next = [...rs];
       for (const size of sizes) {
-        for (const cl of colorLabels) {
-          const code = `${size}|${colorCodeFromLabel(cl)}`;
+        for (const color of genColors) {
+          const code = `${size}|${color.code}`;
           if (byCode.has(code)) continue;
-          const row = { code, label: `${size} · ${cl}`, stock: null };
+          const row = { code, label: `${size} · ${color.label}`, stock: null };
           byCode.set(code, row);
           next.push(row);
         }
@@ -328,7 +326,7 @@ function VariantsManagerModal({
       return next;
     });
     setGenSizes("");
-    setGenColors("");
+    setGenColors([]);
     setShowGen(false);
   };
 
@@ -424,19 +422,14 @@ function VariantsManagerModal({
                 />
               </div>
               <div className="field">
-                <span className="label">Colores (separados por coma)</span>
-                <input
-                  className="input"
-                  placeholder="Rojo, Verde, Amarillo"
-                  value={genColors}
-                  onChange={(e) => setGenColors(e.target.value)}
-                />
+                <span className="label">Colores</span>
+                <ColorPalettePicker value={genColors} onChange={setGenColors} />
               </div>
               <button
                 type="button"
                 className="btn btn--sm justify-self-start"
                 onClick={generateMatrix}
-                disabled={!genSizes.trim() || !genColors.trim()}
+                disabled={!genSizes.trim() || genColors.length === 0}
               >
                 {I.plus} Generar combinaciones
               </button>
