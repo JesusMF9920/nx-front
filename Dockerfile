@@ -42,4 +42,11 @@ COPY --from=build /app/.next/static ./.next/static
 COPY --from=build /app/public ./public
 
 EXPOSE 3000
+
+# Healthcheck: GET / en el server de Next (standalone). Se usa `node` (presente)
+# en vez de curl/wget, ausentes en la imagen slim. Cualquier respuesta <500 se
+# considera sana (200/redirects); solo 5xx o conexión caída marcan unhealthy.
+HEALTHCHECK --interval=20s --timeout=5s --start-period=30s --retries=3 \
+  CMD node -e "require('http').get('http://127.0.0.1:'+(process.env.PORT||3000)+'/',r=>process.exit(r.statusCode<500?0:1)).on('error',()=>process.exit(1))"
+
 CMD ["node", "server.js"]
