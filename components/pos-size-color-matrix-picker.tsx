@@ -5,6 +5,7 @@ import { I } from "@/components/icons";
 import { Modal } from "@/components/modal";
 import { fmtMXN } from "@/lib/format";
 import { getPriceForQty, hasPriceTiers } from "@/lib/pricing";
+import { COMPOSITE_SEP, parseCompositeCode } from "@/lib/product-colors";
 import type { ApiMaterial, ApiProductDetail } from "@/lib/api/types";
 import type { SizeBreakdownEntry } from "@/lib/types";
 import type { SizeBreakdownLineData } from "@/components/pos-size-breakdown-picker";
@@ -19,9 +20,8 @@ type Props = {
   onAdd: (product: ApiProductDetail, line: SizeBreakdownLineData, editLineId?: string) => void;
 };
 
-/** DEBE coincidir con COMPOSITE_CODE_SEPARATOR del backend (product-colors.vo.ts). */
-const SEP = "|";
-const cellKey = (sizeId: string, colorCode: string) => `${sizeId}${SEP}${colorCode}`;
+const cellKey = (sizeId: string, colorCode: string) =>
+  `${sizeId}${COMPOSITE_SEP}${colorCode}`;
 
 type Cell = { stock: number };
 
@@ -39,11 +39,9 @@ export function PosSizeColorMatrixPicker({
     const sizeOrder: string[] = [];
     const seenSize = new Set<string>();
     for (const v of [...material.variants].sort((a, b) => a.sortOrder - b.sortOrder)) {
-      const sepAt = v.code.indexOf(SEP);
-      if (sepAt < 0) continue; // no compuesta: no participa en la matriz color
-      const sizeId = v.code.slice(0, sepAt);
-      const colorCode = v.code.slice(sepAt + 1);
-      if (!sizeId || !colorCode) continue;
+      const parsed = parseCompositeCode(v.code);
+      if (!parsed) continue; // no compuesta: no participa en la matriz color
+      const { size: sizeId, color: colorCode } = parsed;
       cellMap.set(cellKey(sizeId, colorCode), { stock: v.stock });
       if (!seenSize.has(sizeId)) {
         seenSize.add(sizeId);

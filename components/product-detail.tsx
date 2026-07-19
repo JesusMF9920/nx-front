@@ -3,6 +3,10 @@
 import Link from "next/link";
 import { useEffect, useState, type FormEvent } from "react";
 import { ColorPalettePicker } from "@/components/color-palette-picker";
+import {
+  materialHasColorMatrix,
+  reconcileColors,
+} from "@/lib/product-colors";
 import { I } from "@/components/icons";
 import { Kv } from "@/components/kv";
 import { Modal } from "@/components/modal";
@@ -1351,9 +1355,19 @@ function ColorsEditorModal({
       alive = false;
     };
   }, [product.sizedFromMaterialId]);
-  const materialHasMatrix =
-    material?.variants.some((v) => v.code.includes("|")) ?? null;
+  const materialHasMatrix = material
+    ? materialHasColorMatrix(material.variants)
+    : null;
   const showMatrixWarning = colors.length > 0 && materialHasMatrix === false;
+  // Reconciliación color↔insumo (solo con matriz): colores invendibles y stock
+  // huérfano en colores no declarados. Recalcula al editar los colores.
+  const reconciliation =
+    material && materialHasMatrix
+      ? reconcileColors(
+          colors.map((c) => c.code),
+          material.variants,
+        )
+      : null;
 
   const save = async (e: FormEvent) => {
     e.preventDefault();
@@ -1427,6 +1441,52 @@ function ColorsEditorModal({
               la crees en <strong>Inventario</strong>, este producto se venderá{" "}
               <strong>por talla</strong> (sin distinguir color). Genera la matriz
               en el insumo y carga el stock por combinación para vender por color.
+            </div>
+          </div>
+        )}
+
+        {reconciliation && reconciliation.orphanColors.length > 0 && (
+          <div
+            className="rounded-md text-xs flex gap-2 items-start"
+            style={{
+              padding: "10px 12px",
+              border: "1px solid var(--warn)",
+              color: "var(--warn)",
+              background: "var(--warn-soft, var(--surface-2))",
+            }}
+            role="status"
+          >
+            <span aria-hidden>⚠️</span>
+            <div>
+              El insumo tiene stock en colores <strong>no declarados</strong>:{" "}
+              <strong>
+                {reconciliation.orphanColors
+                  .map((o) => `${o.color} (${o.stock})`)
+                  .join(", ")}
+              </strong>
+              . Agrégalos arriba para venderlos — si no, ese stock queda
+              invisible en el POS.
+            </div>
+          </div>
+        )}
+
+        {reconciliation && reconciliation.declaredWithoutCombo.length > 0 && (
+          <div
+            className="rounded-md text-xs flex gap-2 items-start"
+            style={{
+              padding: "10px 12px",
+              border: "1px solid var(--warn)",
+              color: "var(--warn)",
+              background: "var(--warn-soft, var(--surface-2))",
+            }}
+            role="status"
+          >
+            <span aria-hidden>⚠️</span>
+            <div>
+              Estos colores no tienen combinación{" "}
+              <span className="font-mono">talla|color</span> con stock en el
+              insumo (celdas “—” invendibles hasta cargarles stock):{" "}
+              <strong>{reconciliation.declaredWithoutCombo.join(", ")}</strong>.
             </div>
           </div>
         )}

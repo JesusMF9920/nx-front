@@ -4,6 +4,7 @@ import { useState } from "react";
 import { I } from "@/components/icons";
 import { Modal } from "@/components/modal";
 import { fmtMXN } from "@/lib/format";
+import { COMPOSITE_SEP } from "@/lib/product-colors";
 import { getPriceForQty, hasPriceTiers } from "@/lib/pricing";
 import type { ApiMaterial, ApiProductDetail } from "@/lib/api/types";
 import type { SizeBreakdownEntry } from "@/lib/types";
@@ -32,7 +33,7 @@ export function PosSizeBreakdownPicker({ product, material, editLineId, editBrea
   // Excluimos variantes compuestas "talla|color": este desglose es por talla
   // plana, así que una celda compuesta nunca debe aparecer como talla.
   const sizes = [...material.variants]
-    .filter((v) => !v.code.includes("|"))
+    .filter((v) => !v.code.includes(COMPOSITE_SEP))
     .sort((a, b) => a.sortOrder - b.sortOrder);
   const surcharges = product.sizeSurcharges ?? {};
   // Fallback de color: el producto declara colores pero su insumo aún no tiene la
