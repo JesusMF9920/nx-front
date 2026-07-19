@@ -325,8 +325,15 @@ export type ApiToPurchaseLine = {
   unit: string;
   materialVariantId: string | null;
   materialVariantCode: string | null;
+  /** Cantidad a comprar. Para 'shortfall' = faltante (pedido − stock disponible). */
   qty: number;
   supplierName: string | null;
+  /** 'buy_to_order' (sin stock, se compra todo) | 'shortfall' (faltante de un insumo con stock parcial). */
+  kind: "buy_to_order" | "shortfall";
+  /** Cantidad total pedida por la venta. */
+  requiredQty: number;
+  /** Stock disponible al momento de la venta. null para 'buy_to_order'. */
+  available: number | null;
 };
 
 /** Demanda de compra pendiente (insumo bajo demanda) de un pedido — "Por comprar". */

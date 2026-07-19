@@ -316,6 +316,10 @@ export function PosPaymentModal({
 
   const consumption = preview?.consumption ?? [];
   const toPurchase = preview?.toPurchase ?? [];
+  // Faltante de insumos CON stock (se vende lo disponible y se compra el resto)
+  // vs insumos bajo demanda (sin stock, se compra todo).
+  const backorders = toPurchase.filter((t) => t.kind === "shortfall");
+  const buyToOrder = toPurchase.filter((t) => t.kind === "buy_to_order");
 
   return (
     <Modal
@@ -669,7 +673,7 @@ export function PosPaymentModal({
             <>
               <div className="divider" />
               <div className="label mb-2 flex items-center gap-1.5" style={{ color: "var(--danger)" }}>
-                {I.alert} Inventario insuficiente
+                {I.alert} Receta incompleta
               </div>
               <div
                 className="rounded-md p-2.5"
@@ -702,7 +706,8 @@ export function PosPaymentModal({
                 ))}
               </div>
               <div className="text-[10px] text-muted mt-1.5">
-                No se puede cobrar hasta resolver el faltante de inventario.
+                Corrige la receta del producto (material o talla inexistente)
+                para poder cobrar.
               </div>
             </>
           )}
@@ -762,14 +767,61 @@ export function PosPaymentModal({
             </>
           )}
 
-          {toPurchase.length > 0 && (
+          {backorders.length > 0 && (
+            <>
+              <div className="divider" />
+              <div
+                className="label mb-2 flex items-center gap-1.5"
+                style={{ color: "var(--warn)" }}
+              >
+                {I.cart} Faltante — se comprará
+              </div>
+              <div
+                className="rounded-md p-2.5"
+                style={{
+                  border: "1px solid var(--warn)",
+                  background: "var(--warn-soft)",
+                }}
+              >
+                {backorders.map((t) => (
+                  <div
+                    key={t.materialId + (t.materialVariantCode ?? "")}
+                    className="flex items-center gap-2 text-xs py-1"
+                  >
+                    <div className="flex-1 min-w-0">
+                      <div className="font-medium">
+                        {t.materialName}
+                        {t.materialVariantCode ? ` · ${t.materialVariantCode}` : ""}
+                      </div>
+                      <div className="text-muted text-[10px]">
+                        De {t.requiredQty} {t.unit} pedidas, {t.available ?? 0} en
+                        stock · {t.supplierName ?? "Sin proveedor"}
+                      </div>
+                    </div>
+                    <span
+                      className="num font-semibold"
+                      style={{ color: "var(--warn)" }}
+                    >
+                      compra {t.qty.toFixed(2)} {t.unit}
+                    </span>
+                  </div>
+                ))}
+              </div>
+              <div className="text-[10px] text-muted mt-1.5">
+                Se vende lo disponible y el faltante se manda a “Por comprar”. No
+                bloquea la venta.
+              </div>
+            </>
+          )}
+
+          {buyToOrder.length > 0 && (
             <>
               <div className="divider" />
               <div className="label mb-2 flex items-center gap-1.5">
                 {I.cart} Se comprará (bajo demanda)
               </div>
               <div className="bg-surface-2 border border-line rounded-md p-2.5">
-                {toPurchase.map((t) => (
+                {buyToOrder.map((t) => (
                   <div
                     key={t.materialId + (t.materialVariantCode ?? "")}
                     className="flex items-center gap-2 text-xs py-1"
