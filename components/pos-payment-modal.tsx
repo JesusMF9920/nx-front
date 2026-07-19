@@ -4,6 +4,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import { I } from "@/components/icons";
 import { Modal } from "@/components/modal";
 import { SummaryRow } from "@/components/summary-row";
+import { ToPurchasePreview } from "@/components/to-purchase-preview";
 import { fmtMXN } from "@/lib/format";
 import { DEFAULT_DEPOSIT_PCT, depositAmount } from "@/lib/pos-cart";
 import { ApiError } from "@/lib/api/errors";
@@ -316,6 +317,9 @@ export function PosPaymentModal({
 
   const consumption = preview?.consumption ?? [];
   const toPurchase = preview?.toPurchase ?? [];
+  // El bloque bloqueante ya sólo debería traer recetas rotas (missing); si por
+  // una carrera llegara un faltante de stock (409), el copy se adapta.
+  const allShortagesMissing = shortages.every((s) => s.missing);
 
   return (
     <Modal
@@ -669,7 +673,10 @@ export function PosPaymentModal({
             <>
               <div className="divider" />
               <div className="label mb-2 flex items-center gap-1.5" style={{ color: "var(--danger)" }}>
-                {I.alert} Inventario insuficiente
+                {I.alert}{" "}
+                {allShortagesMissing
+                  ? "Receta incompleta"
+                  : "Inventario insuficiente"}
               </div>
               <div
                 className="rounded-md p-2.5"
@@ -702,7 +709,9 @@ export function PosPaymentModal({
                 ))}
               </div>
               <div className="text-[10px] text-muted mt-1.5">
-                No se puede cobrar hasta resolver el faltante de inventario.
+                {allShortagesMissing
+                  ? "Corrige la receta del producto (material o talla inexistente) para poder cobrar."
+                  : "No se puede cobrar hasta resolver el faltante de inventario."}
               </div>
             </>
           )}
@@ -762,39 +771,7 @@ export function PosPaymentModal({
             </>
           )}
 
-          {toPurchase.length > 0 && (
-            <>
-              <div className="divider" />
-              <div className="label mb-2 flex items-center gap-1.5">
-                {I.cart} Se comprará (bajo demanda)
-              </div>
-              <div className="bg-surface-2 border border-line rounded-md p-2.5">
-                {toPurchase.map((t) => (
-                  <div
-                    key={t.materialId + (t.materialVariantCode ?? "")}
-                    className="flex items-center gap-2 text-xs py-1"
-                  >
-                    <div className="flex-1 min-w-0">
-                      <div className="font-medium">
-                        {t.materialName}
-                        {t.materialVariantCode ? ` · ${t.materialVariantCode}` : ""}
-                      </div>
-                      <div className="text-muted text-[10px]">
-                        {t.supplierName ?? "Sin proveedor"}
-                      </div>
-                    </div>
-                    <span className="num font-semibold">
-                      {t.qty.toFixed(2)} {t.unit}
-                    </span>
-                  </div>
-                ))}
-              </div>
-              <div className="text-[10px] text-muted mt-1.5">
-                Estos insumos no se almacenan: se comprarán para este pedido (no
-                bloquean la venta).
-              </div>
-            </>
-          )}
+          <ToPurchasePreview toPurchase={toPurchase} />
         </div>
       </div>
     </Modal>

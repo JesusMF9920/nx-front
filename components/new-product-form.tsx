@@ -18,6 +18,7 @@ import {
 } from "@/components/recipe-editor";
 import { ColorPalettePicker } from "@/components/color-palette-picker";
 import { catalogApi, type CreateProductInput } from "@/lib/api/catalog";
+import { materialHasColorMatrix } from "@/lib/product-colors";
 import { ApiError } from "@/lib/api/errors";
 import { useToast } from "@/lib/toast/toast-context";
 import { CLAVE_UNIDAD, OBJETO_IMPUESTO } from "@/lib/sat-catalogs";
@@ -666,7 +667,7 @@ export function NewProductForm({
               producto no maneja color.
             </div>
             {colors.length > 0 &&
-              !sizedMaterial.variants.some((v) => v.code.includes("|")) && (
+              !materialHasColorMatrix(sizedMaterial.variants) && (
                 <div
                   className="rounded-md text-xs flex gap-2 items-start mt-2"
                   style={{
