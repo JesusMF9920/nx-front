@@ -157,6 +157,7 @@ export function QuoteConvertModal({ quote, onClose, onConverted }: Props) {
   // receta rota (previewBlocked) impide generar el pedido.
   const canConfirm =
     !submitting &&
+    !previewLoading &&
     !previewBlocked &&
     (isCredit || method !== "Mixto" || mixedOk);
   const allShortagesMissing =
@@ -194,6 +195,13 @@ export function QuoteConvertModal({ quote, onClose, onConverted }: Props) {
         );
       }
       setSubmitting(false);
+      // Re-deriva el bloqueo desde la fuente autoritativa (check-stock-availability):
+      // si la receta se rompió entre el preview y el convert, el convert falla con
+      // 404/400 (no 409 InsufficientStockForSaleError, que no ocurre aquí porque el
+      // consumo topea en min(qty, disponible)). Reejecutar el preview marca
+      // available=false → previewBlocked=true y repinta "Receta incompleta", evitando
+      // el reintento en bucle contra el mismo error. Cubre cualquier clase de error.
+      void loadPreview();
     }
   };
 
