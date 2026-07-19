@@ -127,6 +127,28 @@ export const inventoryApi = {
     );
   },
 
+  /** Captura en rejilla: varios movimientos del material aplicados atómicamente. */
+  recordStockMovesBulk(
+    materialId: string,
+    moves: Array<{
+      materialVariantId?: string | null;
+      type: "entry" | "exit" | "adjust";
+      qty: number;
+    }>,
+    note?: string,
+  ): Promise<{
+    moves: Array<{
+      id: string;
+      materialVariantId: string | null;
+      resultingStock: number;
+    }>;
+  }> {
+    return apiFetch(`/materials/${materialId}/stock-moves/bulk`, {
+      method: "POST",
+      body: JSON.stringify({ moves, ...(note ? { note } : {}) }),
+    });
+  },
+
   listStockMoves(
     materialId: string,
     params: { skip?: number; take?: number } = {},

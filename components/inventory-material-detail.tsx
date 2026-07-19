@@ -6,6 +6,7 @@ import {
   type PickedColor,
 } from "@/components/color-palette-picker";
 import { I } from "@/components/icons";
+import { StockGridModal } from "@/components/inventory-stock-grid-modal";
 import { Modal } from "@/components/modal";
 import { ApiError } from "@/lib/api/errors";
 import { inventoryApi, type MaterialVariantInput } from "@/lib/api/inventory";
@@ -62,6 +63,7 @@ export function InventoryMaterialDetail({
   onVariantsChanged: () => void | Promise<void>;
 }) {
   const [showVariants, setShowVariants] = useState(false);
+  const [showGrid, setShowGrid] = useState(false);
   const lowStock =
     material.reorderPoint > 0 && material.stock <= material.reorderPoint;
   const hasVariants = material.variants.length > 0;
@@ -178,6 +180,15 @@ export function InventoryMaterialDetail({
           <button className="btn btn--sm" onClick={() => onMove("adjust")}>
             {I.edit} Ajustar
           </button>
+          {hasVariants && (
+            <button
+              className="btn btn--sm"
+              type="button"
+              onClick={() => setShowGrid(true)}
+            >
+              {I.layers} Cargar en rejilla
+            </button>
+          )}
         </div>
       )}
 
@@ -261,6 +272,17 @@ export function InventoryMaterialDetail({
           onClose={() => setShowVariants(false)}
           onDone={async () => {
             setShowVariants(false);
+            await onVariantsChanged();
+          }}
+        />
+      )}
+
+      {showGrid && (
+        <StockGridModal
+          material={material}
+          onClose={() => setShowGrid(false)}
+          onSaved={async () => {
+            setShowGrid(false);
             await onVariantsChanged();
           }}
         />
