@@ -5,7 +5,11 @@ import { I } from "@/components/icons";
 import { Modal } from "@/components/modal";
 import { fmtMXN } from "@/lib/format";
 import { getPriceForQty, hasPriceTiers } from "@/lib/pricing";
-import { COMPOSITE_SEP, parseCompositeCode } from "@/lib/product-colors";
+import {
+  COMPOSITE_SEP,
+  parseCompositeCode,
+  swatchForColorCode,
+} from "@/lib/product-colors";
 import type { ApiMaterial, ApiProductDetail } from "@/lib/api/types";
 import type { SizeBreakdownEntry } from "@/lib/types";
 import type { SizeBreakdownLineData } from "@/components/pos-size-breakdown-picker";
@@ -135,7 +139,23 @@ export function PosSizeColorMatrixPicker({
               >
                 <span>Talla</span>
                 {colors.map((c) => (
-                  <span key={c.code} className="text-center" title={c.label}>
+                  <span
+                    key={c.code}
+                    className="inline-flex items-center justify-center gap-1"
+                    title={c.label}
+                  >
+                    <span
+                      aria-hidden
+                      style={{
+                        display: "inline-block",
+                        width: 10,
+                        height: 10,
+                        borderRadius: "50%",
+                        background: swatchForColorCode(c.code),
+                        border: "1px solid var(--line)",
+                        flexShrink: 0,
+                      }}
+                    />
                     {c.label}
                   </span>
                 ))}

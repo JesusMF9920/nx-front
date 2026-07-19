@@ -5,6 +5,7 @@ import {
   materialHasColorMatrix,
   parseCompositeCode,
   reconcileColors,
+  swatchForColorCode,
 } from "./product-colors";
 
 describe("colorCodeFromLabel", () => {
@@ -32,6 +33,17 @@ describe("materialHasColorMatrix", () => {
       true,
     );
     expect(materialHasColorMatrix([{ code: "G" }, { code: "CH" }])).toBe(false);
+  });
+});
+
+describe("swatchForColorCode", () => {
+  it("usa el hex conocido de la paleta", () => {
+    expect(swatchForColorCode("NEGRO")).toBe("#1F2937");
+  });
+  it("da un color HSL determinista (no transparente) para los custom", () => {
+    const c = swatchForColorCode("TURQUESA");
+    expect(c).toMatch(/^hsl\(/);
+    expect(swatchForColorCode("TURQUESA")).toBe(c); // estable entre llamadas
   });
 });
 

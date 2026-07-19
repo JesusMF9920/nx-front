@@ -4,14 +4,13 @@ import { useState } from "react";
 import {
   BASIC_COLORS,
   colorCodeFromLabel,
-  hexForColorCode,
+  swatchForColorCode,
 } from "@/lib/product-colors";
 
 export type PickedColor = { code: string; label: string };
 
 /** Punto de color; borde siempre visible para que el blanco se distinga. */
 function Dot({ code, size = 14 }: { code: string; size?: number }) {
-  const hex = hexForColorCode(code) ?? "transparent";
   return (
     <span
       aria-hidden
@@ -20,7 +19,7 @@ function Dot({ code, size = 14 }: { code: string; size?: number }) {
         width: size,
         height: size,
         borderRadius: "50%",
-        background: hex,
+        background: swatchForColorCode(code),
         border: "1px solid var(--line)",
         flexShrink: 0,
       }}

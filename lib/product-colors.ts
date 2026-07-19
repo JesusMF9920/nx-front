@@ -43,6 +43,21 @@ export function hexForColorCode(code: string): string | undefined {
 }
 
 /**
+ * Color CSS para el swatch de un código: el hex conocido de la paleta, o un
+ * color HSL determinista por hash del código para los custom (estable y
+ * distinguible — nunca transparente).
+ */
+export function swatchForColorCode(code: string): string {
+  const known = hexForColorCode(code);
+  if (known) return known;
+  let h = 0;
+  for (let i = 0; i < code.length; i++) {
+    h = (Math.imul(h, 31) + code.charCodeAt(i)) >>> 0;
+  }
+  return `hsl(${h % 360} 42% 62%)`;
+}
+
+/**
  * Separador reservado de la variante compuesta del insumo: "{talla}|{color}".
  * DEBE coincidir con COMPOSITE_CODE_SEPARATOR del backend (product-colors.vo.ts).
  */
