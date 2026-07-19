@@ -1,13 +1,19 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { I } from "@/components/icons";
 import { Modal } from "@/components/modal";
 import { SummaryRow } from "@/components/summary-row";
+import { ToPurchasePreview } from "@/components/to-purchase-preview";
 import { ApiError } from "@/lib/api/errors";
 import type { CheckoutPaymentInput } from "@/lib/api/orders";
 import { quotesApi } from "@/lib/api/quotes";
-import type { ApiConvertResult, ApiQuoteDetail, ApiStockShortage } from "@/lib/api/types";
+import type {
+  ApiConvertResult,
+  ApiQuoteDetail,
+  ApiStockShortage,
+  ApiToPurchaseLine,
+} from "@/lib/api/types";
 import { fmtMXN } from "@/lib/format";
 import { useToast } from "@/lib/toast/toast-context";
 import { DEFAULT_DEPOSIT_PCT, depositAmount } from "@/lib/pos-cart";
@@ -51,8 +57,41 @@ export function QuoteConvertModal({ quote, onClose, onConverted }: Props) {
   const [mixedTerminal, setMixedTerminal] = useState("");
   const [deliverAt, setDeliverAt] = useState("");
   const [shortages, setShortages] = useState<ApiStockShortage[]>([]);
+  const [toPurchase, setToPurchase] = useState<ApiToPurchaseLine[]>([]);
+  // Sólo la receta rota (missing) bloquea; los faltantes parciales / bajo
+  // demanda NO (política "nunca bloquear"). available===false ⇒ hay receta rota.
+  const [previewBlocked, setPreviewBlocked] = useState(false);
+  const [previewLoading, setPreviewLoading] = useState(true);
+  const [previewError, setPreviewError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
+
+  // Preview del faltante al abrir: mismo consumo que descuenta la conversión.
+  // Informativo (no reserva stock): sólo bloquea si hay receta rota.
+  const loadPreview = async () => {
+    setPreviewLoading(true);
+    setPreviewError(null);
+    try {
+      const res = await quotesApi.convertPreview(quote.id);
+      setToPurchase(res.toPurchase);
+      setShortages(res.shortages);
+      setPreviewBlocked(!res.available);
+    } catch (err) {
+      setPreviewError(
+        err instanceof ApiError
+          ? err.message
+          : "No se pudo anticipar el faltante de inventario.",
+      );
+    } finally {
+      setPreviewLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    void loadPreview();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Cobro inicial: anticipo (default 50%), total, crédito (0) o monto libre.
   // El resto queda como saldo a liquidar a la entrega.
@@ -114,8 +153,14 @@ export function QuoteConvertModal({ quote, onClose, onConverted }: Props) {
     }
   };
 
+  // "Nunca bloquear": faltantes parciales / bajo demanda sólo informan; sólo la
+  // receta rota (previewBlocked) impide generar el pedido.
   const canConfirm =
-    !submitting && (isCredit || method !== "Mixto" || mixedOk);
+    !submitting &&
+    !previewBlocked &&
+    (isCredit || method !== "Mixto" || mixedOk);
+  const allShortagesMissing =
+    shortages.length > 0 && shortages.every((s) => s.missing);
 
   const confirm = async () => {
     if (!canConfirm) return;
@@ -362,7 +407,8 @@ export function QuoteConvertModal({ quote, onClose, onConverted }: Props) {
             className="label mb-2 flex items-center gap-1.5"
             style={{ color: "var(--danger)" }}
           >
-            {I.alert} Inventario insuficiente
+            {I.alert}{" "}
+            {allShortagesMissing ? "Receta incompleta" : "Inventario insuficiente"}
           </div>
           <div
             className="rounded-md p-2.5"
@@ -394,6 +440,33 @@ export function QuoteConvertModal({ quote, onClose, onConverted }: Props) {
               </div>
             ))}
           </div>
+          <div className="text-[10px] text-muted mt-1.5">
+            {allShortagesMissing
+              ? "Corrige la receta del producto (material o talla inexistente) para poder generar el pedido."
+              : "No se puede generar el pedido hasta resolver el faltante de inventario."}
+          </div>
+        </div>
+      )}
+
+      {previewLoading && (
+        <div className="text-[11px] text-muted mt-3 flex items-center gap-1.5">
+          {I.clock} Calculando faltante de inventario…
+        </div>
+      )}
+
+      {toPurchase.length > 0 && (
+        <div className="mt-3.5">
+          <ToPurchasePreview toPurchase={toPurchase} />
+          <div className="text-[11px] text-muted mt-2">
+            Estimación al momento — sujeto a disponibilidad al confirmar. El
+            preview no reserva inventario.
+          </div>
+        </div>
+      )}
+
+      {previewError && (
+        <div className="text-[11px] text-muted mt-3">
+          No se pudo anticipar el faltante — se validará al generar el pedido.
         </div>
       )}
     </Modal>
