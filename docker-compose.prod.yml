@@ -1,0 +1,47 @@
+# Producción — nx-front (Next.js 16, output standalone)
+#
+# NO buildea: la imagen la construye GitHub Actions y se publica en GHCR.
+# Desplegar con:  /srv/apps/deploy.sh nx-front
+#
+# IMPORTANTE: NEXT_PUBLIC_API_URL se hornea en el bundle del cliente durante el
+# BUILD, no en runtime. Ponerla aquí no tendría ningún efecto: va como build-arg
+# en el workflow de GitHub Actions (.github/workflows/deploy.yml).
+
+name: nx-front
+
+services:
+  nx-front:
+    image: ghcr.io/jesusmf9920/nx-front:${IMAGE_TAG:-latest}
+    container_name: nx-front
+    restart: unless-stopped
+
+    # Solo loopback: lo alcanza Caddy desde el host.
+    ports:
+      - "127.0.0.1:3000:3000"
+
+    env_file:
+      - .env
+
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      HOSTNAME: 0.0.0.0
+      TZ: UTC
+
+    networks:
+      - apps_net
+
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+networks:
+  apps_net:
+    external: true

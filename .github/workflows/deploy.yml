@@ -9,14 +9,16 @@ concurrency:
   group: deploy
   cancel-in-progress: false
 
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
 jobs:
   test:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
-        with:
-          version: 11
       - uses: actions/setup-node@v4
         with:
           node-version: 22
@@ -25,40 +27,70 @@ jobs:
       - run: pnpm lint
       - run: pnpm test
 
-  build-deploy:
+  # ───────────────────────────────────────────────────────────────────────────
+  # Build de la imagen en el runner (4 vCPU/16GB), no en el droplet (1 vCPU/2GB).
+  # ───────────────────────────────────────────────────────────────────────────
+  build:
     needs: test
     runs-on: ubuntu-latest
-    env:
-      # URL del API que queda embebida en el bundle (no es secreto).
-      NEXT_PUBLIC_API_URL: https://nexum.chdevstudio.com.mx/api
+    permissions:
+      contents: read
+      packages: write
     steps:
       - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Login en GHCR
+        uses: docker/login-action@v3
         with:
-          version: 11
-      - uses: actions/setup-node@v4
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          # Token efímero del propio run: no hay que gestionar ningún secreto.
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Calcular tags
+        id: meta
+        uses: docker/metadata-action@v5
         with:
-          node-version: 22
-          cache: pnpm
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          # sha-<commit> permite volver a CUALQUIER versión previa; latest es
+          # solo un puntero de conveniencia.
+          tags: |
+            type=sha,prefix=sha-,format=short
+            type=raw,value=latest,enable={{is_default_branch}}
 
-      - run: pnpm install --frozen-lockfile
-      - run: pnpm build
+      - name: Build y push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          # ⚠️  NEXT_PUBLIC_* se hornea en el bundle del cliente en BUILD TIME.
+          # Tiene que ir como build-arg: ponerlo como env del contenedor NO
+          # tendría ningún efecto (el valor ya está compilado dentro del JS).
+          # Si cambia esta URL, hay que RECONSTRUIR, no basta con reiniciar.
+          build-args: |
+            NEXT_PUBLIC_API_URL=https://nexum-backend.chdevstudio.com.mx
 
-      - name: Empaquetar build standalone
-        run: |
-          mkdir -p .next/standalone/.next
-          cp -r .next/static .next/standalone/.next/static
-          if [ -d public ]; then cp -r public .next/standalone/public; fi
-          tar -czf nxpos-front.tgz -C .next/standalone .
-          ls -lh nxpos-front.tgz
-
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
       - name: Configurar SSH
         run: |
           mkdir -p ~/.ssh
-          printf '%s\n' "${{ secrets.DROPLET_SSH_KEY }}" > ~/.ssh/deploy_key
+          printf '%s\n' "${{ secrets.PROD_SSH_KEY }}" > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
-          # Clave de host fijada (NO usar ssh-keyscan: dispara fail2ban y banea al runner).
-          printf '%s\n' "146.190.170.209 ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIBOLXv4XJU9q58UCyPQObRFIWRhNyhYYm/iosKr85hN8" > ~/.ssh/known_hosts
+          # Clave de host FIJADA (NO usar ssh-keyscan: abre ~5 conexiones por run
+          # que fail2ban en modo agresivo cuenta como fallos y banea al runner).
+          printf '%s\n' "143.198.135.118 ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIMdmvYcPazPk1e9lKw8VZhzGEWtu6a5JobIKX4zxa528" > ~/.ssh/known_hosts
 
-      - name: Enviar bundle y desplegar (stdin -> forced command)
-        run: ssh -i ~/.ssh/deploy_key -o ServerAliveInterval=30 chuy@146.190.170.209 deploy-front < nxpos-front.tgz
+      - name: Desplegar en producción
+        # La llave está atada a un forced command en el server: aunque se filtre,
+        # solo puede redesplegar nx-front. No da shell. El comando que se manda
+        # aquí es irrelevante (el server lo ignora), se deja por legibilidad.
+        run: ssh -i ~/.ssh/deploy_key -o ServerAliveInterval=30 chuy@143.198.135.118 deploy-nx-front
