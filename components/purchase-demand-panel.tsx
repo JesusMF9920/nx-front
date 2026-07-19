@@ -221,13 +221,30 @@ export function PurchaseDemandPanel({
                     onChange={() => toggle(d.id)}
                   />
                   <div className="flex-1 min-w-0">
-                    <div className="font-medium">
-                      {d.materialName}
-                      {d.materialVariantCode ? ` · ${d.materialVariantCode}` : ""}
+                    <div className="font-medium flex items-center gap-1.5">
+                      <span>
+                        {d.materialName}
+                        {d.materialVariantCode
+                          ? ` · ${d.materialVariantCode}`
+                          : ""}
+                      </span>
+                      <span
+                        className="tag text-[9px]"
+                        style={
+                          d.kind === "shortfall"
+                            ? { color: "var(--warn)", borderColor: "var(--warn)" }
+                            : undefined
+                        }
+                      >
+                        {d.kind === "shortfall" ? "Faltante" : "Bajo demanda"}
+                      </span>
                     </div>
                     <div className="text-muted text-[10px]">
                       Pedido <span className="font-mono">{d.orderFolio}</span> ·{" "}
                       {d.clientName}
+                      {d.kind === "shortfall"
+                        ? ` · de ${d.requiredQty} ${d.unit} pedidas`
+                        : ""}
                     </div>
                   </div>
                   <div className="num">

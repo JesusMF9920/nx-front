@@ -137,9 +137,15 @@ export const purchasesApi = {
     });
   },
 
-  /** "Por comprar": demanda pendiente de insumos bajo demanda (de los pedidos). */
-  listDemand(): Promise<{ items: ApiMaterialDemand[] }> {
-    return apiFetch<{ items: ApiMaterialDemand[] }>("/purchases/demand");
+  /**
+   * "Por comprar" / seguimiento de la demanda de los pedidos. Sin `status` =
+   * pendiente (para crear OC). Con `status` filtra por estado del ciclo.
+   */
+  listDemand(
+    status?: ApiMaterialDemand["status"],
+  ): Promise<{ items: ApiMaterialDemand[] }> {
+    const q = status ? `?status=${status}` : "";
+    return apiFetch<{ items: ApiMaterialDemand[] }>(`/purchases/demand${q}`);
   },
 
   /** Crea una OC (de UN proveedor) sembrada con la demanda seleccionada. */

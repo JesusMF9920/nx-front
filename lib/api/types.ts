@@ -349,8 +349,15 @@ export type ApiMaterialDemand = {
   materialVariantId: string | null;
   materialVariantCode: string | null;
   qty: number;
+  /** Cantidad total pedida (para 'shortfall', qty ≤ requiredQty). */
+  requiredQty: number;
+  /** 'buy_to_order' (sin stock) | 'shortfall' (faltante de un insumo con stock parcial). */
+  kind: "buy_to_order" | "shortfall";
   unitCost: number;
   supplierName: string | null;
+  status: "pending" | "ordered" | "received" | "cancelled";
+  /** Folio de la OC que la ordenó (OC-…). null si aún pendiente. */
+  purchaseOrderFolio: string | null;
   createdAt: string;
 };
 
