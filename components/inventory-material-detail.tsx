@@ -146,17 +146,32 @@ export function InventoryMaterialDetail({
             className="grid gap-1.5"
             style={{ gridTemplateColumns: "repeat(auto-fill, minmax(72px, 1fr))" }}
           >
-            {material.variants.map((v) => (
-              <div
-                key={v.id}
-                className="border border-line rounded-md py-1.5 px-2 text-center"
-                style={{ background: "var(--surface-2)" }}
-                title={v.label}
-              >
-                <div className="text-[10px] text-muted">{v.label}</div>
-                <div className="num font-semibold text-sm">{fmtInt(v.stock)}</div>
-              </div>
-            ))}
+            {material.variants.map((v) => {
+              const lowV = v.reorderPoint > 0 && v.stock <= v.reorderPoint;
+              return (
+                <div
+                  key={v.id}
+                  className="border rounded-md py-1.5 px-2 text-center"
+                  style={{
+                    background: "var(--surface-2)",
+                    borderColor: lowV ? "var(--warn)" : "var(--line)",
+                  }}
+                  title={
+                    lowV
+                      ? `${v.label} — bajo reorden (${fmtInt(v.reorderPoint)})`
+                      : v.label
+                  }
+                >
+                  <div className="text-[10px] text-muted">{v.label}</div>
+                  <div
+                    className="num font-semibold text-sm"
+                    style={{ color: lowV ? "var(--warn)" : "var(--ink)" }}
+                  >
+                    {fmtInt(v.stock)}
+                  </div>
+                </div>
+              );
+            })}
           </div>
           <div className="text-muted text-[11px] mt-1.5">
             Total: <span className="num">{fmtInt(material.stock)} {material.unit}</span>
@@ -300,7 +315,12 @@ function Kv({ label, v }: { label: string; v: React.ReactNode }) {
   );
 }
 
-type VariantRow = { code: string; label: string; stock: number | null };
+type VariantRow = {
+  code: string;
+  label: string;
+  stock: number | null;
+  reorderPoint: number;
+};
 
 /** Separa por comas, recorta y descarta vacíos. */
 function splitTokens(raw: string): string[] {
@@ -321,7 +341,12 @@ function VariantsManagerModal({
 }) {
   const toast = useToast();
   const [rows, setRows] = useState<VariantRow[]>(
-    material.variants.map((v) => ({ code: v.code, label: v.label, stock: v.stock })),
+    material.variants.map((v) => ({
+      code: v.code,
+      label: v.label,
+      stock: v.stock,
+      reorderPoint: v.reorderPoint,
+    })),
   );
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -340,7 +365,12 @@ function VariantsManagerModal({
         for (const color of genColors) {
           const code = `${size}|${color.code}`;
           if (byCode.has(code)) continue;
-          const row = { code, label: `${size} · ${color.label}`, stock: null };
+          const row = {
+            code,
+            label: `${size} · ${color.label}`,
+            stock: null,
+            reorderPoint: 0,
+          };
           byCode.set(code, row);
           next.push(row);
         }
@@ -358,7 +388,7 @@ function VariantsManagerModal({
   const updateRow = (i: number, patch: Partial<VariantRow>) =>
     setRows((rs) => rs.map((r, j) => (i === j ? { ...r, ...patch } : r)));
   const addRow = () =>
-    setRows((rs) => [...rs, { code: "", label: "", stock: null }]);
+    setRows((rs) => [...rs, { code: "", label: "", stock: null, reorderPoint: 0 }]);
   const removeRow = (i: number) => setRows((rs) => rs.filter((_, j) => j !== i));
 
   const submit = async (e: FormEvent) => {
@@ -369,6 +399,7 @@ function VariantsManagerModal({
       code: r.code.trim().toUpperCase(),
       label: r.label.trim(),
       sortOrder: i,
+      reorderPoint: r.reorderPoint,
     }));
     if (clean.some((v) => !v.code || !v.label)) {
       setError("Cada talla necesita código y etiqueta.");
@@ -497,6 +528,19 @@ function VariantsManagerModal({
                 >
                   {r.stock === null ? "nueva" : `${fmtInt(r.stock)} ${material.unit}`}
                 </span>
+                <input
+                  className="input num text-center"
+                  style={{ width: 64 }}
+                  type="number"
+                  min={0}
+                  step="1"
+                  title="Punto de reorden (0 = sin alerta)"
+                  placeholder="reorden"
+                  value={r.reorderPoint || ""}
+                  onChange={(e) =>
+                    updateRow(i, { reorderPoint: Number(e.target.value) || 0 })
+                  }
+                />
                 <button
                   className="icon-btn"
                   type="button"

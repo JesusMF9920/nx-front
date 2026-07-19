@@ -296,6 +296,8 @@ export type ApiMaterialVariant = {
   code: string;
   label: string;
   stock: number;
+  /** Punto de reorden de la variante (0 = sin alerta). */
+  reorderPoint: number;
   sortOrder: number;
 };
 

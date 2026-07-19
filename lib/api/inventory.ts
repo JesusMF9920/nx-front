@@ -58,6 +58,8 @@ export type MaterialVariantInput = {
   code: string;
   label: string;
   sortOrder?: number;
+  /** Punto de reorden de la variante (0 = sin alerta). */
+  reorderPoint?: number;
 };
 
 export const inventoryApi = {
