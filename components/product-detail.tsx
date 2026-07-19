@@ -1486,7 +1486,12 @@ function ColorsEditorModal({
               Estos colores no tienen combinación{" "}
               <span className="font-mono">talla|color</span> con stock en el
               insumo (celdas “—” invendibles hasta cargarles stock):{" "}
-              <strong>{reconciliation.declaredWithoutCombo.join(", ")}</strong>.
+              <strong>
+                {reconciliation.declaredWithoutCombo
+                  .map((code) => colors.find((c) => c.code === code)?.label ?? code)
+                  .join(", ")}
+              </strong>
+              .
             </div>
           </div>
         )}

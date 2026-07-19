@@ -164,8 +164,8 @@ export function PurchaseDemandPanel({
 
       <div className="flex items-center gap-2.5 mb-3">
         <div className="text-xs text-muted flex-1">
-          Insumos bajo demanda que falta comprar para los pedidos. Se genera una
-          OC borrador por proveedor, ligada al pedido.
+          Faltantes e insumos bajo demanda por comprar para los pedidos. Se
+          genera una OC borrador por proveedor, ligada al pedido.
           {excludedCount > 0 && (
             <span style={{ color: "var(--warn)" }}>
               {" "}

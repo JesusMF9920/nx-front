@@ -319,7 +319,12 @@ export function PosPaymentModal({
   // Faltante de insumos CON stock (se vende lo disponible y se compra el resto)
   // vs insumos bajo demanda (sin stock, se compra todo).
   const backorders = toPurchase.filter((t) => t.kind === "shortfall");
-  const buyToOrder = toPurchase.filter((t) => t.kind === "buy_to_order");
+  // "Bajo demanda" es el bucket por defecto: así ninguna línea desaparece si el
+  // backend omitiera `kind` o trajera un valor inesperado (skew de despliegue).
+  const buyToOrder = toPurchase.filter((t) => t.kind !== "shortfall");
+  // El bloque bloqueante ya sólo debería traer recetas rotas (missing); si por
+  // una carrera llegara un faltante de stock (409), el copy se adapta.
+  const allShortagesMissing = shortages.every((s) => s.missing);
 
   return (
     <Modal
@@ -673,7 +678,10 @@ export function PosPaymentModal({
             <>
               <div className="divider" />
               <div className="label mb-2 flex items-center gap-1.5" style={{ color: "var(--danger)" }}>
-                {I.alert} Receta incompleta
+                {I.alert}{" "}
+                {allShortagesMissing
+                  ? "Receta incompleta"
+                  : "Inventario insuficiente"}
               </div>
               <div
                 className="rounded-md p-2.5"
@@ -706,8 +714,9 @@ export function PosPaymentModal({
                 ))}
               </div>
               <div className="text-[10px] text-muted mt-1.5">
-                Corrige la receta del producto (material o talla inexistente)
-                para poder cobrar.
+                {allShortagesMissing
+                  ? "Corrige la receta del producto (material o talla inexistente) para poder cobrar."
+                  : "No se puede cobrar hasta resolver el faltante de inventario."}
               </div>
             </>
           )}
