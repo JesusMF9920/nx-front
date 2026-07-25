@@ -13,16 +13,20 @@ jobs:
   test:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
+      - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v6
         with:
           version: 11
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         with:
           node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm lint
+      # `next build` (job de abajo) también type-checkea, pero sólo lo que entra
+      # al bundle: los *.test.ts quedan fuera. `tsc --noEmit` cubre todo el repo
+      # y falla aquí, antes de gastar el build.
+      - run: pnpm typecheck
       - run: pnpm test
 
   build-deploy:
@@ -32,11 +36,11 @@ jobs:
       # URL del API que queda embebida en el bundle (no es secreto).
       NEXT_PUBLIC_API_URL: https://nexum.chdevstudio.com.mx/api
     steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
+      - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v6
         with:
           version: 11
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         with:
           node-version: 22
           cache: pnpm
