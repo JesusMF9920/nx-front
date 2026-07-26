@@ -5,6 +5,7 @@ import type {
   ApiOrderDetail,
 } from "@/lib/api/types";
 import { fmtMXN } from "@/lib/format";
+import { sizeCellLabel } from "@/lib/size-breakdown";
 
 /**
  * Template del ticket térmico 80 mm — FUNCIÓN PURA que devuelve un documento
@@ -88,7 +89,7 @@ export function buildThermalTicketHtml(
       const variant = item.variantLabel ? ` · ${item.variantLabel}` : "";
       const sizes = (item.sizeBreakdown ?? [])
         .map((e) => {
-          const label = e.sizeLabel ?? e.sizeId;
+          const label = sizeCellLabel(e);
           const extra = e.surcharge > 0 ? ` (+${fmtMXN(e.surcharge)})` : "";
           return `<div class="row sm"><span>· ${escapeHtml(label)} ×${e.qty}${escapeHtml(extra)}</span></div>`;
         })

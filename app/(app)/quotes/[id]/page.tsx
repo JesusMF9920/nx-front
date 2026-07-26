@@ -30,6 +30,7 @@ import { useFeature, usePermission } from "@/lib/auth/auth-context";
 import { buildQuoteWhatsappMessage, buildWaMeUrl } from "@/lib/share/whatsapp";
 import { useToast } from "@/lib/toast/toast-context";
 import { fmtDate, fmtDateLong, fmtMXN } from "@/lib/format";
+import { sizeCellsSummary } from "@/lib/size-breakdown";
 
 const ACTION_ICON: Record<string, ReactNode> = {
   "sales.quote.created": I.receipt,
@@ -492,9 +493,7 @@ export default function QuoteDetailPage() {
                       )}
                       {it.sizeBreakdown && it.sizeBreakdown.length > 0 && (
                         <div className="text-muted text-[11px]">
-                          {it.sizeBreakdown
-                            .map((e) => `${e.sizeLabel ?? e.sizeId}×${e.qty}`)
-                            .join(" · ")}
+                          {sizeCellsSummary(it.sizeBreakdown)}
                         </div>
                       )}
                       {it.dimensionData && (

@@ -11,6 +11,7 @@ import { useToast } from "@/lib/toast/toast-context";
 import type { ApiOrderDetail, ApiOrderItem } from "@/lib/api/types";
 import { fmtMXN } from "@/lib/format";
 import { cartTotals, lineSubtotal } from "@/lib/pos-cart";
+import { toApiSizeBreakdown } from "@/lib/size-breakdown";
 import type { CartLine } from "@/lib/types";
 
 type Props = {
@@ -45,6 +46,8 @@ function lineFromItem(it: ApiOrderItem): CartLine {
           qty: b.qty,
           surcharge: b.surcharge,
           sizeLabel: b.sizeLabel,
+          colorCode: b.colorCode,
+          colorLabel: b.colorLabel,
         }))
       : undefined,
   };
@@ -67,9 +70,7 @@ function toInput(line: CartLine): CheckoutLineInput {
   if (line.sizeBreakdown) {
     return {
       productId: line.id,
-      sizeBreakdown: line.sizeBreakdown
-        .filter((b) => b.qty > 0)
-        .map((b) => ({ sizeId: b.sizeId, qty: b.qty })),
+      sizeBreakdown: toApiSizeBreakdown(line.sizeBreakdown),
       ...design,
       ...note,
     };
