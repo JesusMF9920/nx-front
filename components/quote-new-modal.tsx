@@ -8,6 +8,7 @@ import {
   PosSizeBreakdownPicker,
   type SizeBreakdownLineData,
 } from "@/components/pos-size-breakdown-picker";
+import { PosSizeColorMatrixPicker } from "@/components/pos-size-color-matrix-picker";
 import {
   PosVariantPicker,
   type VariantLineData,
@@ -30,6 +31,8 @@ import { fmtMXN } from "@/lib/format";
 import { useToast } from "@/lib/toast/toast-context";
 import { effectiveQty, lineSubtotal } from "@/lib/pos-cart";
 import { getPriceForQty, hasPriceTiers } from "@/lib/pricing";
+import { materialHasColorMatrix } from "@/lib/product-colors";
+import { sizeCellsSummary } from "@/lib/size-breakdown";
 import type { CartLine, ProductSource, SizeBreakdownEntry } from "@/lib/types";
 
 type BuilderLine = CartLine & { unitPriceOverride?: number };
@@ -82,6 +85,8 @@ function linesFromQuote(quote: ApiQuoteDetail): BuilderLine[] {
           sizeId: b.sizeId,
           qty: b.qty,
           surcharge: b.surcharge,
+          colorCode: b.colorCode,
+          colorLabel: b.colorLabel,
         }))
       : undefined,
     unitPriceOverride: it.priceOverridden ? it.unitPrice : undefined,
@@ -190,9 +195,15 @@ export function QuoteNewModal({ onClose, onSaved, editQuote }: Props) {
           return [
             {
               productId: line.id,
+              // El color identifica la celda: sin él, dos colores de la misma
+              // talla colapsan y el backend rechaza la línea.
               sizeBreakdown: line.sizeBreakdown
                 .filter((b) => b.qty > 0)
-                .map((b) => ({ sizeId: b.sizeId, qty: b.qty })),
+                .map((b) => ({
+                  sizeId: b.sizeId,
+                  qty: b.qty,
+                  ...(b.colorCode ? { colorCode: b.colorCode } : {}),
+                })),
               ...ov,
               ...design,
               ...note,
@@ -676,10 +687,7 @@ export function QuoteNewModal({ onClose, onSaved, editQuote }: Props) {
                       </div>
                       {line.sizeBreakdown && (
                         <div className="text-muted text-[10px] mt-0.5">
-                          {line.sizeBreakdown
-                            .filter((b) => b.qty > 0)
-                            .map((b) => `${b.sizeId}×${b.qty}`)
-                            .join(" · ")}
+                          {sizeCellsSummary(line.sizeBreakdown)}
                         </div>
                       )}
                     </div>
@@ -902,14 +910,31 @@ export function QuoteNewModal({ onClose, onSaved, editQuote }: Props) {
       {variantPicker &&
         (variantPicker.detail.variantType === "sized_from_material" &&
         variantPicker.material ? (
-          <PosSizeBreakdownPicker
-            product={variantPicker.detail}
-            material={variantPicker.material}
-            editLineId={variantPicker.editLineId}
-            editBreakdown={variantPicker.editBreakdown}
-            onClose={() => setVariantPicker(null)}
-            onAdd={addOrUpdateBreakdown}
-          />
+          // Mismo criterio que el POS: matriz talla×color sólo si el producto
+          // declara colores Y el insumo ya tiene variantes compuestas. Si aquí
+          // se usara siempre el desglose plano, editar una línea con colores
+          // colapsaría las celdas de la misma talla y los perdería en silencio.
+          variantPicker.detail.colors &&
+          variantPicker.detail.colors.length > 0 &&
+          materialHasColorMatrix(variantPicker.material.variants) ? (
+            <PosSizeColorMatrixPicker
+              product={variantPicker.detail}
+              material={variantPicker.material}
+              editLineId={variantPicker.editLineId}
+              editBreakdown={variantPicker.editBreakdown}
+              onClose={() => setVariantPicker(null)}
+              onAdd={addOrUpdateBreakdown}
+            />
+          ) : (
+            <PosSizeBreakdownPicker
+              product={variantPicker.detail}
+              material={variantPicker.material}
+              editLineId={variantPicker.editLineId}
+              editBreakdown={variantPicker.editBreakdown}
+              onClose={() => setVariantPicker(null)}
+              onAdd={addOrUpdateBreakdown}
+            />
+          )
         ) : (
           <PosVariantPicker
             product={variantPicker.detail}

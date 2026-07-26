@@ -45,6 +45,8 @@ function lineFromItem(it: ApiOrderItem): CartLine {
           qty: b.qty,
           surcharge: b.surcharge,
           sizeLabel: b.sizeLabel,
+          colorCode: b.colorCode,
+          colorLabel: b.colorLabel,
         }))
       : undefined,
   };
@@ -69,7 +71,13 @@ function toInput(line: CartLine): CheckoutLineInput {
       productId: line.id,
       sizeBreakdown: line.sizeBreakdown
         .filter((b) => b.qty > 0)
-        .map((b) => ({ sizeId: b.sizeId, qty: b.qty })),
+        // El color identifica la celda: sin él, dos colores de la misma talla
+        // colapsan y el backend rechaza la línea.
+        .map((b) => ({
+          sizeId: b.sizeId,
+          qty: b.qty,
+          ...(b.colorCode ? { colorCode: b.colorCode } : {}),
+        })),
       ...design,
       ...note,
     };

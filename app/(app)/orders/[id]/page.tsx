@@ -47,6 +47,7 @@ import type {
 import { usersApi } from "@/lib/api/users";
 import { useToast } from "@/lib/toast/toast-context";
 import { fmtDate, fmtDateLong, fmtMXN } from "@/lib/format";
+import { sizeCellsSummary } from "@/lib/size-breakdown";
 import {
   buildOrderReceiptWhatsappMessage,
   buildWaMeUrl,
@@ -836,9 +837,7 @@ export default function OrderDetailPage() {
                           )}
                           {j.sizeBreakdown && j.sizeBreakdown.length > 0 && (
                             <div className="text-muted text-[11px]">
-                              {j.sizeBreakdown
-                                .map((e) => `${e.sizeLabel ?? e.sizeId}×${e.qty}`)
-                                .join(" · ")}
+                              {sizeCellsSummary(j.sizeBreakdown)}
                             </div>
                           )}
                           {j.dimensionData && (

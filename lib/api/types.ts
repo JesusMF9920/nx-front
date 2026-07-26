@@ -424,6 +424,10 @@ export type ApiSizeBreakdownEntry = {
   surcharge: number;
   /** Etiqueta legible (p.ej. "Chica"), snapshot al vender; órdenes viejas no la traen. */
   sizeLabel?: string;
+  /** Código de color de la celda (talla×color); ausente si el producto no tiene color. */
+  colorCode?: string;
+  /** Etiqueta legible del color (p.ej. "Rojo"), snapshot al vender. */
+  colorLabel?: string;
 };
 
 export type ApiDimensionData = {
