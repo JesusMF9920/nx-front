@@ -529,7 +529,19 @@ export function NewProductForm({
               <button
                 type="button"
                 key={o.id}
-                onClick={() => setVariantType(o.id)}
+                onClick={() => {
+                  setVariantType(o.id);
+                  // "Por variante" sólo aplica a sized_from_material: si el
+                  // tipo deja de serlo, se limpia lo ya marcado — el backend
+                  // rechazaría la receta y el producto quedaría invendible.
+                  if (o.id !== "sized_from_material") {
+                    setRecipeRows((rows) =>
+                      rows.some((r) => r.byVariant)
+                        ? rows.map((r) => ({ ...r, byVariant: false }))
+                        : rows,
+                    );
+                  }
+                }}
                 className="text-left rounded-md py-2 px-2.5 cursor-pointer"
                 style={{
                   border:
@@ -790,7 +802,11 @@ export function NewProductForm({
             </button>
           </div>
           {showRecipe && (
-            <RecipeEditor rows={recipeRows} onChange={setRecipeRows} />
+            <RecipeEditor
+              rows={recipeRows}
+              onChange={setRecipeRows}
+              variantType={variantType}
+            />
           )}
         </div>
 
