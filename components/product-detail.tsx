@@ -1109,7 +1109,11 @@ function RecipeEditorModal({
       }
     >
       <form id="product-recipe-form" onSubmit={submit} className="grid gap-3">
-        <RecipeEditor rows={rows} onChange={setRows} />
+        <RecipeEditor
+          rows={rows}
+          onChange={setRows}
+          variantType={product.variantType}
+        />
         {error && (
           <div
             className="rounded-md text-xs"

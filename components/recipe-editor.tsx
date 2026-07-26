@@ -192,10 +192,18 @@ export function MaterialSearchPicker({
 export function RecipeEditor({
   rows,
   onChange,
+  variantType,
 }: {
   rows: RecipeRow[];
   onChange: (rows: RecipeRow[]) => void;
+  /** Tipo de variante del producto: "por variante" sólo aplica a uno. */
+  variantType?: string;
 }) {
+  // Descontar "por variante" desglosa el consumo por talla, y el único tipo que
+  // manda ese desglose al vender es sized_from_material. En cualquier otro el
+  // backend rechaza la receta (400) y el producto quedaría invendible, así que
+  // aquí ni se marca solo ni se deja marcar.
+  const allowsByVariant = variantType === "sized_from_material";
   const update = (index: number, patch: Partial<RecipeRow>) =>
     onChange(rows.map((r, i) => (i === index ? { ...r, ...patch } : r)));
   const remove = (index: number) =>
@@ -216,7 +224,7 @@ export function RecipeEditor({
               materialSku: m.sku,
               materialUnit: m.unit,
               qty: "1",
-              byVariant: m.variants.length > 0,
+              byVariant: allowsByVariant && m.variants.length > 0,
               note: "",
             },
           ])
@@ -284,10 +292,20 @@ export function RecipeEditor({
                 placeholder="1"
                 aria-label={`Cantidad de ${r.materialName}`}
               />
-              <label className="flex items-center justify-center">
+              <label
+                className="flex items-center justify-center"
+                title={
+                  allowsByVariant
+                    ? undefined
+                    : 'Sólo para productos "Por talla (desde insumo)"'
+                }
+              >
                 <input
                   type="checkbox"
                   checked={r.byVariant}
+                  // Si un producto viejo ya la trae marcada, se deja DESmarcar
+                  // (es justo el arreglo); lo que no se permite es marcarla.
+                  disabled={!allowsByVariant && !r.byVariant}
                   onChange={(e) => update(i, { byVariant: e.target.checked })}
                   aria-label={`Descontar ${r.materialName} por variante`}
                 />
