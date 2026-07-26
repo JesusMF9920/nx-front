@@ -18,6 +18,7 @@ import {
 } from "@/components/recipe-editor";
 import { ColorPalettePicker } from "@/components/color-palette-picker";
 import { catalogApi, type CreateProductInput } from "@/lib/api/catalog";
+import { materialHasColorMatrix } from "@/lib/product-colors";
 import { ApiError } from "@/lib/api/errors";
 import { useToast } from "@/lib/toast/toast-context";
 import { CLAVE_UNIDAD, OBJETO_IMPUESTO } from "@/lib/sat-catalogs";
@@ -528,7 +529,19 @@ export function NewProductForm({
               <button
                 type="button"
                 key={o.id}
-                onClick={() => setVariantType(o.id)}
+                onClick={() => {
+                  setVariantType(o.id);
+                  // "Por variante" sólo aplica a sized_from_material: si el
+                  // tipo deja de serlo, se limpia lo ya marcado — el backend
+                  // rechazaría la receta y el producto quedaría invendible.
+                  if (o.id !== "sized_from_material") {
+                    setRecipeRows((rows) =>
+                      rows.some((r) => r.byVariant)
+                        ? rows.map((r) => ({ ...r, byVariant: false }))
+                        : rows,
+                    );
+                  }
+                }}
                 className="text-left rounded-md py-2 px-2.5 cursor-pointer"
                 style={{
                   border:
@@ -666,7 +679,7 @@ export function NewProductForm({
               producto no maneja color.
             </div>
             {colors.length > 0 &&
-              !sizedMaterial.variants.some((v) => v.code.includes("|")) && (
+              !materialHasColorMatrix(sizedMaterial.variants) && (
                 <div
                   className="rounded-md text-xs flex gap-2 items-start mt-2"
                   style={{
@@ -789,7 +802,11 @@ export function NewProductForm({
             </button>
           </div>
           {showRecipe && (
-            <RecipeEditor rows={recipeRows} onChange={setRecipeRows} />
+            <RecipeEditor
+              rows={recipeRows}
+              onChange={setRecipeRows}
+              variantType={variantType}
+            />
           )}
         </div>
 

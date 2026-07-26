@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { usePermission } from "@/lib/auth/auth-context";
+import { materialHasColorMatrix } from "@/lib/product-colors";
 import { Avatar } from "@/components/avatar";
 import { I } from "@/components/icons";
 import { Modal } from "@/components/modal";
@@ -1116,7 +1117,7 @@ export default function POSPage() {
           // muestra el aviso de que falta configurar la matriz.
           variantPicker.detail.colors &&
           variantPicker.detail.colors.length > 0 &&
-          variantPicker.material.variants.some((v) => v.code.includes("|")) ? (
+          materialHasColorMatrix(variantPicker.material.variants) ? (
             <PosSizeColorMatrixPicker
               product={variantPicker.detail}
               material={variantPicker.material}

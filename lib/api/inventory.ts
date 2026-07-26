@@ -58,6 +58,8 @@ export type MaterialVariantInput = {
   code: string;
   label: string;
   sortOrder?: number;
+  /** Punto de reorden de la variante (0 = sin alerta). */
+  reorderPoint?: number;
 };
 
 export const inventoryApi = {
@@ -125,6 +127,28 @@ export const inventoryApi = {
       `/materials/${materialId}/stock-moves`,
       { method: "POST", body: JSON.stringify(input) },
     );
+  },
+
+  /** Captura en rejilla: varios movimientos del material aplicados atómicamente. */
+  recordStockMovesBulk(
+    materialId: string,
+    moves: Array<{
+      materialVariantId?: string | null;
+      type: "entry" | "exit" | "adjust";
+      qty: number;
+    }>,
+    note?: string,
+  ): Promise<{
+    moves: Array<{
+      id: string;
+      materialVariantId: string | null;
+      resultingStock: number;
+    }>;
+  }> {
+    return apiFetch(`/materials/${materialId}/stock-moves/bulk`, {
+      method: "POST",
+      body: JSON.stringify({ moves, ...(note ? { note } : {}) }),
+    });
   },
 
   listStockMoves(

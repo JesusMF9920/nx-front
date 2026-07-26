@@ -25,6 +25,10 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm lint
+      # `next build` (job de abajo) también type-checkea, pero sólo lo que entra
+      # al bundle: los *.test.ts quedan fuera. `tsc --noEmit` cubre todo el repo
+      # y falla aquí, antes de gastar el build.
+      - run: pnpm typecheck
       - run: pnpm test
 
   # ───────────────────────────────────────────────────────────────────────────

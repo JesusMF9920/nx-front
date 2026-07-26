@@ -9,7 +9,16 @@ import type {
   ApiQuoteDetail,
   ApiQuotePreview,
   ApiQuoteStatus,
+  ApiStockShortage,
+  ApiToPurchaseLine,
 } from "./types";
+
+/** Preview del faltante al convertir una cotización (GET convert-preview). */
+export type ConvertPreviewResult = {
+  toPurchase: ApiToPurchaseLine[];
+  shortages: ApiStockShortage[];
+  available: boolean;
+};
 
 /** Línea de cotización: como el checkout, más precio negociado opcional. */
 export type QuoteLineInput = CheckoutLineInput & {
@@ -142,5 +151,13 @@ export const quotesApi = {
       method: "POST",
       body: JSON.stringify(input),
     });
+  },
+
+  /**
+   * Anticipa el faltante de inventario al convertir (mismo consumo que el
+   * convert descuenta). Efecto-cero: no reserva ni escribe nada.
+   */
+  convertPreview(quoteId: string): Promise<ConvertPreviewResult> {
+    return apiFetch<ConvertPreviewResult>(`/quotes/${quoteId}/convert-preview`);
   },
 };
