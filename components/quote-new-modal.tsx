@@ -32,7 +32,11 @@ import { useToast } from "@/lib/toast/toast-context";
 import { effectiveQty, lineSubtotal } from "@/lib/pos-cart";
 import { getPriceForQty, hasPriceTiers } from "@/lib/pricing";
 import { materialHasColorMatrix } from "@/lib/product-colors";
-import { sizeCellsSummary } from "@/lib/size-breakdown";
+import {
+  isLegacyBreakdown,
+  sizeCellsSummary,
+  toApiSizeBreakdown,
+} from "@/lib/size-breakdown";
 import type { CartLine, ProductSource, SizeBreakdownEntry } from "@/lib/types";
 
 type BuilderLine = CartLine & { unitPriceOverride?: number };
@@ -195,15 +199,7 @@ export function QuoteNewModal({ onClose, onSaved, editQuote }: Props) {
           return [
             {
               productId: line.id,
-              // El color identifica la celda: sin él, dos colores de la misma
-              // talla colapsan y el backend rechaza la línea.
-              sizeBreakdown: line.sizeBreakdown
-                .filter((b) => b.qty > 0)
-                .map((b) => ({
-                  sizeId: b.sizeId,
-                  qty: b.qty,
-                  ...(b.colorCode ? { colorCode: b.colorCode } : {}),
-                })),
+              sizeBreakdown: toApiSizeBreakdown(line.sizeBreakdown),
               ...ov,
               ...design,
               ...note,
@@ -914,9 +910,16 @@ export function QuoteNewModal({ onClose, onSaved, editQuote }: Props) {
           // declara colores Y el insumo ya tiene variantes compuestas. Si aquí
           // se usara siempre el desglose plano, editar una línea con colores
           // colapsaría las celdas de la misma talla y los perdería en silencio.
+          //
+          // Con una salvedad que el POS no tiene: aquí el desglose a editar sale
+          // de una cotización GUARDADA, y las previas a la matriz no traen
+          // color. La matriz sólo rehidrata celdas con color, así que las
+          // abriría en cero y bastaría teclear una para borrar el resto del
+          // desglose. Esas se editan por talla plana, que sí las rehidrata.
           variantPicker.detail.colors &&
           variantPicker.detail.colors.length > 0 &&
-          materialHasColorMatrix(variantPicker.material.variants) ? (
+          materialHasColorMatrix(variantPicker.material.variants) &&
+          !isLegacyBreakdown(variantPicker.editBreakdown) ? (
             <PosSizeColorMatrixPicker
               product={variantPicker.detail}
               material={variantPicker.material}

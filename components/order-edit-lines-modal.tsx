@@ -11,6 +11,7 @@ import { useToast } from "@/lib/toast/toast-context";
 import type { ApiOrderDetail, ApiOrderItem } from "@/lib/api/types";
 import { fmtMXN } from "@/lib/format";
 import { cartTotals, lineSubtotal } from "@/lib/pos-cart";
+import { toApiSizeBreakdown } from "@/lib/size-breakdown";
 import type { CartLine } from "@/lib/types";
 
 type Props = {
@@ -69,15 +70,7 @@ function toInput(line: CartLine): CheckoutLineInput {
   if (line.sizeBreakdown) {
     return {
       productId: line.id,
-      sizeBreakdown: line.sizeBreakdown
-        .filter((b) => b.qty > 0)
-        // El color identifica la celda: sin él, dos colores de la misma talla
-        // colapsan y el backend rechaza la línea.
-        .map((b) => ({
-          sizeId: b.sizeId,
-          qty: b.qty,
-          ...(b.colorCode ? { colorCode: b.colorCode } : {}),
-        })),
+      sizeBreakdown: toApiSizeBreakdown(line.sizeBreakdown),
       ...design,
       ...note,
     };
